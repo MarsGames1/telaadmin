@@ -871,30 +871,53 @@ var todosOsProdutos=[],todosClientes=[],currentUser=null,currentEmail='';
 var favTab='produtos',favsProdutos=[],favsClientes=[];
 
 /* ══ AUTH ══ */
+
+/* URL limpa do admin — sem query params que possam confundir o redirect */
+var ADM_URL = window.location.origin + window.location.pathname;
+
 async function loginGoogle(){
-  var{error}=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:window.location.href}});
-  if(error)showToast('Erro ao conectar',true);
+  /* Limpa qualquer erro anterior da URL antes de tentar login */
+  if(window.location.hash.includes('error')){
+    history.replaceState(null,'',ADM_URL);
+  }
+  var{error}=await sb.auth.signInWithOAuth({
+    provider:'google',
+    options:{
+      redirectTo: ADM_URL,
+      queryParams:{ prompt:'select_account', access_type:'offline' }
+    }
+  });
+  if(error) showToast('Erro ao conectar: '+error.message, true);
 }
+
 async function logout(){
   if(currentEmail) await registrarPresenca(currentEmail,false);
+  _painelCarregado=false; currentEmail=''; currentUser=null;
   await sb.auth.signOut();
-  document.getElementById('app').style.display='none';
-  document.getElementById('login-screen').style.display='flex';
+  /* Limpa a URL de qualquer token/hash */
+  history.replaceState(null,'',ADM_URL);
+  showLogin();
 }
+
 var _painelCarregado=false;
 
 function entrarNoPainel(session){
   var email=session.user.email;
   if(!ADMINS.includes(email)){
-    sb.auth.signOut();showLogin();
-    alert('Acesso negado: '+email);return;
+    sb.auth.signOut();
+    history.replaceState(null,'',ADM_URL);
+    showLogin();
+    showToast('Acesso negado: '+email, true);
+    return;
   }
-  /* Evita recarregar tudo se já está no painel com o mesmo user */
+  /* Já está no painel com o mesmo usuário — não recarrega */
   if(_painelCarregado && currentEmail===email) return;
   _painelCarregado=true;
   currentEmail=email;
   currentUser=session.user;
-  var nome=session.user.user_metadata&&session.user.user_metadata.full_name||email.split('@')[0];
+  /* Limpa o hash da URL (remove #access_token=... ou #error=...) */
+  history.replaceState(null,'',ADM_URL);
+  var nome=(session.user.user_metadata&&session.user.user_metadata.full_name)||email.split('@')[0];
   var inits=nome.split(' ').map(function(w){return w[0]}).slice(0,2).join('').toUpperCase();
   document.getElementById('sbAvatar').textContent=inits;
   document.getElementById('sbUserName').textContent=nome.split(' ')[0];
@@ -906,21 +929,38 @@ function entrarNoPainel(session){
   carregarDashboard();
   carregarFavoritos();
 }
+
 function checkAuth(){
+  /* Verifica se a URL tem erro do Supabase (ex: acesso negado pelo banco) */
+  var hash=window.location.hash;
+  if(hash.includes('error')){
+    var msg=decodeURIComponent((hash.match(/error_description=([^&]+)/)||['','Erro desconhecido'])[1]).replace(/\+/g,' ');
+    history.replaceState(null,'',ADM_URL);
+    showLogin();
+    showToast('Erro de autenticação: '+msg, true);
+    return;
+  }
+
   sb.auth.onAuthStateChange(function(event, session){
     if(event==='INITIAL_SESSION'){
       if(session) entrarNoPainel(session); else showLogin();
     }
     if(event==='SIGNED_IN' && session){
-      _painelCarregado=false; /* nova sessão — recarregar */
+      _painelCarregado=false;
       entrarNoPainel(session);
     }
     if(event==='SIGNED_OUT'){
-      _painelCarregado=false; currentEmail=''; currentUser=null; showLogin();
+      _painelCarregado=false; currentEmail=''; currentUser=null;
+      history.replaceState(null,'',ADM_URL);
+      showLogin();
     }
   });
 }
-function showLogin(){document.getElementById('login-screen').style.display='flex';document.getElementById('app').style.display='none'}
+
+function showLogin(){
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('app').style.display='none';
+}
 
 /* ══ PRESENÇA REALTIME ══ */
 async function registrarPresenca(email,online){
