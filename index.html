@@ -1983,9 +1983,9 @@ async function carregarSorteios(){
       '<td>'+(s.vencedor_email?'<span style="color:var(--amber);font-weight:700">🏆 '+esc(s.vencedor_email.replace(/(.{3}).*(@.*)/,'$1***$2'))+'</span>':'<span style="color:var(--muted)">—</span>')+'</td>'+
       '<td>'+(s.ativo?'<span class="badge badge-green">Ativo</span>':'<span class="badge badge-gray">Encerrado</span>')+'</td>'+
       '<td><div class="td-actions">'+
-        (s.ativo?'<button class="btn btn-amber btn-sm" onclick="realizarSorteioById(''+s.id+'')">🏆 Sortear</button>'+
-        '<button class="btn btn-red btn-sm" onclick="pararSorteioById(''+s.id+'')">⏹ Parar</button>':'')+
-        '<button class="btn btn-outline btn-sm" onclick="excluirSorteio(''+s.id+'')">🗑</button>'+
+        (s.ativo?'<button class="btn btn-amber btn-sm" onclick="realizarSorteioById(\'' + s.id + '\')">🏆 Sortear</button>'+
+        '<button class="btn btn-red btn-sm" onclick="pararSorteioById(\'' + s.id + '\')">⏹ Parar</button>':'')+
+        '<button class="btn btn-outline btn-sm" onclick="excluirSorteio(\'' + s.id + '\')">🗑</button>'+
       '</div></td></tr>';
   }).join('');
 }
