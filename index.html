@@ -1071,36 +1071,91 @@ var todosOsProdutos=[],todosClientes=[],currentUser=null,currentEmail='';
 var favTab='produtos',favsProdutos=[],favsClientes=[];
 
 /* ══ AUTH ══ */
+var ADM_URL = window.location.origin + window.location.pathname;
+var _painelAberto = false;
+
 async function loginGoogle(){
-  var{error}=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:window.location.href}});
-  if(error)showToast('Erro ao conectar',true);
+  if(window.location.hash.includes('error')){
+    history.replaceState(null,'',ADM_URL);
+  }
+  var{error}=await sb.auth.signInWithOAuth({
+    provider:'google',
+    options:{
+      redirectTo: ADM_URL,
+      queryParams:{prompt:'select_account',access_type:'offline'}
+    }
+  });
+  if(error) showToast('Erro: '+error.message,true);
 }
+
 async function logout(){
   if(currentEmail) await registrarPresenca(currentEmail,false);
+  _painelAberto=false; currentEmail=''; currentUser=null;
   await sb.auth.signOut();
-  document.getElementById('app').style.display='none';
-  document.getElementById('login-screen').style.display='flex';
+  history.replaceState(null,'',ADM_URL);
+  showLogin();
 }
-async function checkAuth(){
-  var{data:{session}}=await sb.auth.getSession();
-  if(!session){showLogin();return}
+
+function entrarNoPainel(session){
   var email=session.user.email;
-  if(!ADMINS.includes(email)){await sb.auth.signOut();showLogin();alert('Acesso negado.');return}
+  if(!ADMINS.includes(email)){
+    sb.auth.signOut();
+    history.replaceState(null,'',ADM_URL);
+    showLogin();
+    showToast('Acesso negado: '+email,true);
+    return;
+  }
+  if(_painelAberto && currentEmail===email) return;
+  _painelAberto=true;
   currentEmail=email;
   currentUser=session.user;
-  var nome=session.user.user_metadata.full_name||email.split('@')[0];
+  history.replaceState(null,'',ADM_URL);
+  var meta=session.user.user_metadata||{};
+  var nome=meta.full_name||meta.name||email.split('@')[0];
   var inits=nome.split(' ').map(function(w){return w[0]}).slice(0,2).join('').toUpperCase();
   document.getElementById('sbAvatar').textContent=inits;
   document.getElementById('sbUserName').textContent=nome.split(' ')[0];
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').style.display='block';
-  await registrarPresenca(email,true);
-  await registrarLog(nome,email);
+  registrarPresenca(email,true);
+  registrarLog(nome,email);
   iniciarPresenca();
   carregarDashboard();
   carregarFavoritos();
 }
-function showLogin(){document.getElementById('login-screen').style.display='flex';document.getElementById('app').style.display='none'}
+
+function checkAuth(){
+  /* Trata erro do redirect OAuth na URL */
+  var hash=window.location.hash;
+  if(hash.includes('error')){
+    var msg=decodeURIComponent((hash.match(/error_description=([^&]+)/)||['','Erro de autenticação'])[1]).replace(/[+]/g,' ');
+    history.replaceState(null,'',ADM_URL);
+    showLogin();
+    setTimeout(function(){showToast(msg,true);},300);
+    return;
+  }
+
+  /* onAuthStateChange captura INITIAL_SESSION (carga) e SIGNED_IN (redirect OAuth) */
+  sb.auth.onAuthStateChange(function(event,session){
+    if(event==='INITIAL_SESSION'){
+      if(session) entrarNoPainel(session); else showLogin();
+    }
+    if(event==='SIGNED_IN'&&session){
+      _painelAberto=false;
+      entrarNoPainel(session);
+    }
+    if(event==='SIGNED_OUT'){
+      _painelAberto=false; currentEmail=''; currentUser=null;
+      history.replaceState(null,'',ADM_URL);
+      showLogin();
+    }
+  });
+}
+
+function showLogin(){
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('app').style.display='none';
+}
 
 /* ══ PRESENÇA REALTIME ══ */
 async function registrarPresenca(email,online){
