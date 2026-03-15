@@ -2095,12 +2095,14 @@ async function realizarSorteioById(id){
   await sb.from('sorteios_periodicos').update({ativo:false,vencedor_email:emailVenc,vencedor_nome:emailVenc}).eq('id',id);
   var{data:mp}=await sb.from('marspoints').select('*').eq('user_email',emailVenc).maybeSingle();
   var hist=(mp&&mp.historico)||[];
+  var BONUS_SORTEIO=100;
   hist.unshift({
     descricao:'🏆 SORTUDO — Ganhou o sorteio '+s.tipo+'! Prêmio: '+s.premio,
-    pontos:0,data:new Date().toISOString(),tipo:'sorteio',chave:chave,titulo_desbloqueado:'SORTUDO'
+    pontos:BONUS_SORTEIO,data:new Date().toISOString(),tipo:'sorteio',chave:chave,titulo_desbloqueado:'SORTUDO'
   });
-  if(mp){await sb.from('marspoints').update({historico:hist}).eq('user_email',emailVenc);}
-  else{await sb.from('marspoints').insert({user_email:emailVenc,pontos:0,historico:hist});}
+  var pontosAtuais=mp?mp.pontos||0:0;
+  if(mp){await sb.from('marspoints').update({pontos:pontosAtuais+BONUS_SORTEIO,historico:hist}).eq('user_email',emailVenc);}
+  else{await sb.from('marspoints').insert({user_email:emailVenc,pontos:BONUS_SORTEIO,historico:hist});}
   await sb.from('perfis').update({titulo_exibido:'SORTUDO'}).eq('email',emailVenc);
   await registrarHistorico('sorteio','realizou sorteio "'+s.titulo+'" — vencedor: '+emailVenc,null,{vencedor:emailVenc,premio:s.premio});
   showToast('🏆 VENCEDOR: '+emailVenc+'!');
