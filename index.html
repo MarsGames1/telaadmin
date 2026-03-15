@@ -2644,13 +2644,19 @@ async function carregarNotifs(){
   lista.innerHTML=data.map(function(n){
     var dt=new Date(n.created_at).toLocaleString('pt-BR');
     var cls=n.tipo==='erro_entrega'?'erro':!n.lida?'nao-lida':'';
-    return '<div class="notif-item '+cls+'" onclick="marcarLida(''+n.id+'',this)">'+
+    return '<div class="notif-item '+cls+'" data-notif-id="'+n.id+'">'+
       '<div class="notif-item-titulo">'+esc(n.titulo)+'</div>'+
       (n.mensagem?'<div class="notif-item-msg">'+esc(n.mensagem)+'</div>':'')+
       '<div class="notif-item-time">'+dt+'</div>'+
     '</div>';
   }).join('');
 }
+
+// Event delegation para notificações
+document.addEventListener('click', function(e){
+  var item = e.target.closest('[data-notif-id]');
+  if(item) marcarLida(item.dataset.notifId, item);
+});
 
 async function marcarLida(id, el){
   await sb.from('notificacoes_admin').update({lida:true}).eq('id',id);
