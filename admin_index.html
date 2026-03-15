@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MarsGames — Painel Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&family=Orbitron:wght@700;900&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#070709;--card:#0e0e12;--surface:#141418;--border:#1e1e26;--border2:#2a2a38;
+  --green:#00ff55;--green-glow:rgba(0,255,85,.18);--green-dim:rgba(0,255,85,.07);
+  --mars:#e8421a;--red:#ff4444;--amber:#ffb800;--blue:#3b82f6;
+  --text:#fff;--muted:#555;--dim:#1a1a22;--radius:12px;
+  --sidebar:240px;
+}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes scanLine{0%{transform:translateY(-100%)}100%{transform:translateY(3000%)}}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+html{scroll-behavior:smooth}
+body{background:var(--bg);font-family:'Montserrat',sans-serif;color:var(--text);min-height:100vh;overflow-x:hidden}
+
+/* ══ LOGIN ══ */
+#login-screen{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  min-height:100vh;padding:24px;
+  background:radial-gradient(ellipse at 50% 0%,rgba(232,66,26,.08) 0%,transparent 60%),var(--bg);
+}
+.login-card{
+  background:var(--card);border:1px solid var(--border);
+  border-top:2px solid var(--green);
+  border-radius:20px;padding:44px 40px;width:100%;max-width:420px;text-align:center;
+  box-shadow:0 24px 60px rgba(0,0,0,.6);
+  animation:fadeUp .5s ease both;
+}
+.login-logo{
+  font-family:'Orbitron',sans-serif;
+  font-size:26px;font-weight:900;letter-spacing:3px;text-transform:uppercase;margin-bottom:6px;
+}
+.login-logo span{color:var(--green)}
+.login-sub{font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:32px}
+.login-divider{
+  height:1px;background:var(--border);margin:24px 0;position:relative;
+}
+.login-divider::after{
+  content:'ACESSO RESTRITO';position:absolute;top:-8px;left:50%;transform:translateX(-50%);
+  background:var(--card);padding:0 12px;font-size:8px;font-weight:700;letter-spacing:2px;color:var(--muted);
+}
+.google-btn{
+  display:flex;align-items:center;justify-content:center;gap:12px;
+  width:100%;padding:14px;border-radius:10px;border:1px solid var(--border2);
+  background:var(--surface);color:#fff;font-family:'Montserrat',sans-serif;
+  font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;
+  cursor:pointer;transition:border-color .2s,box-shadow .2s,transform .15s;
+}
+.google-btn:hover{border-color:rgba(0,255,85,.4);box-shadow:0 0 20px var(--green-glow);transform:translateY(-1px)}
+.google-btn svg{width:18px;height:18px;flex-shrink:0}
+.login-warn{
+  margin-top:20px;background:rgba(232,66,26,.06);border:1px solid rgba(232,66,26,.2);
+  border-radius:8px;padding:10px 14px;font-size:10px;color:rgba(232,66,26,.8);
+  font-weight:600;letter-spacing:.4px;line-height:1.5;
+}
+
+/* ══ APP LAYOUT ══ */
+#app{display:none}
+.layout{display:flex;min-height:100vh}
+
+/* ══ SIDEBAR ══ */
+.sidebar{
+  width:var(--sidebar);flex-shrink:0;background:var(--card);
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+  position:fixed;top:0;left:0;bottom:0;
+  overflow-y:auto;z-index:100;
+}
+.sidebar::after{
+  content:'';position:absolute;top:0;right:0;bottom:0;width:1px;
+  background:linear-gradient(to bottom,transparent,rgba(0,255,85,.15) 30%,rgba(232,66,26,.1) 70%,transparent);
+}
+.sb-logo{padding:24px 20px 18px;border-bottom:1px solid var(--border)}
+.sb-logo-text{
+  font-family:'Orbitron',sans-serif;font-size:15px;font-weight:900;
+  letter-spacing:2px;text-transform:uppercase;color:#fff;
+}
+.sb-logo-text span{color:var(--green)}
+.sb-logo-badge{
+  font-size:8px;font-weight:700;letter-spacing:2px;text-transform:uppercase;
+  color:var(--muted);margin-top:4px;display:flex;align-items:center;gap:6px;
+}
+.sb-logo-badge::before{
+  content:'';width:6px;height:6px;border-radius:50%;
+  background:var(--green);box-shadow:0 0 6px var(--green);
+  animation:pulse 2s ease-in-out infinite;flex-shrink:0;
+}
+.sb-user{
+  padding:14px 20px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;
+}
+.sb-avatar{
+  width:34px;height:34px;border-radius:50%;
+  background:linear-gradient(135deg,rgba(0,255,85,.15),rgba(0,255,85,.05));
+  border:1px solid rgba(0,255,85,.3);
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:900;color:var(--green);flex-shrink:0;
+  font-family:'Orbitron',sans-serif;
+}
+.sb-user-info{min-width:0}
+.sb-user-name{font-size:11px;font-weight:700;color:#ccc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-user-role{font-size:8px;font-weight:700;letter-spacing:1px;color:var(--green);text-transform:uppercase}
+.sb-nav{flex:1;padding:10px 0}
+.sb-section{
+  font-size:8px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;
+  color:#2a2a38;padding:12px 20px 5px;
+}
+.sb-item{
+  display:flex;align-items:center;gap:10px;padding:10px 20px;
+  font-size:11px;font-weight:700;color:#444;cursor:pointer;
+  transition:color .15s,background .15s;letter-spacing:.3px;
+  border-left:2px solid transparent;position:relative;
+}
+.sb-item svg{width:16px;height:16px;flex-shrink:0;opacity:.5;transition:opacity .15s}
+.sb-item:hover{color:#aaa;background:rgba(255,255,255,.02)}
+.sb-item:hover svg{opacity:.8}
+.sb-item.active{color:var(--green);background:var(--green-dim);border-left-color:var(--green)}
+.sb-item.active svg{opacity:1}
+.sb-footer{padding:16px 20px;border-top:1px solid var(--border)}
+.sb-logout{
+  width:100%;padding:9px;border-radius:8px;border:1px solid var(--border2);
+  background:transparent;color:var(--muted);font-family:'Montserrat',sans-serif;
+  font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;
+  cursor:pointer;transition:border-color .2s,color .2s;display:flex;align-items:center;justify-content:center;gap:7px;
+}
+.sb-logout svg{width:13px;height:13px;opacity:.6}
+.sb-logout:hover{border-color:var(--red);color:var(--red)}
+
+/* ══ CONTEÚDO ══ */
+.content{
+  flex:1;min-width:0;
+  margin-left:var(--sidebar);
+  padding:28px 32px;
+  min-height:100vh;
+}
+.page{display:none;animation:fadeUp .3s ease both}
+.page.active{display:block}
+
+/* PAGE HEADER */
+.page-head{
+  display:flex;align-items:flex-start;justify-content:space-between;
+  margin-bottom:28px;flex-wrap:wrap;gap:14px;
+  padding-bottom:20px;border-bottom:1px solid var(--border);
+}
+.page-eyebrow{font-size:9px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.page-title{
+  font-family:'Orbitron',sans-serif;
+  font-size:20px;font-weight:900;text-transform:uppercase;letter-spacing:2px;color:#fff;
+}
+
+/* STATS GRID */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
+@media(max-width:1100px){.stats-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:480px){.stats-grid{grid-template-columns:1fr}}
+.stat-card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--radius);padding:20px;
+  position:relative;overflow:hidden;
+  transition:border-color .2s,box-shadow .2s;
+}
+.stat-card:hover{border-color:var(--border2);box-shadow:0 4px 20px rgba(0,0,0,.4)}
+.stat-card::before{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(255,255,255,.015),transparent);
+  pointer-events:none;
+}
+.stat-icon{
+  width:36px;height:36px;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;margin-bottom:14px;
+}
+.stat-icon svg{width:18px;height:18px}
+.stat-icon.green{background:rgba(0,255,85,.1);color:var(--green)}
+.stat-icon.mars{background:rgba(232,66,26,.1);color:var(--mars)}
+.stat-icon.amber{background:rgba(255,184,0,.1);color:var(--amber)}
+.stat-icon.blue{background:rgba(59,130,246,.1);color:var(--blue)}
+.stat-label{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.stat-value{font-family:'Orbitron',sans-serif;font-size:28px;font-weight:900;color:#fff;line-height:1;margin-bottom:4px}
+.stat-value.green{color:var(--green)}
+.stat-value.mars{color:var(--mars)}
+.stat-sub{font-size:10px;color:#2a2a38;font-weight:600}
+
+/* BOTÕES */
+.btn{
+  display:inline-flex;align-items:center;gap:7px;padding:10px 18px;
+  border-radius:8px;border:none;font-family:'Montserrat',sans-serif;
+  font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
+  cursor:pointer;transition:box-shadow .2s,transform .15s,opacity .15s;
+}
+.btn svg{width:14px;height:14px;flex-shrink:0}
+.btn-green{background:var(--green);color:#000}
+.btn-green:hover{box-shadow:0 0 16px var(--green-glow);transform:translateY(-1px)}
+.btn-outline{background:transparent;color:var(--muted);border:1px solid var(--border2)}
+.btn-outline:hover{border-color:#444;color:#aaa}
+.btn-red{background:rgba(255,68,68,.1);color:var(--red);border:1px solid rgba(255,68,68,.2)}
+.btn-red:hover{background:rgba(255,68,68,.18)}
+.btn-amber{background:rgba(255,184,0,.1);color:var(--amber);border:1px solid rgba(255,184,0,.2)}
+.btn-sm{padding:7px 12px;font-size:9px}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none!important;box-shadow:none!important}
+
+/* TABELA */
+.table-wrap{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--radius);overflow:hidden;margin-bottom:20px;
+}
+.table-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 20px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:10px;
+  background:var(--surface);
+}
+.table-title{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#888}
+.search-input{
+  background:var(--bg);border:1px solid var(--border);border-radius:8px;
+  padding:8px 12px;color:#fff;font-family:'Montserrat',sans-serif;font-size:11px;
+  outline:none;width:200px;transition:border-color .2s;
+}
+.search-input:focus{border-color:rgba(0,255,85,.3)}
+.search-input::placeholder{color:var(--muted)}
+table{width:100%;border-collapse:collapse}
+th{
+  padding:10px 16px;font-size:8px;font-weight:700;letter-spacing:2px;
+  text-transform:uppercase;color:var(--muted);text-align:left;
+  border-bottom:1px solid var(--border);background:rgba(0,0,0,.2);
+}
+td{padding:13px 16px;font-size:11px;font-weight:600;color:#ccc;border-bottom:1px solid var(--dim);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.012)}
+.td-actions{display:flex;align-items:center;gap:6px}
+
+/* BADGES */
+.badge{
+  display:inline-block;font-size:8px;font-weight:700;letter-spacing:1px;
+  text-transform:uppercase;padding:3px 9px;border-radius:99px;border:1px solid;
+}
+.badge-green {color:var(--green);background:rgba(0,255,85,.08);border-color:rgba(0,255,85,.25)}
+.badge-red   {color:var(--red);background:rgba(255,68,68,.08);border-color:rgba(255,68,68,.25)}
+.badge-amber {color:var(--amber);background:rgba(255,184,0,.08);border-color:rgba(255,184,0,.25)}
+.badge-blue  {color:var(--blue);background:rgba(59,130,246,.08);border-color:rgba(59,130,246,.25)}
+.badge-gray  {color:#555;background:rgba(255,255,255,.03);border-color:#2a2a38}
+
+/* MODAL */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.88);
+  display:none;align-items:center;justify-content:center;z-index:1000;padding:20px;
+}
+.modal-overlay.open{display:flex}
+.modal{
+  background:var(--card);border:1px solid var(--border);border-top:2px solid var(--green);
+  border-radius:16px;padding:28px;width:100%;max-width:520px;
+  animation:fadeUp .3s ease both;max-height:92vh;overflow-y:auto;
+}
+.modal-title{
+  font-family:'Orbitron',sans-serif;
+  font-size:13px;font-weight:900;text-transform:uppercase;letter-spacing:2px;margin-bottom:22px;
+  padding-bottom:16px;border-bottom:1px solid var(--border);
+}
+.form-row{margin-bottom:14px}
+.form-label{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:6px}
+.form-input,.form-select,.form-textarea{
+  width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;
+  padding:11px 13px;color:#fff;font-family:'Montserrat',sans-serif;font-size:12px;
+  outline:none;transition:border-color .2s;-webkit-appearance:none;
+}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:rgba(0,255,85,.35);box-shadow:0 0 0 3px rgba(0,255,85,.05)}
+.form-select option{background:#111}
+.form-textarea{resize:vertical;min-height:80px;line-height:1.6}
+.form-row-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.modal-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)}
+
+/* TOAST */
+#toast{
+  position:fixed;bottom:24px;right:24px;
+  background:var(--card);border:1px solid rgba(0,255,85,.3);color:var(--green);
+  padding:12px 20px;border-radius:8px;font-size:10px;font-weight:700;
+  letter-spacing:1px;text-transform:uppercase;pointer-events:none;
+  opacity:0;transition:opacity .25s,transform .25s;transform:translateY(8px);z-index:9999;
+}
+#toast.show{opacity:1;transform:translateY(0)}
+#toast.error{border-color:rgba(255,68,68,.3);color:var(--red)}
+
+/* LOADER */
+.loader-inline{
+  width:14px;height:14px;border:2px solid rgba(0,255,85,.15);
+  border-top-color:var(--green);border-radius:50%;
+  animation:spin .6s linear infinite;display:inline-block;vertical-align:middle;
+}
+.empty-state{
+  text-align:center;padding:48px 20px;color:var(--muted);
+  font-size:11px;font-weight:600;letter-spacing:.5px;
+}
+
+/* PRODUTO CELL */
+.prod-img-thumb{width:38px;height:38px;border-radius:7px;object-fit:cover;background:var(--dim);border:1px solid var(--border);flex-shrink:0}
+.prod-cell{display:flex;align-items:center;gap:11px}
+.prod-name-td{font-size:11px;font-weight:700;color:#fff}
+.prod-cat-td{font-size:9px;color:var(--muted);font-weight:600;margin-top:2px}
+
+/* TOGGLE */
+.toggle{position:relative;width:38px;height:21px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0;position:absolute}
+.toggle-track{position:absolute;inset:0;background:#1a1a22;border-radius:99px;cursor:pointer;transition:background .2s;border:1px solid var(--border)}
+.toggle input:checked+.toggle-track{background:rgba(0,255,85,.2);border-color:rgba(0,255,85,.4)}
+.toggle-thumb{position:absolute;top:3px;left:3px;width:13px;height:13px;background:#333;border-radius:50%;transition:transform .2s,background .2s;pointer-events:none}
+.toggle input:checked~.toggle-thumb{transform:translateX(17px);background:var(--green)}
+
+/* MOBILE */
+@media(max-width:768px){
+  :root{--sidebar:0px}
+  .sidebar{
+    width:100%;height:auto;position:relative;
+    flex-direction:row;flex-wrap:wrap;
+  }
+  .layout{flex-direction:column}
+  .content{margin-left:0;padding:20px 16px}
+  .sb-nav{display:flex;flex-wrap:wrap;padding:8px}
+  .sb-section{display:none}
+  .sb-item{padding:8px 12px;border-left:none;border-bottom:2px solid transparent;font-size:10px}
+  .sb-item.active{border-bottom-color:var(--green);border-left-color:transparent}
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:480px){
+  .stats-grid{grid-template-columns:1fr}
+  .form-row-2{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- ══ LOGIN ══ -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">Mars<span>Games</span></div>
+    <div class="login-sub">Painel Administrativo</div>
+    <div class="login-divider"></div>
+    <button class="google-btn" onclick="loginGoogle()">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+      </svg>
+      Entrar com Google
+    </button>
+    <div class="login-warn">Acesso permitido apenas para administradores autorizados da MarsGames.</div>
+  </div>
+</div>
+
+<!-- ══ APP ══ -->
+<div id="app">
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sb-logo">
+      <div class="sb-logo-text">Mars<span>Games</span></div>
+      <div class="sb-logo-badge">Painel Admin</div>
+    </div>
+    <div class="sb-user">
+      <div class="sb-avatar" id="sbAvatar">MG</div>
+      <div class="sb-user-info">
+        <div class="sb-user-name" id="sbUserName">Admin</div>
+        <div class="sb-user-role">Administrador</div>
+      </div>
+    </div>
+    <nav class="sb-nav">
+      <div class="sb-section">Geral</div>
+      <div class="sb-item active" onclick="showPage('dashboard',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Dashboard
+      </div>
+      <div class="sb-section">Loja</div>
+      <div class="sb-item" onclick="showPage('produtos',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+        Produtos
+      </div>
+      <div class="sb-item" onclick="showPage('pedidos',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+        Pedidos
+      </div>
+      <div class="sb-section">Comunidade</div>
+      <div class="sb-item" onclick="showPage('avaliacoes',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        Avaliações
+      </div>
+      <div class="sb-item" onclick="showPage('marspoints',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>
+        MarsPoints
+      </div>
+    </nav>
+    <div class="sb-footer">
+      <button class="sb-logout" onclick="logout()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Sair da conta
+      </button>
+    </div>
+  </aside>
+
+  <!-- CONTEÚDO -->
+  <main class="content">
+
+    <!-- ── DASHBOARD ── -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-head">
+        <div>
+          <div class="page-eyebrow">Visão geral</div>
+          <div class="page-title">Dashboard</div>
+        </div>
+        <div id="dash-date" style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:1px;align-self:center"></div>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon green">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+          </div>
+          <div class="stat-label">Produtos ativos</div>
+          <div class="stat-value green" id="stat-produtos">—</div>
+          <div class="stat-sub">no catálogo</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon mars">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+          </div>
+          <div class="stat-label">Pedidos totais</div>
+          <div class="stat-value mars" id="stat-pedidos">—</div>
+          <div class="stat-sub">desde o início</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon amber">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          </div>
+          <div class="stat-label">Avaliações</div>
+          <div class="stat-value" id="stat-aval">—</div>
+          <div class="stat-sub">publicadas</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon blue">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>
+          </div>
+          <div class="stat-label">Clientes com pontos</div>
+          <div class="stat-value green" id="stat-pts">—</div>
+          <div class="stat-sub">no programa</div>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <div class="table-head">
+          <div class="table-title">Pedidos recentes</div>
+          <button class="btn btn-outline btn-sm" onclick="showPage('pedidos',document.querySelector('.sb-item:nth-child(3)'))">Ver todos</button>
+        </div>
+        <table>
+          <thead><tr><th>Cliente</th><th>Produto</th><th>Valor</th><th>Status</th><th>Data</th></tr></thead>
+          <tbody id="dash-tbody"><tr><td colspan="5" class="empty-state"><span class="loader-inline"></span></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── PRODUTOS ── -->
+    <div class="page" id="page-produtos">
+      <div class="page-head">
+        <div>
+          <div class="page-eyebrow">Loja</div>
+          <div class="page-title">Produtos</div>
+        </div>
+        <button class="btn btn-green" onclick="openModal('produto')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Novo produto
+        </button>
+      </div>
+      <div class="table-wrap">
+        <div class="table-head">
+          <div class="table-title">Catálogo de jogos</div>
+          <input class="search-input" placeholder="Buscar produto..." oninput="filtrarProdutos(this.value)">
+        </div>
+        <table>
+          <thead><tr><th>Jogo</th><th>Categoria</th><th>Preço</th><th>Estoque</th><th>Ativo</th><th>Ações</th></tr></thead>
+          <tbody id="prod-tbody"><tr><td colspan="6" class="empty-state"><span class="loader-inline"></span></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── PEDIDOS ── -->
+    <div class="page" id="page-pedidos">
+      <div class="page-head">
+        <div>
+          <div class="page-eyebrow">Loja</div>
+          <div class="page-title">Pedidos</div>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <div class="table-head">
+          <div class="table-title">Todos os pedidos</div>
+          <input class="search-input" placeholder="Buscar por email...">
+        </div>
+        <table>
+          <thead><tr><th>ID</th><th>Cliente</th><th>Produto</th><th>Valor</th><th>Status</th><th>Data</th><th>Ações</th></tr></thead>
+          <tbody id="ped-tbody"><tr><td colspan="7" class="empty-state"><span class="loader-inline"></span></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── AVALIAÇÕES ── -->
+    <div class="page" id="page-avaliacoes">
+      <div class="page-head">
+        <div>
+          <div class="page-eyebrow">Comunidade</div>
+          <div class="page-title">Avaliações</div>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <div class="table-head">
+          <div class="table-title">Avaliações dos clientes</div>
+        </div>
+        <table>
+          <thead><tr><th>Cliente</th><th>Produto</th><th>Nota</th><th>Comentário</th><th>Status</th><th>Ações</th></tr></thead>
+          <tbody id="aval-tbody"><tr><td colspan="6" class="empty-state"><span class="loader-inline"></span></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── MARSPOINTS ── -->
+    <div class="page" id="page-marspoints">
+      <div class="page-head">
+        <div>
+          <div class="page-eyebrow">Comunidade</div>
+          <div class="page-title">MarsPoints</div>
+        </div>
+        <button class="btn btn-green" onclick="openModal('pontos')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Ajustar pontos
+        </button>
+      </div>
+      <div class="table-wrap">
+        <div class="table-head">
+          <div class="table-title">Clientes no programa</div>
+          <input class="search-input" placeholder="Buscar cliente...">
+        </div>
+        <table>
+          <thead><tr><th>Cliente</th><th>Pontos</th><th>Nível</th><th>Última atualização</th><th>Ações</th></tr></thead>
+          <tbody id="pts-tbody"><tr><td colspan="5" class="empty-state"><span class="loader-inline"></span></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+</div>
+</div>
+
+<!-- ══ MODAL PRODUTO ══ -->
+<div class="modal-overlay" id="modal-produto">
+  <div class="modal">
+    <div class="modal-title" id="modal-prod-title">Novo produto</div>
+    <input type="hidden" id="prod-id">
+    <div class="form-row">
+      <label class="form-label">Nome do jogo *</label>
+      <input class="form-input" id="prod-nome" placeholder="Ex: Elden Ring">
+    </div>
+    <div class="form-row-2">
+      <div>
+        <label class="form-label">Preço (R$) *</label>
+        <input class="form-input" id="prod-preco" type="number" step="0.01" placeholder="9.90">
+      </div>
+      <div>
+        <label class="form-label">Categoria *</label>
+        <select class="form-select" id="prod-cat">
+          <option value="">Selecione...</option>
+          <option>Ação / RPG</option>
+          <option>Luta / Tiros</option>
+          <option>Terror / Indie</option>
+          <option>Simulação / Sobrevivência</option>
+          <option>Esportes</option>
+          <option>Combos e Bundles</option>
+          <option>Steam Key / Outros</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <label class="form-label">URL da imagem</label>
+      <input class="form-input" id="prod-img" placeholder="https://...">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Descrição</label>
+      <textarea class="form-textarea" id="prod-desc" placeholder="Descrição do jogo..."></textarea>
+    </div>
+    <div class="form-row-2">
+      <div>
+        <label class="form-label">Estoque de keys</label>
+        <input class="form-input" id="prod-estoque" type="number" placeholder="0">
+      </div>
+      <div>
+        <label class="form-label">Plataforma</label>
+        <select class="form-select" id="prod-plat">
+          <option>Steam</option>
+          <option>PlayStation</option>
+          <option>Xbox</option>
+          <option>Nintendo</option>
+          <option>PC (outro)</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('produto')">Cancelar</button>
+      <button class="btn btn-green" id="btn-salvar-prod" onclick="salvarProduto()">Salvar produto</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL PONTOS ══ -->
+<div class="modal-overlay" id="modal-pontos">
+  <div class="modal">
+    <div class="modal-title">Ajustar pontos manualmente</div>
+    <div class="form-row">
+      <label class="form-label">Email do cliente *</label>
+      <input class="form-input" id="pts-email" placeholder="cliente@email.com">
+    </div>
+    <div class="form-row-2">
+      <div>
+        <label class="form-label">Pontos (use - para remover)</label>
+        <input class="form-input" id="pts-qtd" type="number" placeholder="Ex: 100 ou -50">
+      </div>
+      <div>
+        <label class="form-label">Motivo</label>
+        <input class="form-input" id="pts-motivo" placeholder="Ex: Bônus de boas-vindas">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('pontos')">Cancelar</button>
+      <button class="btn btn-green" onclick="ajustarPontos()">Aplicar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+var SUPABASE_URL='https://rzjtlghpsygxkivgwgws.supabase.co';
+var SUPABASE_KEY='sb_publishable_sDCnL56QQzg976Pt9if_GA_2mZn2Wzm';
+var ADMINS=['rone.mars15@gmail.com','marconde.jr@gmail.com'];
+var sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+var todosOsProdutos=[];
+
+/* ── AUTH ── */
+async function loginGoogle(){
+  var{error}=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:window.location.href}});
+  if(error)showToast('Erro ao conectar com Google',true);
+}
+async function logout(){
+  await sb.auth.signOut();
+  document.getElementById('app').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+  showToast('Sessão encerrada');
+}
+async function checkAuth(){
+  var{data:{session}}=await sb.auth.getSession();
+  if(!session){showLogin();return}
+  var email=session.user.email;
+  if(!ADMINS.includes(email)){await sb.auth.signOut();showLogin();alert('Acesso negado.');return}
+  var nome=session.user.user_metadata.full_name||email.split('@')[0];
+  var inits=nome.split(' ').map(function(w){return w[0]}).slice(0,2).join('').toUpperCase();
+  document.getElementById('sbAvatar').textContent=inits;
+  document.getElementById('sbUserName').textContent=nome.split(' ')[0];
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='block';
+  carregarDashboard();
+}
+function showLogin(){
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('app').style.display='none';
+}
+
+/* ── NAVEGAÇÃO ── */
+function showPage(id,el){
+  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active')});
+  document.querySelectorAll('.sb-item').forEach(function(n){n.classList.remove('active')});
+  document.getElementById('page-'+id).classList.add('active');
+  if(el)el.classList.add('active');
+  if(id==='dashboard') carregarDashboard();
+  if(id==='produtos')  carregarProdutos();
+  if(id==='pedidos')   carregarPedidos();
+  if(id==='avaliacoes')carregarAvaliacoes();
+  if(id==='marspoints')carregarMarsPoints();
+}
+
+/* ── DASHBOARD ── */
+async function carregarDashboard(){
+  document.getElementById('dash-date').textContent=new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'});
+  var[prods,peds,avals,pts]=await Promise.all([
+    sb.from('produtos').select('id',{count:'exact'}).eq('ativo',true),
+    sb.from('pedidos').select('id',{count:'exact'}),
+    sb.from('avaliacoes').select('id',{count:'exact'}).eq('aprovado',true),
+    sb.from('marspoints').select('id',{count:'exact'})
+  ]);
+  document.getElementById('stat-produtos').textContent=prods.count??0;
+  document.getElementById('stat-pedidos').textContent=peds.count??0;
+  document.getElementById('stat-aval').textContent=avals.count??0;
+  document.getElementById('stat-pts').textContent=pts.count??0;
+  var{data:rec}=await sb.from('pedidos').select('*').order('created_at',{ascending:false}).limit(5);
+  var tbody=document.getElementById('dash-tbody');
+  if(!rec||rec.length===0){tbody.innerHTML='<tr><td colspan="5" class="empty-state">Nenhum pedido ainda.</td></tr>';return}
+  tbody.innerHTML=rec.map(function(p){
+    return '<tr><td>'+esc(p.cliente_email||'—')+'</td><td>'+esc(p.produto_nome||'—')+'</td>'+
+      '<td style="color:var(--green);font-weight:900">R$ '+Number(p.valor||0).toFixed(2).replace('.',',')+'</td>'+
+      '<td>'+badgeStatus(p.status)+'</td><td>'+fmtDate(p.created_at)+'</td></tr>';
+  }).join('');
+}
+
+/* ── PRODUTOS ── */
+async function carregarProdutos(){
+  var tbody=document.getElementById('prod-tbody');
+  tbody.innerHTML='<tr><td colspan="6" class="empty-state"><span class="loader-inline"></span></td></tr>';
+  var{data}=await sb.from('produtos').select('*').order('created_at',{ascending:false});
+  todosOsProdutos=data||[];
+  renderProdutos(todosOsProdutos);
+}
+function renderProdutos(lista){
+  var tbody=document.getElementById('prod-tbody');
+  if(!lista||lista.length===0){tbody.innerHTML='<tr><td colspan="6" class="empty-state">Nenhum produto cadastrado.</td></tr>';return}
+  tbody.innerHTML=lista.map(function(p){
+    return '<tr>'+
+      '<td><div class="prod-cell">'+
+        (p.imagem?'<img class="prod-img-thumb" src="'+esc(p.imagem)+'" onerror="this.style.display=\'none\'">':'<div class="prod-img-thumb"></div>')+
+        '<div><div class="prod-name-td">'+esc(p.nome)+'</div><div class="prod-cat-td">'+esc(p.plataforma||'Steam')+'</div></div>'+
+      '</div></td>'+
+      '<td><span class="badge badge-gray">'+esc(p.categoria||'—')+'</span></td>'+
+      '<td style="color:var(--green);font-weight:900">R$ '+Number(p.preco||0).toFixed(2).replace('.',',')+'</td>'+
+      '<td>'+(p.estoque>0?'<span style="color:#fff">'+p.estoque+' keys</span>':'<span style="color:var(--red)">Sem estoque</span>')+'</td>'+
+      '<td>'+mkToggle(p)+'</td>'+
+      '<td><div class="td-actions">'+
+        '<button class="btn btn-outline btn-sm" onclick="editarProduto('+JSON.stringify(p).replace(/"/g,'&quot;')+')">Editar</button>'+
+        '<button class="btn btn-red btn-sm" onclick="excluirProduto(\''+p.id+'\')">Excluir</button>'+
+      '</div></td></tr>';
+  }).join('');
+}
+function filtrarProdutos(q){
+  renderProdutos(todosOsProdutos.filter(function(p){
+    return(p.nome||'').toLowerCase().includes(q.toLowerCase())||(p.categoria||'').toLowerCase().includes(q.toLowerCase());
+  }));
+}
+function mkToggle(p){
+  return '<label class="toggle"><input type="checkbox"'+(p.ativo?' checked':'')+' onchange="toggleProd(\''+p.id+'\',this.checked)">'+
+    '<div class="toggle-track"></div><div class="toggle-thumb"></div></label>';
+}
+async function toggleProd(id,ativo){
+  await sb.from('produtos').update({ativo}).eq('id',id);
+  showToast(ativo?'Produto ativado':'Produto desativado');
+}
+async function salvarProduto(){
+  var id=document.getElementById('prod-id').value;
+  var nome=document.getElementById('prod-nome').value.trim();
+  var preco=parseFloat(document.getElementById('prod-preco').value);
+  var cat=document.getElementById('prod-cat').value;
+  var img=document.getElementById('prod-img').value.trim();
+  var desc=document.getElementById('prod-desc').value.trim();
+  var est=parseInt(document.getElementById('prod-estoque').value)||0;
+  var plat=document.getElementById('prod-plat').value;
+  if(!nome||!preco||!cat){showToast('Preencha os campos obrigatórios',true);return}
+  var btn=document.getElementById('btn-salvar-prod');
+  btn.disabled=true;btn.textContent='Salvando...';
+  var dados={nome,preco,categoria:cat,imagem:img,descricao:desc,estoque:est,plataforma:plat,ativo:true};
+  var res=id?await sb.from('produtos').update(dados).eq('id',id):await sb.from('produtos').insert(dados);
+  btn.disabled=false;btn.textContent='Salvar produto';
+  if(res.error){showToast('Erro: '+res.error.message,true);return}
+  showToast(id?'Produto atualizado!':'Produto cadastrado!');
+  closeModal('produto');carregarProdutos();
+}
+function editarProduto(p){
+  document.getElementById('modal-prod-title').textContent='Editar produto';
+  document.getElementById('prod-id').value=p.id;
+  document.getElementById('prod-nome').value=p.nome||'';
+  document.getElementById('prod-preco').value=p.preco||'';
+  document.getElementById('prod-cat').value=p.categoria||'';
+  document.getElementById('prod-img').value=p.imagem||'';
+  document.getElementById('prod-desc').value=p.descricao||'';
+  document.getElementById('prod-estoque').value=p.estoque||0;
+  document.getElementById('prod-plat').value=p.plataforma||'Steam';
+  openModal('produto');
+}
+async function excluirProduto(id){
+  if(!confirm('Excluir este produto? Esta ação não pode ser desfeita.'))return;
+  await sb.from('produtos').delete().eq('id',id);
+  showToast('Produto excluído');carregarProdutos();
+}
+
+/* ── PEDIDOS ── */
+async function carregarPedidos(){
+  var tbody=document.getElementById('ped-tbody');
+  tbody.innerHTML='<tr><td colspan="7" class="empty-state"><span class="loader-inline"></span></td></tr>';
+  var{data}=await sb.from('pedidos').select('*').order('created_at',{ascending:false});
+  if(!data||data.length===0){tbody.innerHTML='<tr><td colspan="7" class="empty-state">Nenhum pedido ainda.</td></tr>';return}
+  tbody.innerHTML=data.map(function(p){
+    return '<tr>'+
+      '<td style="font-family:monospace;font-size:10px;color:var(--muted)">#'+String(p.id).slice(0,8)+'</td>'+
+      '<td>'+esc(p.cliente_email||'—')+'</td>'+
+      '<td>'+esc(p.produto_nome||'—')+'</td>'+
+      '<td style="color:var(--green);font-weight:900">R$ '+Number(p.valor||0).toFixed(2).replace('.',',')+'</td>'+
+      '<td>'+badgeStatus(p.status)+'</td>'+
+      '<td>'+fmtDate(p.created_at)+'</td>'+
+      '<td><button class="btn btn-outline btn-sm" onclick="verKey(\''+p.id+'\')">Ver key</button></td></tr>';
+  }).join('');
+}
+async function verKey(id){
+  var{data}=await sb.from('pedidos').select('*').eq('id',id).single();
+  if(!data)return;
+  alert('Key: '+(data.key_entregue||'Não disponível')+'\nCliente: '+data.cliente_email);
+}
+
+/* ── AVALIAÇÕES ── */
+async function carregarAvaliacoes(){
+  var tbody=document.getElementById('aval-tbody');
+  tbody.innerHTML='<tr><td colspan="6" class="empty-state"><span class="loader-inline"></span></td></tr>';
+  var{data}=await sb.from('avaliacoes').select('*').order('created_at',{ascending:false});
+  if(!data||data.length===0){tbody.innerHTML='<tr><td colspan="6" class="empty-state">Nenhuma avaliação ainda.</td></tr>';return}
+  tbody.innerHTML=data.map(function(a){
+    return '<tr>'+
+      '<td style="font-weight:700;color:#fff">'+esc(a.nome||'—')+'</td>'+
+      '<td>'+esc(a.produto||'—')+'</td>'+
+      '<td style="color:#FFD700">'+esc(a.estrelas||'')+'</td>'+
+      '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(a.comentario||'')+'</td>'+
+      '<td>'+(a.aprovado?'<span class="badge badge-green">Aprovada</span>':'<span class="badge badge-amber">Pendente</span>')+'</td>'+
+      '<td><div class="td-actions">'+
+        (!a.aprovado?'<button class="btn btn-green btn-sm" onclick="aprovarAval(\''+a.id+'\')">Aprovar</button>':'')+
+        '<button class="btn btn-red btn-sm" onclick="excluirAval(\''+a.id+'\')">Remover</button>'+
+      '</div></td></tr>';
+  }).join('');
+}
+async function aprovarAval(id){await sb.from('avaliacoes').update({aprovado:true}).eq('id',id);showToast('Avaliação aprovada!');carregarAvaliacoes()}
+async function excluirAval(id){if(!confirm('Remover esta avaliação?'))return;await sb.from('avaliacoes').delete().eq('id',id);showToast('Removida');carregarAvaliacoes()}
+
+/* ── MARSPOINTS ── */
+async function carregarMarsPoints(){
+  var tbody=document.getElementById('pts-tbody');
+  tbody.innerHTML='<tr><td colspan="5" class="empty-state"><span class="loader-inline"></span></td></tr>';
+  var{data}=await sb.from('marspoints').select('*').order('pontos',{ascending:false});
+  if(!data||data.length===0){tbody.innerHTML='<tr><td colspan="5" class="empty-state">Nenhum cliente no programa ainda.</td></tr>';return}
+  function nivel(v){
+    if(v>=6000)return{l:'Diamante',cls:'badge-blue'};
+    if(v>=3000)return{l:'Esmeralda',cls:'badge-green'};
+    if(v>=1500)return{l:'Ouro',cls:'badge-amber'};
+    if(v>=500) return{l:'Prata',cls:'badge-gray'};
+    return{l:'Bronze',cls:'badge-gray'};
+  }
+  tbody.innerHTML=data.map(function(c){
+    var nv=nivel(c.pontos||0);
+    return '<tr>'+
+      '<td style="font-weight:700;color:#fff">'+esc(c.user_email||c.userId||'—')+'</td>'+
+      '<td style="color:var(--green);font-weight:900">'+(c.pontos||0).toLocaleString('pt-BR')+' pts</td>'+
+      '<td><span class="badge '+nv.cls+'">'+nv.l+'</span></td>'+
+      '<td>'+fmtDate(c.updated_at)+'</td>'+
+      '<td><button class="btn btn-outline btn-sm" onclick="abrirPontos(\''+esc(c.user_email||'')+'\')">Ajustar</button></td></tr>';
+  }).join('');
+}
+function abrirPontos(email){document.getElementById('pts-email').value=email;openModal('pontos')}
+async function ajustarPontos(){
+  var email=document.getElementById('pts-email').value.trim();
+  var qtd=parseInt(document.getElementById('pts-qtd').value);
+  var motivo=document.getElementById('pts-motivo').value.trim()||'Ajuste manual admin';
+  if(!email||isNaN(qtd)){showToast('Preencha email e quantidade',true);return}
+  var{data:atual}=await sb.from('marspoints').select('*').eq('user_email',email).single();
+  if(atual){
+    var novo=Math.max(0,(atual.pontos||0)+qtd);
+    var hist=[{descricao:motivo,pontos:qtd,data:new Date()},...(atual.historico||[])].slice(0,20);
+    await sb.from('marspoints').update({pontos:novo,historico:hist}).eq('user_email',email);
+  }else{
+    await sb.from('marspoints').insert({user_email:email,pontos:Math.max(0,qtd),historico:[{descricao:motivo,pontos:qtd,data:new Date()}]});
+  }
+  showToast('Pontos atualizados!');closeModal('pontos');carregarMarsPoints();
+}
+
+/* ── MODAL ── */
+function openModal(id){
+  if(id==='produto'){
+    document.getElementById('modal-prod-title').textContent='Novo produto';
+    document.getElementById('prod-id').value='';
+    ['prod-nome','prod-preco','prod-img','prod-desc','prod-estoque'].forEach(function(f){document.getElementById(f).value=''});
+    document.getElementById('prod-cat').value='';
+    document.getElementById('prod-plat').value='Steam';
+  }
+  document.getElementById('modal-'+id).classList.add('open');
+}
+function closeModal(id){document.getElementById('modal-'+id).classList.remove('open')}
+document.querySelectorAll('.modal-overlay').forEach(function(el){
+  el.addEventListener('click',function(e){if(e.target===el)el.classList.remove('open')});
+});
+
+/* ── HELPERS ── */
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function fmtDate(d){if(!d)return '—';return new Date(d).toLocaleDateString('pt-BR')}
+function badgeStatus(s){
+  var map={pago:'badge-green',pendente:'badge-amber',cancelado:'badge-red',entregue:'badge-green'};
+  return '<span class="badge '+(map[s]||'badge-gray')+'">'+(s||'—')+'</span>';
+}
+function showToast(msg,erro){
+  var t=document.getElementById('toast');
+  t.textContent=msg;t.className='show'+(erro?' error':'');
+  clearTimeout(t._t);t._t=setTimeout(function(){t.className=''},3000);
+}
+
+checkAuth();
+</script>
+</body>
+</html>
