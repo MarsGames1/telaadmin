@@ -33,6 +33,31 @@
 @keyframes presencePulse{0%,100%{box-shadow:0 0 0 0 rgba(0,255,85,.4)}70%{box-shadow:0 0 0 6px rgba(0,255,85,0)}}
 @media(prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 html{scroll-behavior:smooth}
+/* Notificações */
+.notif-painel{position:fixed;top:0;right:-340px;width:320px;height:100vh;
+  background:var(--surface);border-left:1px solid var(--border);
+  z-index:500;transition:right .3s cubic-bezier(.4,0,.2,1);
+  display:flex;flex-direction:column;box-shadow:-8px 0 32px rgba(0,0,0,.5)}
+.notif-painel.open{right:0}
+.notif-header{padding:20px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between}
+.notif-titulo{font-family:'Orbitron',sans-serif;font-size:13px;font-weight:900;color:#fff}
+.notif-fechar{background:none;border:none;color:var(--muted);cursor:pointer;
+  font-size:18px;padding:4px;border-radius:4px;transition:color .15s}
+.notif-fechar:hover{color:#fff}
+.notif-lista{flex:1;overflow-y:auto;padding:12px}
+.notif-item{padding:14px;border-radius:10px;margin-bottom:8px;
+  background:var(--card);border:1px solid var(--border);
+  cursor:pointer;transition:border-color .15s}
+.notif-item:hover{border-color:var(--border2)}
+.notif-item.nao-lida{border-left:3px solid var(--mars)}
+.notif-item.erro{border-left:3px solid var(--amber)}
+.notif-item-titulo{font-size:12px;font-weight:700;color:#fff;margin-bottom:4px}
+.notif-item-msg{font-size:10px;color:var(--muted);line-height:1.5}
+.notif-item-time{font-size:9px;color:#444;margin-top:6px}
+.notif-vazia{text-align:center;padding:40px 20px;color:var(--muted);font-size:11px}
+.notif-overlay{display:none;position:fixed;inset:0;z-index:499}
+.notif-overlay.open{display:block}
 body{background:var(--bg);font-family:'Montserrat',sans-serif;color:var(--text);min-height:100vh;overflow-x:hidden}
 
 /* ══ LOGIN ══ */
@@ -339,6 +364,15 @@ tr:hover td{background:rgba(255,255,255,.012)}
   <div class="sb-logo">
     <div class="sb-logo-text">Mars<span>Games</span></div>
     <div class="sb-logo-badge">Admin Panel v2</div>
+    <div style="margin-top:12px;cursor:pointer;position:relative;display:inline-flex;align-items:center;gap:8px"
+         onclick="toggleNotifs()">
+      <div style="width:32px;height:32px;border-radius:8px;background:rgba(255,255,255,.04);
+                  border:1px solid var(--border);display:flex;align-items:center;
+                  justify-content:center;font-size:14px">🔔</div>
+      <span id="notifBadge" style="display:none;background:var(--mars);color:#fff;
+            font-size:8px;font-weight:900;padding:2px 5px;border-radius:99px">0</span>
+      <span style="font-size:10px;color:var(--muted);font-weight:600">Notificações</span>
+    </div>
   </div>
 
   <!-- PRESENÇA -->
@@ -385,6 +419,11 @@ tr:hover td{background:rgba(255,255,255,.012)}
     <div class="sb-item" onclick="showPage('produtos',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
       Produtos
+    </div>
+    <div class="sb-item" onclick="showPage('estoque',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      Estoque
+      <span class="sb-badge" id="estoque-badge" style="display:none;background:rgba(255,183,0,.15);color:var(--amber);border-color:rgba(255,183,0,.3)">!</span>
     </div>
     <div class="sb-item" onclick="showPage('pedidos',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
@@ -610,6 +649,73 @@ tr:hover td{background:rgba(255,255,255,.012)}
       </div>
       <table><thead><tr><th>ID</th><th>Cliente</th><th>Produto</th><th>Valor</th><th>Status</th><th>Data</th><th>Ações</th></tr></thead>
       <tbody id="ped-tbody"><tr><td colspan="7" class="empty-state"><span class="loader-inline"></span></td></tr></tbody></table>
+    </div>
+  </div>
+
+  <!-- ══ ESTOQUE DE CHAVES ══ -->
+  <div class="page" id="page-estoque">
+    <div class="page-head">
+      <div>
+        <div class="page-eyebrow">Loja</div>
+        <div class="page-title">🗝️ Estoque de Chaves</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-outline" onclick="abrirImportCSV()">📥 Importar CSV</button>
+        <button class="btn btn-green" onclick="abrirAdicionarChave()">+ Adicionar chave</button>
+      </div>
+    </div>
+
+    <!-- Stats de estoque -->
+    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px">
+      <div class="stat-card">
+        <div class="stat-label">Disponíveis</div>
+        <div class="stat-value green" id="est-stat-disp">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Entregues</div>
+        <div class="stat-value" id="est-stat-entregues">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Sem estoque</div>
+        <div class="stat-value amber" id="est-stat-zerados">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total de chaves</div>
+        <div class="stat-value" id="est-stat-total">0</div>
+      </div>
+    </div>
+
+    <!-- Filtros -->
+    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+      <input class="t-search" placeholder="Buscar produto..." oninput="filtrarEstoque(this.value)"
+             style="flex:1;min-width:200px">
+      <select id="est-filtro-status" onchange="filtrarEstoque(document.querySelector('.t-search').value)"
+              style="padding:8px 12px;border-radius:8px;border:1px solid var(--border2);
+                     background:var(--surface);color:#ccc;font-size:11px;font-weight:700">
+        <option value="">Todos os status</option>
+        <option value="disponivel">Disponíveis</option>
+        <option value="entregue">Entregues</option>
+        <option value="reservada">Reservadas</option>
+      </select>
+    </div>
+
+    <!-- Alerta estoque baixo -->
+    <div id="est-alerta" style="display:none;padding:12px 16px;border-radius:10px;
+         background:rgba(255,183,0,.08);border:1px solid rgba(255,183,0,.2);
+         margin-bottom:16px;font-size:11px;font-weight:700;color:var(--amber)">
+      ⚠️ Produtos com estoque zerado: <span id="est-alerta-lista"></span>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Produto</th><th>Tipo</th><th>Conteúdo</th>
+          <th>Status</th><th>Entregue em</th><th>Ações</th>
+        </tr></thead>
+        <tbody id="est-tbody">
+          <tr><td colspan="6" class="empty-state"><span class="loader-inline"></span></td></tr>
+        </tbody>
+      </table>
     </div>
   </div>
 
@@ -891,26 +997,42 @@ tr:hover td{background:rgba(255,255,255,.012)}
     <div class="form-row"><label class="form-label">URL da imagem</label><input class="form-input" id="prod-img" placeholder="https://..."></div>
     <div class="form-row"><label class="form-label">Descrição</label><textarea class="form-textarea" id="prod-desc" placeholder="Descrição do jogo..."></textarea></div>
     <div class="form-row-2">
-      <div><label class="form-label">Estoque de keys</label><input class="form-input" id="prod-estoque" type="number" placeholder="0"></div>
+      <div><label class="form-label">Preço original (R$)</label><input class="form-input" id="prod-preco-orig" type="number" step="0.01" placeholder="299.90"></div>
       <div><label class="form-label">Plataforma</label>
         <select class="form-select" id="prod-plat">
-          <option>Steam</option><option>PlayStation</option><option>Xbox</option><option>Nintendo</option><option>PC (outro)</option>
+          <option value="Steam Offline">Steam Offline</option>
+          <option value="Steam Original">Steam Original</option>
+          <option value="PlayStation">PlayStation</option>
+          <option value="Xbox">Xbox</option>
+          <option value="Nintendo">Nintendo</option>
         </select>
       </div>
+    </div>
+    <!-- Tipo de key -->
+    <div class="form-row">
+      <label class="form-label">Tipo de credencial</label>
+      <select class="form-select" id="prod-tipo-key" onchange="atualizarPlaceholderKey()">
+        <option value="login_senha">Login + Senha (conta Steam)</option>
+        <option value="key">Chave de ativação (XXXXX-XXXXX-XXXXX)</option>
+      </select>
     </div>
     <!-- Keys / Credenciais -->
     <div class="form-row" style="margin-top:4px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-        <label class="form-label" style="margin:0">🔑 Keys / Credenciais <span style="color:var(--muted);font-weight:600;font-size:9px">(uma por linha — entregues automaticamente após pagamento)</span></label>
+        <label class="form-label" style="margin:0">🔑 Adicionar keys ao estoque <span style="color:var(--muted);font-weight:600;font-size:9px">(uma por linha)</span></label>
         <span id="keys-counter" style="font-size:10px;font-weight:700;color:var(--green)">0 keys</span>
       </div>
       <textarea class="form-textarea" id="prod-keys"
-        placeholder="XXXX-YYYY-ZZZZ&#10;AAAA-BBBB-CCCC&#10;usuario:senha (para contas)&#10;https://link-de-entrega.com"
+        placeholder="email@conta.com|senha123&#10;email2@conta.com|senha456"
         style="min-height:110px;font-family:monospace;font-size:11px;letter-spacing:.5px"
         oninput="contarKeys()"></textarea>
-      <div style="margin-top:6px;padding:8px 12px;background:rgba(0,255,85,.04);border:1px solid rgba(0,255,85,.12);border-radius:8px;font-size:10px;color:var(--muted);line-height:1.6">
-        ⚡ Cada linha = 1 entrega. Quando um pedido é marcado como <strong style="color:var(--green)">pago</strong>, a próxima key disponível é entregue ao cliente automaticamente.<br>
-        Keys já entregues ficam marcadas e não são reaproveitadas.
+      <div id="est-prod-info" style="margin-top:6px;padding:8px 12px;background:rgba(0,255,85,.04);border:1px solid rgba(0,255,85,.12);border-radius:8px;font-size:10px;color:var(--muted);line-height:1.6">
+        ⚡ <strong style="color:var(--green)">Login+Senha:</strong> formato <code>email|senha</code> (uma conta por linha)<br>
+        ⚡ <strong style="color:var(--amber)">Chave:</strong> XXXXX-XXXXX-XXXXX (uma chave por linha)<br>
+        As keys ficam no estoque e são entregues automaticamente após o pagamento.
+      </div>
+      <div id="est-prod-atual" style="display:none;margin-top:8px;padding:8px 12px;background:rgba(255,183,0,.05);border:1px solid rgba(255,183,0,.15);border-radius:8px;font-size:10px;color:var(--amber)">
+        📦 Estoque atual: <strong id="est-prod-count">0</strong> keys disponíveis
       </div>
     </div>
     <div class="modal-footer">
@@ -1190,6 +1312,8 @@ var ADM_URL = window.location.origin + window.location.pathname;
 var _painelAberto = false;
 
 async function loginGoogle(){
+  var btn=document.querySelector('.google-btn');
+  if(btn){btn.disabled=true;btn.textContent='Conectando...';}
   if(window.location.hash.includes('error')){
     history.replaceState(null,'',ADM_URL);
   }
@@ -1200,7 +1324,10 @@ async function loginGoogle(){
       queryParams:{prompt:'select_account',access_type:'offline'}
     }
   });
-  if(error) showToast('Erro: '+error.message,true);
+  if(error){
+    showToast('Erro: '+error.message,true);
+    if(btn){btn.disabled=false;btn.textContent='Entrar com Google';}
+  }
 }
 
 async function logout(){
@@ -1235,6 +1362,8 @@ function entrarNoPainel(session){
   registrarPresenca(email,true);
   registrarLog(nome,email);
   iniciarPresenca();
+  iniciarRealtimeNotifs();
+  carregarNotifs();
   carregarDashboard();
   carregarFavoritos();
 }
@@ -1548,29 +1677,83 @@ async function salvarProduto(){
 
   var btn=document.getElementById('btn-salvar-prod');
   btn.disabled=true;btn.textContent='Salvando...';
-  var dados={nome,preco,categoria:cat,imagem:img,descricao:desc,estoque:est,plataforma:plat,ativo:true,keys_disponiveis:todasKeys};
+  
+  /* Campos extras */
+  var precoOrigEl=document.getElementById('prod-preco-orig');
+  var precoOrig=precoOrigEl?parseFloat(precoOrigEl.value)||preco:preco;
+  var descEl=document.getElementById('prod-desconto');
+  var descPct=descEl?parseInt(descEl.value)||0:Math.round((1-preco/precoOrig)*100);
+  var tipoKeyEl=document.getElementById('prod-tipo-key');
+  var tipoKey=tipoKeyEl?tipoKeyEl.value:'login_senha';
+  
+  var dados={nome,preco,preco_original:precoOrig,desconto:descPct,
+    categoria:cat,imagem:img,descricao:desc,plataforma:plat,ativo:true};
   var antes=prodAtual||null;
-  var res=id?await sb.from('produtos').update(dados).eq('id',id):await sb.from('produtos').insert(dados);
+  
+  var res,prodId=id;
+  if(id){
+    res=await sb.from('produtos').update(dados).eq('id',id);
+  } else {
+    var insRes=await sb.from('produtos').insert(dados).select().single();
+    res=insRes;
+    if(insRes.data) prodId=insRes.data.id;
+  }
+  
   btn.disabled=false;btn.textContent='Salvar produto';
   if(res.error){showToast('Erro: '+res.error.message,true);return}
-  await registrarHistorico('produto',id?('editou produto "'+nome+'" ('+todasKeys.length+' keys)'):('cadastrou produto "'+nome+'" com '+todasKeys.length+' keys'),antes,dados);
-  showToast(id?'Produto atualizado! '+todasKeys.length+' keys disponíveis.':'Produto cadastrado com '+todasKeys.length+' keys!');
+  
+  /* Salva novas keys na tabela estoque_chaves */
+  if(keysNovas.length>0 && prodId){
+    var insertsEstoque=keysNovas.map(function(k){
+      return {produto_id:prodId,produto_nome:nome,tipo:tipoKey,conteudo:k,status:'disponivel'};
+    });
+    var estRes=await sb.from('estoque_chaves').insert(insertsEstoque);
+    if(estRes.error){showToast('Produto salvo mas erro nas keys: '+estRes.error.message,true);}
+    else{showToast((id?'Produto atualizado':'Produto cadastrado')+' + '+keysNovas.length+' key(s) no estoque!');}
+  } else {
+    showToast(id?'Produto atualizado!':'Produto cadastrado!');
+  }
+  
+  await registrarHistorico('produto',
+    id?('editou "'+nome+'" +'+keysNovas.length+' keys'):('cadastrou "'+nome+'" com '+keysNovas.length+' keys'),
+    antes,dados);
   closeModal('produto');carregarProdutos();
 }
-function editarProduto(p){
+function atualizarPlaceholderKey(){
+  var tipo=document.getElementById('prod-tipo-key').value;
+  var ta=document.getElementById('prod-keys');
+  if(tipo==='login_senha'){
+    ta.placeholder='email@conta.com|senha123\nemail2@conta.com|senha456';
+  } else {
+    ta.placeholder='XXXXX-XXXXX-XXXXX\nYYYYY-YYYYY-YYYYY';
+  }
+}
+
+async function editarProduto(p){
   document.getElementById('modal-prod-title').textContent='Editar produto';
   document.getElementById('prod-id').value=p.id;
   document.getElementById('prod-nome').value=p.nome||'';
   document.getElementById('prod-preco').value=p.preco||'';
+  var origEl=document.getElementById('prod-preco-orig');
+  if(origEl) origEl.value=p.preco_original||'';
   document.getElementById('prod-cat').value=p.categoria||'';
   document.getElementById('prod-img').value=p.imagem||'';
   document.getElementById('prod-desc').value=p.descricao||'';
-  document.getElementById('prod-estoque').value=p.estoque||0;
-  document.getElementById('prod-plat').value=p.plataforma||'Steam';
-  /* Carrega keys disponíveis no textarea */
-  var keys=(p.keys_disponiveis||[]);
-  document.getElementById('prod-keys').value=keys.join('\n');
-  document.getElementById('keys-counter').textContent=keys.length+' key'+(keys.length!==1?'s':'');
+  document.getElementById('prod-plat').value=p.plataforma||'Steam Offline';
+  document.getElementById('prod-keys').value='';
+  document.getElementById('keys-counter').textContent='0 keys';
+  
+  /* Mostra estoque atual da tabela estoque_chaves */
+  var{data:estoque}=await sb.from('estoque_chaves')
+    .select('id',{count:'exact'})
+    .eq('produto_id',p.id)
+    .eq('status','disponivel');
+  var qtd=estoque?estoque.length:0;
+  var estEl=document.getElementById('est-prod-atual');
+  var estCount=document.getElementById('est-prod-count');
+  if(estEl){estEl.style.display=qtd>0?'block':'none';}
+  if(estCount){estCount.textContent=qtd;}
+  
   openModalEditar('produto');
 }
 async function excluirProduto(id){
@@ -2408,7 +2591,75 @@ function showToast(msg,erro,warn){
   clearTimeout(t._t);t._t=setTimeout(function(){t.className=''},3200);
 }
 
+/* ══ NOTIFICAÇÕES ADMIN ══ */
+var _notifsAbertas=false;
+
+function toggleNotifs(){
+  _notifsAbertas=!_notifsAbertas;
+  document.getElementById('notifPainel').classList.toggle('open',_notifsAbertas);
+  document.getElementById('notifOverlay').classList.toggle('open',_notifsAbertas);
+  if(_notifsAbertas) carregarNotifs();
+}
+
+async function carregarNotifs(){
+  var{data}=await sb.from('notificacoes_admin')
+    .select('*').order('created_at',{ascending:false}).limit(30);
+  if(!data) return;
+
+  var naoLidas=data.filter(function(n){return !n.lida}).length;
+  var badge=document.getElementById('notifBadge');
+  if(badge){
+    badge.textContent=naoLidas>9?'9+':naoLidas;
+    badge.style.display=naoLidas>0?'flex':'none';
+  }
+
+  var lista=document.getElementById('notifLista');
+  if(!data.length){
+    lista.innerHTML='<div class="notif-vazia">Nenhuma notificação ainda</div>';
+    return;
+  }
+
+  lista.innerHTML=data.map(function(n){
+    var dt=new Date(n.created_at).toLocaleString('pt-BR');
+    var cls=n.tipo==='erro_entrega'?'erro':!n.lida?'nao-lida':'';
+    return '<div class="notif-item '+cls+'" onclick="marcarLida(''+n.id+'',this)">'+
+      '<div class="notif-item-titulo">'+esc(n.titulo)+'</div>'+
+      (n.mensagem?'<div class="notif-item-msg">'+esc(n.mensagem)+'</div>':'')+
+      '<div class="notif-item-time">'+dt+'</div>'+
+    '</div>';
+  }).join('');
+}
+
+async function marcarLida(id, el){
+  await sb.from('notificacoes_admin').update({lida:true}).eq('id',id);
+  el.classList.remove('nao-lida');
+  carregarNotifs();
+}
+
+function iniciarRealtimeNotifs(){
+  sb.channel('notificacoes')
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'notificacoes_admin'},
+      function(payload){
+        var n=payload.new;
+        showToast(n.titulo);
+        carregarNotifs();
+      }
+    ).subscribe();
+}
+
 checkAuth();
 </script>
+<!-- Painel de notificações -->
+<div class="notif-overlay" id="notifOverlay" onclick="toggleNotifs()"></div>
+<div class="notif-painel" id="notifPainel">
+  <div class="notif-header">
+    <div class="notif-titulo">🔔 Notificações</div>
+    <button class="notif-fechar" onclick="toggleNotifs()">✕</button>
+  </div>
+  <div class="notif-lista" id="notifLista">
+    <div class="notif-vazia">Nenhuma notificação ainda</div>
+  </div>
+</div>
+
 </body>
 </html>
