@@ -1162,7 +1162,7 @@ function editarProduto(p){
   document.getElementById('prod-desc').value=p.descricao||'';
   document.getElementById('prod-estoque').value=p.estoque||0;
   document.getElementById('prod-plat').value=p.plataforma||'Steam';
-  openModal('produto');
+  openModalEditar('produto'); /* ← não limpa os campos */
 }
 async function excluirProduto(id){
   if(!confirm('Excluir este produto? Esta ação não pode ser desfeita.'))return;
@@ -1579,12 +1579,17 @@ async function salvarGA4(){
 /* ══ MODAL ══ */
 function openModal(id){
   if(id==='produto'){
+    /* Só limpa se for novo produto — editarProduto define prod-id antes e chama openModalSemLimpar */
     document.getElementById('modal-prod-title').textContent='Novo produto';
     document.getElementById('prod-id').value='';
     ['prod-nome','prod-preco','prod-img','prod-desc','prod-estoque'].forEach(function(f){document.getElementById(f).value=''});
     document.getElementById('prod-cat').value='';
     document.getElementById('prod-plat').value='Steam';
   }
+  document.getElementById('modal-'+id).classList.add('open');
+}
+function openModalEditar(id){
+  /* Abre modal SEM limpar os campos — usado por editarProduto */
   document.getElementById('modal-'+id).classList.add('open');
 }
 function closeModal(id){document.getElementById('modal-'+id).classList.remove('open')}
