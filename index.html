@@ -1611,7 +1611,8 @@ async function carregarPedidos(){
 async function verKey(id){
   var{data}=await sb.from('pedidos').select('*').eq('id',id).single();
   if(!data)return;
-  alert('Key: '+(data.key_entregue||'Não disponível')+'\nCliente: '+data.cliente_email);
+  showToast('🔑 Key: '+(data.key_entregue||'Não disponível'));
+  if(data.key_entregue) navigator.clipboard.writeText(data.key_entregue).catch(function(){});
 }
 
 /* ══ CLIENTES ══ */
@@ -1706,10 +1707,10 @@ function renderClientes(lista){
       '<td class="obs-cell" title="'+esc(c.obs||'')+'">'+esc(c.obs||'—')+'</td>'+
       '<td>'+(!c.bloqueado?'<span class="badge badge-green">Ativo</span>':'<span class="badge badge-red">Bloqueado</span>')+'</td>'+
       '<td><div class="td-actions">'+
-        '<button class="btn btn-outline btn-sm" onclick="verComprasCliente(''+esc(c.email)+'')">Compras</button>'+
-        '<button class="btn btn-outline btn-sm" onclick="abrirObs(''+esc(c.email)+'',''+esc(c.obs||'')+'')" title="Obs">📝</button>'+
-        '<button class="btn btn-outline btn-sm" onclick="toggleFavCliente(''+esc(c.email)+'')" style="'+(isFav?'color:var(--amber);border-color:var(--amber)':'')+'">★</button>'+
-        '<button class="btn btn-block btn-sm" onclick="bloquearCliente(''+esc(c.email)+'','+(c.bloqueado?'false':'true')+')">'+
+        '<button class="btn btn-outline btn-sm" onclick="verComprasCliente(\'' + esc(c.email) + '\')">Compras</button>'+
+        '<button class="btn btn-outline btn-sm" onclick="abrirObs(\'' + esc(c.email) + '\',\'' + esc(c.obs||'') + '\')" title="Obs">📝</button>'+
+        '<button class="btn btn-outline btn-sm" onclick="toggleFavCliente(\'' + esc(c.email) + '\')" style="'+(isFav?'color:var(--amber);border-color:var(--amber)':'')+'">★</button>'+
+        '<button class="btn btn-block btn-sm" onclick="bloquearCliente(\'' + esc(c.email) + '\',' + (c.bloqueado?'false':'true') + ')">'+
           (c.bloqueado?'DESBLOQUEAR':'BLOQUEAR')+'</button>'+
       '</div></td></tr>';
   }).join('');
@@ -1732,7 +1733,7 @@ function verComprasCliente(email){
   var lista=c.compras.map(function(p){
     return fmtDateTime(p.created_at)+' — '+p.produto_nome+' — R$ '+Number(p.valor).toFixed(2);
   }).join('\n');
-  alert('Compras de '+email+':\n\n'+lista);
+  showToast('📦 '+lista.split('\n').length+' compras encontradas para '+email);
 }
 function abrirObs(email,obs){
   document.getElementById('obs-email').value=email;
@@ -2103,7 +2104,10 @@ async function realizarSorteioById(id){
   await sb.from('perfis').update({titulo_exibido:'SORTUDO'}).eq('email',emailVenc);
   await registrarHistorico('sorteio','realizou sorteio "'+s.titulo+'" — vencedor: '+emailVenc,null,{vencedor:emailVenc,premio:s.premio});
   showToast('🏆 VENCEDOR: '+emailVenc+'!');
-  alert('🏆 SORTEIO REALIZADO!\n\nVencedor: '+emailVenc+'\nPrêmio: '+s.premio+'\nChave entregue no perfil!');
+  /* Modal de resultado do sorteio */
+  var msg='🏆 SORTEIO REALIZADO!\n\nVencedor: '+emailVenc+'\nPrêmio: '+s.premio+'\nChave entregue automaticamente no perfil do cliente!';
+  showToast('🏆 Vencedor: '+emailVenc);
+  setTimeout(function(){alert(msg);}, 300);
   carregarSorteios();
 }
 
