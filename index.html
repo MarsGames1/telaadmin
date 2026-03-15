@@ -411,6 +411,10 @@ tr:hover td{background:rgba(255,255,255,.012)}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
       MarsPoints
     </div>
+    <div class="sb-item" onclick="showPage('marstickets',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 9a3 3 0 010-6h20a3 3 0 010 6"/><path d="M2 15a3 3 0 000 6h20a3 3 0 000-6"/><path d="M6 9v6M10 9v6M14 9v6M18 9v6"/></svg>
+      MarsTickets
+    </div>
     <div class="sb-item" onclick="showPage('chargeback',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
       Chargeback
@@ -777,6 +781,38 @@ tr:hover td{background:rgba(255,255,255,.012)}
     </div>
   </div>
 
+  <!-- ══ MARSTICKETS ══ -->
+  <div class="page" id="page-marstickets">
+    <div class="page-head">
+      <div><div class="page-eyebrow">Comunidade</div><div class="page-title">🎟️ MarsTickets</div></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-green" onclick="abrirAdicionarTickets('')">+ Adicionar tickets</button>
+        <button class="btn btn-red" onclick="abrirRemoverTickets('')">− Remover tickets</button>
+      </div>
+    </div>
+
+    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px">
+      <div class="stat-card"><div class="stat-label">Usuários com tickets</div><div class="stat-value" id="tck-stat-total">0</div></div>
+      <div class="stat-card"><div class="stat-label">Total tickets sistema</div><div class="stat-value green" id="tck-stat-qtd">0</div></div>
+      <div class="stat-card"><div class="stat-label">Usados em sorteios</div><div class="stat-value amber" id="tck-stat-usados">0</div></div>
+      <div class="stat-card"><div class="stat-label">Participações</div><div class="stat-value" id="tck-stat-part">0</div></div>
+    </div>
+
+    <div class="table-wrap">
+      <div class="table-head">
+        <div class="table-title">Tickets por cliente</div>
+        <input class="t-search" placeholder="Buscar por email..." oninput="filtrarTickets(this.value)">
+      </div>
+      <table>
+        <thead><tr>
+          <th>Cliente</th><th>Tickets disponíveis</th><th>Total acumulado</th>
+          <th>Última renovação</th><th>Próxima renovação</th><th>Ações</th>
+        </tr></thead>
+        <tbody id="tck-tbody"><tr><td colspan="6" class="empty-state"><span class="loader-inline"></span></td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
   <!-- ══ CHARGEBACK ══ -->
   <div class="page" id="page-chargeback">
     <div class="page-head">
@@ -965,6 +1001,77 @@ tr:hover td{background:rgba(255,255,255,.012)}
   </div>
 </div>
 
+<!-- Adicionar Tickets -->
+<div class="modal-overlay" id="modal-add-tickets">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-title" style="color:var(--amber)">🎟️ Adicionar Tickets</div>
+    <div class="form-row">
+      <label class="form-label">Email do cliente *</label>
+      <input class="form-input" id="tck-add-email" placeholder="cliente@email.com" list="tck-email-list">
+      <datalist id="tck-email-list"></datalist>
+    </div>
+    <div id="tck-add-saldo-box" style="display:none;padding:10px 14px;border-radius:8px;background:rgba(255,183,0,.06);border:1px solid rgba(255,183,0,.2);margin-bottom:10px;font-size:11px;font-weight:700">
+      Saldo atual: <span id="tck-add-saldo-val" style="color:var(--amber)">0</span> 🎟️
+      → Novo: <span id="tck-add-saldo-novo" style="color:#fff">0</span> 🎟️
+    </div>
+    <div class="form-row-2">
+      <div>
+        <label class="form-label">Tickets a adicionar *</label>
+        <input class="form-input" id="tck-add-qtd" type="number" min="1" placeholder="Ex: 2" oninput="previewTickets('add')">
+      </div>
+      <div>
+        <label class="form-label">Motivo</label>
+        <input class="form-input" id="tck-add-motivo" placeholder="Ex: Bônus especial">
+      </div>
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:14px">
+      <button type="button" class="btn btn-outline btn-sm" onclick="setTckQtd('add',1)">+1</button>
+      <button type="button" class="btn btn-outline btn-sm" onclick="setTckQtd('add',2)">+2</button>
+      <button type="button" class="btn btn-outline btn-sm" onclick="setTckQtd('add',3)">+3</button>
+      <button type="button" class="btn btn-outline btn-sm" onclick="setTckQtd('add',5)">+5</button>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('add-tickets')">Cancelar</button>
+      <button class="btn btn-green" onclick="ajustarTickets(1)">✓ Adicionar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Remover Tickets -->
+<div class="modal-overlay" id="modal-rm-tickets">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-title" style="color:var(--red)">⚠ Remover Tickets</div>
+    <div class="form-row">
+      <label class="form-label">Email do cliente *</label>
+      <input class="form-input" id="tck-rm-email" placeholder="cliente@email.com" list="tck-email-list">
+    </div>
+    <div id="tck-rm-saldo-box" style="display:none;padding:10px 14px;border-radius:8px;background:rgba(255,85,85,.05);border:1px solid rgba(255,85,85,.15);margin-bottom:10px;font-size:11px;font-weight:700">
+      Saldo atual: <span id="tck-rm-saldo-val" style="color:var(--red)">0</span> 🎟️
+      → Novo: <span id="tck-rm-saldo-novo" style="color:#fff">0</span> 🎟️
+    </div>
+    <div class="form-row-2">
+      <div>
+        <label class="form-label">Tickets a remover *</label>
+        <input class="form-input" id="tck-rm-qtd" type="number" min="1" placeholder="Ex: 1" oninput="previewTickets('rm')">
+      </div>
+      <div>
+        <label class="form-label">Motivo *</label>
+        <input class="form-input" id="tck-rm-motivo" placeholder="Ex: Uso indevido">
+      </div>
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:14px">
+      <button type="button" class="btn btn-outline btn-sm" onclick="setTckQtd('rm',1)">−1</button>
+      <button type="button" class="btn btn-outline btn-sm" onclick="setTckQtd('rm',2)">−2</button>
+      <button type="button" class="btn btn-outline btn-sm" onclick="setTckQtd('rm',3)">−3</button>
+      <button type="button" class="btn btn-outline btn-sm" onclick="setZerarTickets()">Zerar</button>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('rm-tickets')">Cancelar</button>
+      <button class="btn btn-red" onclick="ajustarTickets(-1)">✓ Remover</button>
+    </div>
+  </div>
+</div>
+
 <!-- Meta -->
 <div class="modal-overlay" id="modal-meta">
   <div class="modal">
@@ -1066,7 +1173,15 @@ tr:hover td{background:rgba(255,255,255,.012)}
 var SUPABASE_URL='https://rzjtlghpsygxkivgwgws.supabase.co';
 var SUPABASE_KEY='sb_publishable_sDCnL56QQzg976Pt9if_GA_2mZn2Wzm';
 var ADMINS=['rone.mars15@gmail.com','marconde.jr@gmail.com'];
-var sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+var sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{
+  auth:{
+    flowType:'implicit',
+    detectSessionInUrl:true,
+    persistSession:true,
+    autoRefreshToken:true,
+    storageKey:'mg_auth'
+  }
+});
 var todosOsProdutos=[],todosClientes=[],currentUser=null,currentEmail='';
 var favTab='produtos',favsProdutos=[],favsClientes=[];
 
@@ -1250,7 +1365,7 @@ function showPage(id,el){
   if(el)el.classList.add('active');
   var map={
     dashboard:carregarDashboard,produtos:carregarProdutos,pedidos:carregarPedidos,
-    avaliacoes:carregarAvaliacoes,marspoints:carregarMarsPoints,clientes:carregarClientes,
+    avaliacoes:carregarAvaliacoes,marspoints:carregarMarsPoints,marstickets:carregarMarsTickets,clientes:carregarClientes,
     historico:carregarHistorico,logs:carregarLogs,cupons:carregarCupons,
     sorteios:carregarSorteios,favoritos:carregarFavoritos,
     chargeback:carregarChargeback
@@ -1955,6 +2070,126 @@ async function excluirSorteio(id){
   showToast('Sorteio excluído');carregarSorteios();
 }
 async function salvarSorteio(){await salvarSorteioPeriodico();}
+
+/* ══ MARSTICKETS ══ */
+var _tckData=[], _tckSaldoAdd=0, _tckSaldoRm=0;
+
+async function carregarMarsTickets(){
+  var tbody=document.getElementById('tck-tbody');
+  tbody.innerHTML='<tr><td colspan="6" class="empty-state"><span class="loader-inline"></span></td></tr>';
+  var[tckRes,partRes]=await Promise.all([
+    sb.from('tickets').select('*').order('quantidade',{ascending:false}),
+    sb.from('sorteio_participacoes').select('user_email,tickets_usados')
+  ]);
+  var data=tckRes.data||[];
+  var parts=partRes.data||[];
+  _tckData=data;
+
+  var totalQtd=data.reduce(function(s,r){return s+(r.quantidade||0)},0);
+  var totalUsados=parts.reduce(function(s,p){return s+(p.tickets_usados||0)},0);
+  document.getElementById('tck-stat-total').textContent=data.length;
+  document.getElementById('tck-stat-qtd').textContent=totalQtd;
+  document.getElementById('tck-stat-usados').textContent=totalUsados;
+  document.getElementById('tck-stat-part').textContent=parts.length;
+
+  /* Preenche datalist */
+  var dl=document.getElementById('tck-email-list');
+  if(dl)dl.innerHTML=data.map(function(r){return'<option value="'+esc(r.user_email||'')+'">'}).join('');
+
+  if(!data.length){tbody.innerHTML='<tr><td colspan="6" class="empty-state">Nenhum cliente com tickets ainda.</td></tr>';return}
+
+  function proxRenovacao(ultima){
+    var d=new Date(ultima||new Date());d.setDate(d.getDate()+7);
+    var diff=d-new Date();
+    if(diff<=0)return'<span style="color:var(--green)">Renovando</span>';
+    var dias=Math.floor(diff/86400000);
+    var hrs=Math.floor((diff%86400000)/3600000);
+    return dias>0?dias+'d '+hrs+'h':hrs+'h';
+  }
+
+  tbody.innerHTML=data.map(function(r){
+    return '<tr>'+
+      '<td style="font-weight:700;color:#fff">'+esc(r.user_email||'—')+'</td>'+
+      '<td><div style="font-family:Orbitron,sans-serif;font-size:16px;font-weight:900;color:var(--amber)">'+(r.quantidade||0)+'</div><div style="font-size:9px;color:var(--muted)">🎟️ tickets</div></td>'+
+      '<td style="color:var(--muted)">'+(r.total_acumulado||0)+' total</td>'+
+      '<td style="font-size:11px;color:var(--muted)">'+fmtDate(r.ultima_renovacao)+'</td>'+
+      '<td style="font-size:11px;color:var(--green)">'+proxRenovacao(r.ultima_renovacao)+'</td>'+
+      '<td><div class="td-actions">'+
+        '<button class="btn btn-green btn-sm" style="padding:5px 10px" onclick="abrirAdicionarTickets(''+esc(r.user_email||'')+'')">+</button>'+
+        '<button class="btn btn-red btn-sm" style="padding:5px 10px" onclick="abrirRemoverTickets(''+esc(r.user_email||'')+'')">−</button>'+
+      '</div></td></tr>';
+  }).join('');
+}
+
+function filtrarTickets(q){
+  if(!q)return renderTabelaTickets(_tckData);
+  renderTabelaTickets(_tckData.filter(function(r){return(r.user_email||'').toLowerCase().includes(q.toLowerCase())}));
+}
+function renderTabelaTickets(data){
+  /* reutiliza o carregarMarsTickets mas com dados filtrados */
+  var tbody=document.getElementById('tck-tbody');
+  if(!data||!data.length){tbody.innerHTML='<tr><td colspan="6" class="empty-state">Nenhum resultado.</td></tr>';return}
+}
+
+function abrirAdicionarTickets(email){
+  document.getElementById('tck-add-email').value=email||'';
+  document.getElementById('tck-add-qtd').value='';
+  document.getElementById('tck-add-motivo').value='';
+  _tckSaldoAdd=0;
+  if(email){var r=_tckData.find(function(x){return x.user_email===email});_tckSaldoAdd=r?r.quantidade||0:0;}
+  document.getElementById('tck-add-saldo-val').textContent=_tckSaldoAdd;
+  document.getElementById('tck-add-saldo-novo').textContent=_tckSaldoAdd;
+  document.getElementById('tck-add-saldo-box').style.display=email?'block':'none';
+  openModal('add-tickets');
+}
+function abrirRemoverTickets(email){
+  document.getElementById('tck-rm-email').value=email||'';
+  document.getElementById('tck-rm-qtd').value='';
+  document.getElementById('tck-rm-motivo').value='';
+  _tckSaldoRm=0;
+  if(email){var r=_tckData.find(function(x){return x.user_email===email});_tckSaldoRm=r?r.quantidade||0:0;}
+  document.getElementById('tck-rm-saldo-val').textContent=_tckSaldoRm;
+  document.getElementById('tck-rm-saldo-novo').textContent=_tckSaldoRm;
+  document.getElementById('tck-rm-saldo-box').style.display=email?'block':'none';
+  openModal('rm-tickets');
+}
+
+function previewTickets(tipo){
+  var isAdd=tipo==='add';
+  var qtd=parseInt((isAdd?document.getElementById('tck-add-qtd'):document.getElementById('tck-rm-qtd')).value)||0;
+  var novo=Math.max(0,(isAdd?_tckSaldoAdd:_tckSaldoRm)+(isAdd?qtd:-qtd));
+  if(isAdd){document.getElementById('tck-add-saldo-novo').textContent=novo;document.getElementById('tck-add-saldo-box').style.display='block';}
+  else{document.getElementById('tck-rm-saldo-novo').textContent=novo;document.getElementById('tck-rm-saldo-box').style.display='block';}
+}
+function setTckQtd(tipo,n){
+  (tipo==='add'?document.getElementById('tck-add-qtd'):document.getElementById('tck-rm-qtd')).value=n;
+  previewTickets(tipo);
+}
+function setZerarTickets(){document.getElementById('tck-rm-qtd').value=_tckSaldoRm;previewTickets('rm');}
+
+async function ajustarTickets(sinal){
+  var isAdd=sinal===1;
+  var email=(isAdd?document.getElementById('tck-add-email'):document.getElementById('tck-rm-email')).value.trim();
+  var qtdRaw=parseInt((isAdd?document.getElementById('tck-add-qtd'):document.getElementById('tck-rm-qtd')).value);
+  var motivo=(isAdd?document.getElementById('tck-add-motivo'):document.getElementById('tck-rm-motivo')).value.trim()||
+    (isAdd?'Adição manual admin':'Remoção manual admin');
+  if(!email||isNaN(qtdRaw)||qtdRaw<=0){showToast('Preencha email e quantidade',true);return}
+
+  var{data:atual}=await sb.from('tickets').select('*').eq('user_email',email).maybeSingle();
+  var antes=atual?atual.quantidade||0:0;
+  var novo=Math.max(0,antes+(isAdd?qtdRaw:-qtdRaw));
+  var totalAcum=(atual?atual.total_acumulado||0:0)+(isAdd?qtdRaw:0);
+
+  if(atual){
+    await sb.from('tickets').update({quantidade:novo,total_acumulado:totalAcum,updated_at:new Date().toISOString()}).eq('user_email',email);
+  } else {
+    await sb.from('tickets').insert({user_email:email,quantidade:Math.max(0,qtdRaw),total_acumulado:qtdRaw,ultima_renovacao:new Date().toISOString()});
+  }
+  await registrarHistorico('tickets',(isAdd?'adicionou +':'removeu ')+qtdRaw+' tickets de '+email+': '+motivo,{tickets:antes},{tickets:novo});
+  showToast((isAdd?'✓ +':'✓ −')+qtdRaw+' tickets — '+email);
+  closeModal(isAdd?'add-tickets':'rm-tickets');
+  carregarMarsTickets();
+}
 
 /* ══ FAVORITOS ══ */
 function carregarFavoritos(){
