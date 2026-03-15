@@ -612,18 +612,75 @@ tr:hover td{background:rgba(255,255,255,.012)}
   <!-- ══ SORTEIOS ══ -->
   <div class="page" id="page-sorteios">
     <div class="page-head">
-      <div><div class="page-eyebrow">Especial</div><div class="page-title">Sorteios</div></div>
-      <button class="btn btn-green" onclick="openModal('sorteio')">+ Novo sorteio</button>
+      <div><div class="page-eyebrow">Especial</div><div class="page-title">🎲 Sorteios Periódicos</div></div>
+      <button class="btn btn-green" onclick="openModal('sorteio-periodico')">+ Novo sorteio</button>
     </div>
-    <div class="stats-grid" style="grid-template-columns:repeat(3,1fr)">
+
+    <!-- Stats -->
+    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
       <div class="stat-card"><div class="stat-label">Sorteios ativos</div><div class="stat-value green" id="sort-ativos">0</div></div>
-      <div class="stat-card"><div class="stat-label">Participantes hoje</div><div class="stat-value" id="sort-part">0</div></div>
-      <div class="stat-card"><div class="stat-label">Keys disponíveis</div><div class="stat-value amber" id="sort-keys">0</div></div>
+      <div class="stat-card"><div class="stat-label">Participantes total</div><div class="stat-value" id="sort-part">0</div></div>
+      <div class="stat-card"><div class="stat-label">Tickets no sistema</div><div class="stat-value amber" id="sort-tickets">0</div></div>
+      <div class="stat-card"><div class="stat-label">Vencedores</div><div class="stat-value" style="color:var(--amber)" id="sort-vencedores">0</div></div>
     </div>
+
+    <!-- Tabs tipo -->
+    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+      <button class="btn btn-outline btn-sm" id="stab-diario" onclick="setSortTab('diario')" style="border-color:var(--mars);color:var(--mars)">🔥 Diário</button>
+      <button class="btn btn-outline btn-sm" id="stab-semanal" onclick="setSortTab('semanal')">⭐ Semanal</button>
+      <button class="btn btn-outline btn-sm" id="stab-mensal" onclick="setSortTab('mensal')">💎 Mensal</button>
+    </div>
+
+    <!-- Sorteio ativo do tipo selecionado -->
+    <div id="sort-ativo-card" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:20px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <div>
+          <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:6px">SORTEIO ATIVO</div>
+          <div style="font-size:16px;font-weight:900;color:#fff" id="sort-ativo-titulo">—</div>
+          <div style="font-size:11px;color:#888;margin-top:4px">🎮 <span id="sort-ativo-premio">—</span></div>
+          <div style="font-size:10px;color:var(--muted);margin-top:6px">
+            👥 <strong id="sort-ativo-part" style="color:#fff">0</strong> participantes •
+            🎟️ <strong id="sort-ativo-tick" style="color:var(--amber)">0</strong> tickets •
+            ⏰ Encerra: <strong id="sort-ativo-fim" style="color:var(--green)">—</strong>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-amber btn-sm" id="btnRealizarSorteio" onclick="realizarSorteio()">🏆 Realizar Sorteio</button>
+          <button class="btn btn-red btn-sm" id="btnPararSorteio" onclick="pararSorteio()">⏹ Parar</button>
+        </div>
+      </div>
+      <!-- Contador mini -->
+      <div style="display:flex;gap:16px;margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
+        <div style="text-align:center">
+          <div style="font-family:'Orbitron',sans-serif;font-size:20px;font-weight:900;color:#fff" id="sadm-dias">--</div>
+          <div style="font-size:8px;font-weight:700;letter-spacing:1px;color:var(--muted)">DIAS</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-family:'Orbitron',sans-serif;font-size:20px;font-weight:900;color:#fff" id="sadm-horas">--</div>
+          <div style="font-size:8px;font-weight:700;letter-spacing:1px;color:var(--muted)">HORAS</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-family:'Orbitron',sans-serif;font-size:20px;font-weight:900;color:#fff" id="sadm-min">--</div>
+          <div style="font-size:8px;font-weight:700;letter-spacing:1px;color:var(--muted)">MIN</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-family:'Orbitron',sans-serif;font-size:20px;font-weight:900;color:#fff" id="sadm-seg">--</div>
+          <div style="font-size:8px;font-weight:700;letter-spacing:1px;color:var(--muted)">SEG</div>
+        </div>
+      </div>
+    </div>
+    <div id="sort-sem-ativo" style="display:none;text-align:center;padding:24px;background:var(--surface);border:1px dashed var(--border2);border-radius:12px;margin-bottom:20px;font-size:12px;color:var(--muted)">
+      Nenhum sorteio ativo para este tipo. Crie um novo!
+    </div>
+
+    <!-- Calendário / tabela -->
     <div class="table-wrap">
-      <div class="table-head"><div class="table-title">Sorteios cadastrados</div></div>
-      <table><thead><tr><th>Nome</th><th>Jogo</th><th>Keys</th><th>Participantes</th><th>Data fim</th><th>Status</th><th>Ações</th></tr></thead>
-      <tbody id="sort-tbody"><tr><td colspan="7" class="empty-state">Nenhum sorteio cadastrado.</td></tr></tbody></table>
+      <div class="table-head">
+        <div class="table-title">Todos os sorteios</div>
+        <a href="sorteio.html" target="_blank" style="font-size:10px;font-weight:700;color:var(--green);text-decoration:none">Ver página pública →</a>
+      </div>
+      <table><thead><tr><th>Tipo</th><th>Título</th><th>Prêmio</th><th>Participantes</th><th>Encerra</th><th>Vencedor</th><th>Status</th><th>Ações</th></tr></thead>
+      <tbody id="sort-tbody-periodico"><tr><td colspan="8" class="empty-state">Nenhum sorteio ainda.</td></tr></tbody></table>
     </div>
   </div>
 
@@ -670,16 +727,53 @@ tr:hover td{background:rgba(255,255,255,.012)}
   <!-- ══ MARSPOINTS ══ -->
   <div class="page" id="page-marspoints">
     <div class="page-head">
-      <div><div class="page-eyebrow">Comunidade</div><div class="page-title">MarsPoints</div></div>
-      <button class="btn btn-green" onclick="openModal('pontos')">+ Ajustar pontos</button>
+      <div><div class="page-eyebrow">Comunidade</div><div class="page-title">⭐ MarsPoints</div></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-green" onclick="abrirAdicionarPontos('')">+ Adicionar pontos</button>
+        <button class="btn btn-red" onclick="abrirRemoverPontos('')">− Remover pontos</button>
+      </div>
     </div>
+
+    <!-- Stats rápidas -->
+    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px">
+      <div class="stat-card"><div class="stat-label">Total clientes</div><div class="stat-value" id="pts-stat-total">0</div></div>
+      <div class="stat-card"><div class="stat-label">Total pontos</div><div class="stat-value green" id="pts-stat-pts">0</div></div>
+      <div class="stat-card"><div class="stat-label">Nível Diamante</div><div class="stat-value" style="color:var(--dia)" id="pts-stat-dia">0</div></div>
+      <div class="stat-card"><div class="stat-label">Nível Esmeralda</div><div class="stat-value" style="color:var(--esm)" id="pts-stat-esm">0</div></div>
+    </div>
+
     <div class="table-wrap">
       <div class="table-head">
         <div class="table-title">Clientes no programa</div>
-        <input class="t-search" placeholder="Buscar cliente...">
+        <input class="t-search" placeholder="Buscar por email..." oninput="filtrarMarsPoints(this.value)">
       </div>
-      <table><thead><tr><th>Cliente</th><th>Pontos</th><th>Nível</th><th>Última atualização</th><th>Ações</th></tr></thead>
-      <tbody id="pts-tbody"><tr><td colspan="5" class="empty-state"><span class="loader-inline"></span></td></tr></tbody></table>
+      <table>
+        <thead><tr>
+          <th>Cliente</th>
+          <th>Pontos</th>
+          <th>Nível</th>
+          <th>Histórico recente</th>
+          <th>Atualizado</th>
+          <th>Ações</th>
+        </tr></thead>
+        <tbody id="pts-tbody"><tr><td colspan="6" class="empty-state"><span class="loader-inline"></span></td></tr></tbody>
+      </table>
+    </div>
+
+    <!-- Painel de histórico do cliente selecionado -->
+    <div id="pts-historico-panel" style="display:none;margin-top:16px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div>
+          <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted)">HISTÓRICO COMPLETO</div>
+          <div style="font-size:14px;font-weight:900;color:#fff;margin-top:4px" id="pts-hist-email">—</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <div style="font-family:'Orbitron',sans-serif;font-size:22px;font-weight:900;color:var(--green)" id="pts-hist-total">0</div>
+          <div style="font-size:9px;color:var(--muted);font-weight:700">pts</div>
+          <button class="btn btn-outline btn-sm" onclick="fecharHistorico()">✕ Fechar</button>
+        </div>
+      </div>
+      <div id="pts-hist-list" style="display:flex;flex-direction:column;gap:6px;max-height:320px;overflow-y:auto"></div>
     </div>
   </div>
 
@@ -791,17 +885,82 @@ tr:hover td{background:rgba(255,255,255,.012)}
 </div>
 
 <!-- Pontos -->
+<!-- Adicionar pontos -->
 <div class="modal-overlay" id="modal-pontos">
-  <div class="modal">
-    <div class="modal-title">Ajustar pontos</div>
-    <div class="form-row"><label class="form-label">Email do cliente *</label><input class="form-input" id="pts-email" placeholder="cliente@email.com"></div>
+  <div class="modal" style="max-width:440px">
+    <div class="modal-title" style="color:var(--green)">⭐ Adicionar pontos</div>
+    <div class="form-row">
+      <label class="form-label">Email do cliente *</label>
+      <input class="form-input" id="pts-email" placeholder="cliente@email.com" list="pts-email-list">
+      <datalist id="pts-email-list"></datalist>
+    </div>
+    <!-- Saldo atual -->
+    <div id="pts-saldo-atual" style="display:none;padding:10px 14px;border-radius:8px;background:rgba(0,255,85,.05);border:1px solid rgba(0,255,85,.12);margin-bottom:10px;font-size:11px;font-weight:700">
+      Saldo atual: <span id="pts-saldo-val" style="color:var(--green)">0</span> pts
+      → Novo saldo: <span id="pts-saldo-novo" style="color:#fff">0</span> pts
+    </div>
     <div class="form-row-2">
-      <div><label class="form-label">Pontos (- para remover)</label><input class="form-input" id="pts-qtd" type="number" placeholder="Ex: 100 ou -50"></div>
-      <div><label class="form-label">Motivo</label><input class="form-input" id="pts-motivo" placeholder="Ex: Bônus boas-vindas"></div>
+      <div>
+        <label class="form-label">Pontos a adicionar *</label>
+        <input class="form-input" id="pts-qtd" type="number" min="1" placeholder="Ex: 100"
+          oninput="previewPontos()">
+      </div>
+      <div>
+        <label class="form-label">Motivo</label>
+        <input class="form-input" id="pts-motivo" placeholder="Ex: Bônus boas-vindas">
+      </div>
+    </div>
+    <!-- Atalhos rápidos -->
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
+      <span style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:1px;align-self:center">RÁPIDO:</span>
+      <button type="button" class="btn btn-outline btn-sm" onclick="setPtsQtd(50)">+50</button>
+      <button type="button" class="btn btn-outline btn-sm" onclick="setPtsQtd(100)">+100</button>
+      <button type="button" class="btn btn-outline btn-sm" onclick="setPtsQtd(250)">+250</button>
+      <button type="button" class="btn btn-outline btn-sm" onclick="setPtsQtd(500)">+500</button>
+      <button type="button" class="btn btn-outline btn-sm" onclick="setPtsQtd(1000)">+1000</button>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('pontos')">Cancelar</button>
-      <button class="btn btn-green" onclick="ajustarPontos()">Aplicar</button>
+      <button class="btn btn-green" onclick="ajustarPontos(1)">✓ Adicionar pontos</button>
+    </div>
+  </div>
+</div>
+
+<!-- Remover pontos -->
+<div class="modal-overlay" id="modal-remover-pontos">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-title" style="color:var(--red)">⚠ Remover pontos</div>
+    <div class="form-row">
+      <label class="form-label">Email do cliente *</label>
+      <input class="form-input" id="pts-rm-email" placeholder="cliente@email.com" list="pts-rm-email-list">
+      <datalist id="pts-rm-email-list"></datalist>
+    </div>
+    <div id="pts-rm-saldo" style="display:none;padding:10px 14px;border-radius:8px;background:rgba(255,85,85,.05);border:1px solid rgba(255,85,85,.15);margin-bottom:10px;font-size:11px;font-weight:700">
+      Saldo atual: <span id="pts-rm-val" style="color:var(--red)">0</span> pts
+      → Novo saldo: <span id="pts-rm-novo" style="color:#fff">0</span> pts
+    </div>
+    <div class="form-row-2">
+      <div>
+        <label class="form-label">Pontos a remover *</label>
+        <input class="form-input" id="pts-rm-qtd" type="number" min="1" placeholder="Ex: 50"
+          oninput="previewRemover()">
+      </div>
+      <div>
+        <label class="form-label">Motivo *</label>
+        <input class="form-input" id="pts-rm-motivo" placeholder="Ex: Estorno de compra">
+      </div>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
+      <span style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:1px;align-self:center">RÁPIDO:</span>
+      <button type="button" class="btn btn-outline btn-sm" onclick="setPtsRmQtd(25)">−25</button>
+      <button type="button" class="btn btn-outline btn-sm" onclick="setPtsRmQtd(50)">−50</button>
+      <button type="button" class="btn btn-outline btn-sm" onclick="setPtsRmQtd(100)">−100</button>
+      <button type="button" class="btn btn-outline btn-sm" onclick="setPtsRmQtd(250)">−250</button>
+      <button type="button" class="btn btn-outline btn-sm" onclick="setZerarPontos()">Zerar tudo</button>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('remover-pontos')">Cancelar</button>
+      <button class="btn btn-red" onclick="ajustarPontos(-1)">✓ Remover pontos</button>
     </div>
   </div>
 </div>
@@ -819,20 +978,54 @@ tr:hover td{background:rgba(255,255,255,.012)}
   </div>
 </div>
 
-<!-- Sorteio -->
-<div class="modal-overlay" id="modal-sorteio">
-  <div class="modal">
-    <div class="modal-title">Novo sorteio</div>
-    <div class="form-row"><label class="form-label">Nome do sorteio *</label><input class="form-input" id="sort-nome" placeholder="Ex: Sorteio Natal MarsGames"></div>
-    <div class="form-row"><label class="form-label">Jogo premiado *</label><input class="form-input" id="sort-jogo" placeholder="Ex: Elden Ring"></div>
-    <div class="form-row"><label class="form-label">Keys (uma por linha)</label><textarea class="form-textarea" id="sort-keys-input" placeholder="XXXX-YYYY-ZZZZ&#10;AAAA-BBBB-CCCC" style="min-height:100px;font-family:monospace;font-size:11px"></textarea></div>
+<!-- Sorteio (legado — mantido para compatibilidade) -->
+<div class="modal-overlay" id="modal-sorteio" style="display:none"></div>
+
+<!-- Sorteio Periódico -->
+<div class="modal-overlay" id="modal-sorteio-periodico">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-title">🎲 Novo Sorteio Periódico</div>
     <div class="form-row-2">
-      <div><label class="form-label">Data de encerramento</label><input class="form-input" id="sort-data" type="date"></div>
-      <div><label class="form-label">Máx. participantes</label><input class="form-input" id="sort-max" type="number" placeholder="100"></div>
+      <div><label class="form-label">Tipo *</label>
+        <select class="form-select" id="sp-tipo">
+          <option value="diario">🔥 Diário</option>
+          <option value="semanal">⭐ Semanal</option>
+          <option value="mensal">💎 Mensal</option>
+        </select>
+      </div>
+      <div><label class="form-label">Plataforma</label>
+        <select class="form-select" id="sp-plat">
+          <option>Steam</option><option>PlayStation</option><option>Xbox</option><option>Nintendo</option><option>PC (outro)</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row"><label class="form-label">Título do sorteio *</label>
+      <input class="form-input" id="sp-titulo" placeholder="Ex: Sorteio Diário — Elden Ring"></div>
+    <div class="form-row"><label class="form-label">Descrição</label>
+      <textarea class="form-textarea" id="sp-desc" placeholder="Descreva o sorteio..." style="min-height:60px"></textarea></div>
+    <div class="form-row"><label class="form-label">Prêmio (nome do jogo) *</label>
+      <input class="form-input" id="sp-premio" placeholder="Ex: Elden Ring — Deluxe Edition"></div>
+    <div class="form-row"><label class="form-label">🔑 Chave / Credencial do prêmio</label>
+      <textarea class="form-textarea" id="sp-chave"
+        placeholder="XXXX-YYYY-ZZZZ&#10;ou&#10;usuario:senha&#10;(entregue ao vencedor automaticamente)"
+        style="min-height:70px;font-family:monospace;font-size:11px"></textarea></div>
+    <div class="form-row-2">
+      <div><label class="form-label">Data/hora de encerramento *</label>
+        <input class="form-input" id="sp-fim" type="datetime-local"></div>
+      <div><label class="form-label">Iniciar imediatamente?</label>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:10px">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;font-weight:700;color:#aaa">
+            <input type="checkbox" id="sp-ativo" checked> Ativo ao criar
+          </label>
+        </div>
+      </div>
+    </div>
+    <div style="padding:10px 14px;background:rgba(255,183,0,.06);border:1px solid rgba(255,183,0,.15);border-radius:8px;font-size:10px;color:#888;line-height:1.6;margin-bottom:4px">
+      ⚡ Ao realizar o sorteio, um vencedor é sorteado proporcionalmente aos tickets e a chave é entregue automaticamente ao perfil dele com o troféu 🏆 <strong style="color:var(--amber)">SORTUDO</strong>.
     </div>
     <div class="modal-footer">
-      <button class="btn btn-outline" onclick="closeModal('sorteio')">Cancelar</button>
-      <button class="btn btn-green" onclick="salvarSorteio()">Criar sorteio</button>
+      <button class="btn btn-outline" onclick="closeModal('sorteio-periodico')">Cancelar</button>
+      <button class="btn btn-green" onclick="salvarSorteioPeriodico()">Criar sorteio</button>
     </div>
   </div>
 </div>
@@ -1365,39 +1558,145 @@ async function excluirAval(id){
 }
 
 /* ══ MARSPOINTS ══ */
+var _mpData=[], _mpSaldoAtual=0, _mpSaldoRmAtual=0;
+
 async function carregarMarsPoints(){
   var tbody=document.getElementById('pts-tbody');
-  tbody.innerHTML='<tr><td colspan="5" class="empty-state"><span class="loader-inline"></span></td></tr>';
+  tbody.innerHTML='<tr><td colspan="6" class="empty-state"><span class="loader-inline"></span></td></tr>';
   var{data}=await sb.from('marspoints').select('*').order('pontos',{ascending:false});
-  if(!data||data.length===0){tbody.innerHTML='<tr><td colspan="5" class="empty-state">Nenhum cliente ainda.</td></tr>';return}
-  tbody.innerHTML=data.map(function(c){
-    var nv=nivelCliente(c.pontos||0);
+  if(!data||data.length===0){tbody.innerHTML='<tr><td colspan="6" class="empty-state">Nenhum cliente ainda.</td></tr>';return}
+  _mpData=data;
+  var total=data.reduce(function(s,r){return s+(r.pontos||0)},0);
+  var dia=data.filter(function(r){return(r.pontos||0)>=5000}).length;
+  var esm=data.filter(function(r){return(r.pontos||0)>=1000&&(r.pontos||0)<5000}).length;
+  if(document.getElementById('pts-stat-total'))document.getElementById('pts-stat-total').textContent=data.length;
+  if(document.getElementById('pts-stat-pts'))document.getElementById('pts-stat-pts').textContent=total.toLocaleString('pt-BR');
+  if(document.getElementById('pts-stat-dia'))document.getElementById('pts-stat-dia').textContent=dia;
+  if(document.getElementById('pts-stat-esm'))document.getElementById('pts-stat-esm').textContent=esm;
+  var emails=data.map(function(r){return r.user_email});
+  ['pts-email-list','pts-rm-email-list'].forEach(function(id){
+    var dl=document.getElementById(id);
+    if(dl)dl.innerHTML=emails.map(function(e){return'<option value="'+esc(e)+'">'}).join('');
+  });
+  renderTabelaPontos(data);
+}
+
+function renderTabelaPontos(data){
+  var tbody=document.getElementById('pts-tbody');
+  if(!data||data.length===0){tbody.innerHTML='<tr><td colspan="6" class="empty-state">Nenhum cliente encontrado.</td></tr>';return}
+  tbody.innerHTML=data.map(function(r){
+    var nv=nivelCliente(r.pontos||0);
+    var hist=(r.historico||[]).slice(0,2);
+    var histHtml=hist.length?hist.map(function(h){
+      var g=(h.pontos||0)>0;
+      return '<div style="font-size:9px;color:'+(g?'var(--green)':'var(--red)')+';font-weight:700;line-height:1.4">'+(g?'+':'')+h.pontos+' — '+esc((h.descricao||'').substring(0,26))+'</div>';
+    }).join(''):'<div style="font-size:9px;color:var(--muted)">Sem histórico</div>';
     return '<tr>'+
-      '<td style="font-weight:700;color:#fff">'+esc(c.user_email||'—')+'</td>'+
-      '<td style="color:var(--green);font-weight:900">'+(c.pontos||0).toLocaleString('pt-BR')+' pts</td>'+
+      '<td style="font-weight:700;color:#fff">'+esc(r.user_email||'—')+'</td>'+
+      '<td><div style="font-family:Orbitron,sans-serif;font-size:16px;font-weight:900;color:var(--green)">'+(r.pontos||0).toLocaleString('pt-BR')+'</div><div style="font-size:9px;color:var(--muted)">pts</div></td>'+
       '<td><span class="badge '+nv.cls+'">'+nv.l+'</span></td>'+
-      '<td>'+fmtDate(c.updated_at)+'</td>'+
-      '<td><button class="btn btn-outline btn-sm" onclick="abrirPontos(\''+esc(c.user_email||'')+'\')">Ajustar</button></td></tr>';
+      '<td style="max-width:180px">'+histHtml+'</td>'+
+      '<td style="color:var(--muted);font-size:11px">'+fmtDate(r.updated_at||r.created_at)+'</td>'+
+      '<td><div class="td-actions">'+
+        '<button class="btn btn-outline btn-sm" onclick="verHistorico(''+esc(r.user_email||'')+'')">📋 Ver</button>'+
+        '<button class="btn btn-green btn-sm" style="padding:5px 10px;font-size:13px" onclick="abrirAdicionarPontos(''+esc(r.user_email||'')+'')">+</button>'+
+        '<button class="btn btn-red btn-sm" style="padding:5px 10px;font-size:13px" onclick="abrirRemoverPontos(''+esc(r.user_email||'')+'')">−</button>'+
+      '</div></td></tr>';
   }).join('');
 }
-function abrirPontos(email){document.getElementById('pts-email').value=email;openModal('pontos')}
-async function ajustarPontos(){
-  var email=document.getElementById('pts-email').value.trim();
-  var qtd=parseInt(document.getElementById('pts-qtd').value);
-  var motivo=document.getElementById('pts-motivo').value.trim()||'Ajuste manual admin';
-  if(!email||isNaN(qtd)){showToast('Preencha email e quantidade',true);return}
-  var{data:atual}=await sb.from('marspoints').select('*').eq('user_email',email).single();
-  var antesVal=atual?atual.pontos:0;
-  if(atual){
-    var novo=Math.max(0,(atual.pontos||0)+qtd);
-    var hist=[{descricao:motivo,pontos:qtd,data:new Date()},...(atual.historico||[])].slice(0,20);
-    await sb.from('marspoints').update({pontos:novo,historico:hist}).eq('user_email',email);
-  }else{
-    await sb.from('marspoints').insert({user_email:email,pontos:Math.max(0,qtd),historico:[{descricao:motivo,pontos:qtd,data:new Date()}]});
-  }
-  await registrarHistorico('pontos','ajustou pontos de '+email+': '+motivo,{pontos:antesVal},{pontos:(antesVal+qtd)});
-  showToast('Pontos atualizados!');closeModal('pontos');carregarMarsPoints();
+
+function filtrarMarsPoints(q){
+  if(!q)return renderTabelaPontos(_mpData);
+  renderTabelaPontos(_mpData.filter(function(r){return(r.user_email||'').toLowerCase().includes(q.toLowerCase())}));
 }
+
+function abrirAdicionarPontos(email){
+  document.getElementById('pts-email').value=email||'';
+  document.getElementById('pts-qtd').value='';
+  document.getElementById('pts-motivo').value='';
+  _mpSaldoAtual=0;
+  if(email){var r=_mpData.find(function(x){return x.user_email===email});_mpSaldoAtual=r?r.pontos||0:0;}
+  document.getElementById('pts-saldo-val').textContent=_mpSaldoAtual.toLocaleString('pt-BR');
+  document.getElementById('pts-saldo-novo').textContent=_mpSaldoAtual.toLocaleString('pt-BR');
+  document.getElementById('pts-saldo-atual').style.display=email?'block':'none';
+  openModal('pontos');
+}
+
+function abrirRemoverPontos(email){
+  document.getElementById('pts-rm-email').value=email||'';
+  document.getElementById('pts-rm-qtd').value='';
+  document.getElementById('pts-rm-motivo').value='';
+  _mpSaldoRmAtual=0;
+  if(email){var r=_mpData.find(function(x){return x.user_email===email});_mpSaldoRmAtual=r?r.pontos||0:0;}
+  document.getElementById('pts-rm-val').textContent=_mpSaldoRmAtual.toLocaleString('pt-BR');
+  document.getElementById('pts-rm-novo').textContent=_mpSaldoRmAtual.toLocaleString('pt-BR');
+  document.getElementById('pts-rm-saldo').style.display=email?'block':'none';
+  openModal('remover-pontos');
+}
+
+function abrirPontos(email){abrirAdicionarPontos(email);}
+
+function previewPontos(){
+  var qtd=parseInt(document.getElementById('pts-qtd').value)||0;
+  document.getElementById('pts-saldo-novo').textContent=Math.max(0,_mpSaldoAtual+qtd).toLocaleString('pt-BR');
+  document.getElementById('pts-saldo-atual').style.display='block';
+}
+function previewRemover(){
+  var qtd=parseInt(document.getElementById('pts-rm-qtd').value)||0;
+  document.getElementById('pts-rm-novo').textContent=Math.max(0,_mpSaldoRmAtual-qtd).toLocaleString('pt-BR');
+  document.getElementById('pts-rm-saldo').style.display='block';
+}
+function setPtsQtd(n){document.getElementById('pts-qtd').value=n;previewPontos();}
+function setPtsRmQtd(n){document.getElementById('pts-rm-qtd').value=n;previewRemover();}
+function setZerarPontos(){if(confirm('Zerar TODOS os pontos?')){document.getElementById('pts-rm-qtd').value=_mpSaldoRmAtual;previewRemover();}}
+
+async function ajustarPontos(sinal){
+  var isAdd=(sinal===1);
+  var email=(isAdd?document.getElementById('pts-email'):document.getElementById('pts-rm-email')).value.trim();
+  var qtdRaw=parseInt((isAdd?document.getElementById('pts-qtd'):document.getElementById('pts-rm-qtd')).value);
+  var motivo=(isAdd?document.getElementById('pts-motivo'):document.getElementById('pts-rm-motivo')).value.trim()||(isAdd?'Adição manual — admin':'Remoção manual — admin');
+  if(!email||isNaN(qtdRaw)||qtdRaw<=0){showToast('Preencha email e quantidade válida',true);return}
+  var qtd=isAdd?qtdRaw:-qtdRaw;
+  var{data:atual}=await sb.from('marspoints').select('*').eq('user_email',email).maybeSingle();
+  var antes=atual?atual.pontos||0:0;
+  var novo=Math.max(0,antes+qtd);
+  var hist=[{descricao:motivo,pontos:qtd,data:new Date().toISOString()},...((atual&&atual.historico)||[])].slice(0,50);
+  if(atual){await sb.from('marspoints').update({pontos:novo,historico:hist,updated_at:new Date().toISOString()}).eq('user_email',email);}
+  else{await sb.from('marspoints').insert({user_email:email,pontos:Math.max(0,qtdRaw),historico:hist});}
+  await registrarHistorico('pontos',(isAdd?'adicionou +':'removeu ')+Math.abs(qtd)+' pts de '+email+': '+motivo,{pontos:antes},{pontos:novo});
+  showToast((isAdd?'✓ +':'✓ −')+Math.abs(qtd)+' pts — '+email);
+  closeModal(isAdd?'pontos':'remover-pontos');
+  carregarMarsPoints();
+}
+
+function verHistorico(email){
+  var r=_mpData.find(function(x){return x.user_email===email});
+  if(!r)return;
+  document.getElementById('pts-hist-email').textContent=email;
+  document.getElementById('pts-hist-total').textContent=(r.pontos||0).toLocaleString('pt-BR');
+  var hist=(r.historico||[]);
+  var panel=document.getElementById('pts-historico-panel');
+  panel.style.display='block';
+  document.getElementById('pts-hist-list').innerHTML=!hist.length?
+    '<div style="text-align:center;padding:24px;color:var(--muted);font-size:11px">Nenhum histórico ainda.</div>':
+    hist.map(function(h){
+      var g=(h.pontos||0)>0;
+      var dt=h.data?new Date(h.data).toLocaleString('pt-BR'):'—';
+      return '<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.04)">'+
+        '<div style="width:36px;height:36px;border-radius:8px;flex-shrink:0;background:'+(g?'rgba(0,255,85,.1)':'rgba(255,85,85,.1)')+';display:flex;align-items:center;justify-content:center;font-size:16px">'+(h.tipo==='sorteio'?'🏆':g?'⭐':'💸')+'</div>'+
+        '<div style="flex:1;min-width:0">'+
+          '<div style="font-size:11px;font-weight:700;color:#ccc">'+esc(h.descricao||'Ajuste')+'</div>'+
+          '<div style="font-size:10px;color:var(--muted);margin-top:2px">'+dt+'</div>'+
+          (h.chave?'<div style="font-size:10px;font-family:monospace;color:var(--amber);margin-top:4px;word-break:break-all">🔑 '+esc(h.chave)+'</div>':'')+
+        '</div>'+
+        '<div style="font-family:Orbitron,sans-serif;font-size:14px;font-weight:900;color:'+(g?'var(--green)':'var(--red)')+'">'+( g?'+':'')+h.pontos+'</div>'+
+      '</div>';
+    }).join('');
+  panel.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function fecharHistorico(){document.getElementById('pts-historico-panel').style.display='none';}
+
 
 /* ══ CHARGEBACK ══ */
 async function carregarChargeback(){
@@ -1452,52 +1751,155 @@ async function excluirCupom(id){
 }
 
 /* ══ SORTEIOS ══ */
+/* ══ SORTEIOS PERIÓDICOS ══ */
+var sortTabAtual='diario', sortAtivoAtual=null, sortAdmInterval=null;
+
+function setSortTab(tipo){
+  sortTabAtual=tipo;
+  ['diario','semanal','mensal'].forEach(function(t){
+    var btn=document.getElementById('stab-'+t);
+    if(!btn)return;
+    var cores={diario:'var(--mars)',semanal:'var(--amber)',mensal:'var(--dia)'};
+    if(t===tipo){btn.style.borderColor=cores[t];btn.style.color=cores[t];btn.style.background='rgba(255,255,255,.04)';}
+    else{btn.style.borderColor='';btn.style.color='';btn.style.background='';}
+  });
+  carregarSorteios();
+}
+
 async function carregarSorteios(){
-  var tbody=document.getElementById('sort-tbody');
-  var{data}=await sb.from('sorteios').select('*').order('created_at',{ascending:false});
-  if(!data||data.length===0){tbody.innerHTML='<tr><td colspan="7" class="empty-state">Nenhum sorteio ainda.</td></tr>';return}
+  var[allSorteios,allPart,allTick]=await Promise.all([
+    sb.from('sorteios_periodicos').select('*').order('created_at',{ascending:false}),
+    sb.from('sorteio_participacoes').select('id',{count:'exact'}),
+    sb.from('tickets').select('quantidade')
+  ]);
+  var data=allSorteios.data||[];
   var ativos=data.filter(function(s){return s.ativo}).length;
-  var totalKeys=data.reduce(function(acc,s){return acc+(s.keys?s.keys.length:0)},0);
+  var vencedores=data.filter(function(s){return s.vencedor_email}).length;
+  var totalTickets=(allTick.data||[]).reduce(function(s,t){return s+(t.quantidade||0)},0);
   document.getElementById('sort-ativos').textContent=ativos;
-  document.getElementById('sort-keys').textContent=totalKeys;
-  tbody.innerHTML=data.map(function(s){
+  document.getElementById('sort-part').textContent=(allPart.count||0);
+  if(document.getElementById('sort-tickets'))document.getElementById('sort-tickets').textContent=totalTickets;
+  if(document.getElementById('sort-vencedores'))document.getElementById('sort-vencedores').textContent=vencedores;
+
+  var ativoTipo=data.find(function(s){return s.tipo===sortTabAtual&&s.ativo});
+  if(ativoTipo){
+    sortAtivoAtual=ativoTipo;
+    document.getElementById('sort-ativo-card').style.display='block';
+    document.getElementById('sort-sem-ativo').style.display='none';
+    document.getElementById('sort-ativo-titulo').textContent=ativoTipo.titulo;
+    document.getElementById('sort-ativo-premio').textContent=ativoTipo.premio;
+    document.getElementById('sort-ativo-part').textContent=ativoTipo.total_participantes||0;
+    document.getElementById('sort-ativo-tick').textContent=ativoTipo.total_participantes||0;
+    document.getElementById('sort-ativo-fim').textContent=ativoTipo.data_fim?fmtDateTime(ativoTipo.data_fim):'Sem data';
+    iniciarContadorAdm(ativoTipo.data_fim);
+  } else {
+    sortAtivoAtual=null;
+    document.getElementById('sort-ativo-card').style.display='none';
+    document.getElementById('sort-sem-ativo').style.display='block';
+    if(sortAdmInterval)clearInterval(sortAdmInterval);
+  }
+
+  var tbody=document.getElementById('sort-tbody-periodico');
+  var filtrado=data.filter(function(s){return s.tipo===sortTabAtual});
+  if(!filtrado.length){tbody.innerHTML='<tr><td colspan="8" class="empty-state">Nenhum sorteio '+sortTabAtual+' ainda.</td></tr>';return}
+  var tipoLabel={diario:'🔥 Diário',semanal:'⭐ Semanal',mensal:'💎 Mensal'};
+  tbody.innerHTML=filtrado.map(function(s){
     return '<tr>'+
-      '<td style="font-weight:700;color:#fff">'+esc(s.nome)+'</td>'+
-      '<td>'+esc(s.jogo||'—')+'</td>'+
-      '<td style="color:var(--green);font-weight:900">'+(s.keys?s.keys.length:0)+' keys</td>'+
-      '<td>'+(s.participantes||0)+'/'+(s.max_participantes||'∞')+'</td>'+
-      '<td>'+fmtDate(s.data_fim)+'</td>'+
+      '<td><span class="badge '+(s.tipo==='diario'?'badge-red':s.tipo==='semanal'?'badge-amber':'badge-blue')+'">'+tipoLabel[s.tipo]+'</span></td>'+
+      '<td style="font-weight:700;color:#fff;max-width:160px">'+esc(s.titulo)+'</td>'+
+      '<td>'+esc(s.premio)+'</td>'+
+      '<td style="color:var(--green);font-weight:900">'+(s.total_participantes||0)+'</td>'+
+      '<td>'+fmtDateTime(s.data_fim)+'</td>'+
+      '<td>'+(s.vencedor_email?'<span style="color:var(--amber);font-weight:700">🏆 '+esc(s.vencedor_email.replace(/(.{3}).*(@.*)/,'$1***$2'))+'</span>':'<span style="color:var(--muted)">—</span>')+'</td>'+
       '<td>'+(s.ativo?'<span class="badge badge-green">Ativo</span>':'<span class="badge badge-gray">Encerrado</span>')+'</td>'+
       '<td><div class="td-actions">'+
-        '<button class="btn btn-outline btn-sm" onclick="sortear(\''+s.id+'\')">Sortear</button>'+
-        '<button class="btn btn-red btn-sm" onclick="excluirSorteio(\''+s.id+'\')">Excluir</button>'+
+        (s.ativo?'<button class="btn btn-amber btn-sm" onclick="realizarSorteioById(''+s.id+'')">🏆 Sortear</button>'+
+        '<button class="btn btn-red btn-sm" onclick="pararSorteioById(''+s.id+'')">⏹ Parar</button>':'')+
+        '<button class="btn btn-outline btn-sm" onclick="excluirSorteio(''+s.id+'')">🗑</button>'+
       '</div></td></tr>';
   }).join('');
 }
-async function salvarSorteio(){
-  var nome=document.getElementById('sort-nome').value.trim();
-  var jogo=document.getElementById('sort-jogo').value.trim();
-  var keysRaw=document.getElementById('sort-keys-input').value.trim();
-  var data=document.getElementById('sort-data').value;
-  var max=parseInt(document.getElementById('sort-max').value)||null;
-  if(!nome||!jogo){showToast('Preencha nome e jogo',true);return}
-  var keys=keysRaw?keysRaw.split('\n').map(function(k){return k.trim()}).filter(Boolean):[];
-  await sb.from('sorteios').insert({nome,jogo,keys,data_fim:data||null,max_participantes:max,participantes:0,ativo:true});
-  await registrarHistorico('sorteio','criou sorteio "'+nome+'" com '+keys.length+' keys',null,{nome,jogo,keys:keys.length});
-  showToast('Sorteio criado!');closeModal('sorteio');carregarSorteios();
+
+function iniciarContadorAdm(dataFim){
+  if(sortAdmInterval)clearInterval(sortAdmInterval);
+  if(!dataFim)return;
+  var fim=new Date(dataFim);
+  function pad(n){return String(n).padStart(2,'0')}
+  function tick(){
+    var diff=fim-new Date();
+    if(diff<=0){clearInterval(sortAdmInterval);return}
+    var d=document.getElementById('sadm-dias');var h=document.getElementById('sadm-horas');
+    var m=document.getElementById('sadm-min');var s=document.getElementById('sadm-seg');
+    if(d)d.textContent=pad(Math.floor(diff/86400000));
+    if(h)h.textContent=pad(Math.floor((diff%86400000)/3600000));
+    if(m)m.textContent=pad(Math.floor((diff%3600000)/60000));
+    if(s)s.textContent=pad(Math.floor((diff%60000)/1000));
+  }
+  tick();sortAdmInterval=setInterval(tick,1000);
 }
-async function sortear(id){
-  var{data:s}=await sb.from('sorteios').select('*').eq('id',id).single();
-  if(!s||!s.participantes_lista||s.participantes_lista.length===0){showToast('Nenhum participante ainda!',true);return}
-  var vencedor=s.participantes_lista[Math.floor(Math.random()*s.participantes_lista.length)];
-  alert('🏆 VENCEDOR DO SORTEIO: '+vencedor);
-  await registrarHistorico('sorteio','realizou sorteio "'+s.nome+'" — vencedor: '+vencedor,null,{vencedor});
+
+async function salvarSorteioPeriodico(){
+  var tipo=document.getElementById('sp-tipo').value;
+  var titulo=document.getElementById('sp-titulo').value.trim();
+  var desc=document.getElementById('sp-desc').value.trim();
+  var premio=document.getElementById('sp-premio').value.trim();
+  var chave=document.getElementById('sp-chave').value.trim();
+  var fim=document.getElementById('sp-fim').value;
+  var ativo=document.getElementById('sp-ativo').checked;
+  var plat=document.getElementById('sp-plat').value;
+  if(!titulo||!premio||!fim){showToast('Preencha título, prêmio e data de encerramento',true);return}
+  if(ativo){await sb.from('sorteios_periodicos').update({ativo:false}).eq('tipo',tipo).eq('ativo',true);}
+  var{error}=await sb.from('sorteios_periodicos').insert({
+    tipo,titulo,descricao:desc,premio,chave_premio:chave||null,ativo,
+    data_inicio:new Date().toISOString(),data_fim:fim?new Date(fim).toISOString():null,
+    plataforma:plat,total_participantes:0
+  });
+  if(error){showToast('Erro: '+error.message,true);return}
+  await registrarHistorico('sorteio','criou sorteio '+tipo+' "'+titulo+'"',null,{tipo,titulo,premio});
+  showToast('Sorteio criado! 🎲');closeModal('sorteio-periodico');carregarSorteios();
 }
+
+async function realizarSorteio(){if(sortAtivoAtual)await realizarSorteioById(sortAtivoAtual.id);}
+async function pararSorteio(){if(sortAtivoAtual)await pararSorteioById(sortAtivoAtual.id);}
+
+async function realizarSorteioById(id){
+  if(!confirm('Realizar o sorteio agora? Um vencedor será sorteado e a chave entregue!'))return;
+  var{data:parts}=await sb.from('sorteio_participacoes').select('user_email,user_id,tickets_usados').eq('sorteio_id',id);
+  if(!parts||parts.length===0){showToast('Nenhum participante ainda!',false,true);return}
+  var pool=[];
+  parts.forEach(function(p){for(var i=0;i<(p.tickets_usados||1);i++)pool.push(p);});
+  var venc=pool[Math.floor(Math.random()*pool.length)];
+  var emailVenc=venc.user_email;
+  var{data:s}=await sb.from('sorteios_periodicos').select('*').eq('id',id).single();
+  var chave=s.chave_premio||'(sem chave cadastrada)';
+  await sb.from('sorteios_periodicos').update({ativo:false,vencedor_email:emailVenc,vencedor_nome:emailVenc}).eq('id',id);
+  var{data:mp}=await sb.from('marspoints').select('*').eq('user_email',emailVenc).maybeSingle();
+  var hist=(mp&&mp.historico)||[];
+  hist.unshift({
+    descricao:'🏆 SORTUDO — Ganhou o sorteio '+s.tipo+'! Prêmio: '+s.premio,
+    pontos:0,data:new Date().toISOString(),tipo:'sorteio',chave:chave,titulo_desbloqueado:'SORTUDO'
+  });
+  if(mp){await sb.from('marspoints').update({historico:hist}).eq('user_email',emailVenc);}
+  else{await sb.from('marspoints').insert({user_email:emailVenc,pontos:0,historico:hist});}
+  await sb.from('perfis').update({titulo_exibido:'SORTUDO'}).eq('email',emailVenc);
+  await registrarHistorico('sorteio','realizou sorteio "'+s.titulo+'" — vencedor: '+emailVenc,null,{vencedor:emailVenc,premio:s.premio});
+  showToast('🏆 VENCEDOR: '+emailVenc+'!');
+  alert('🏆 SORTEIO REALIZADO!\n\nVencedor: '+emailVenc+'\nPrêmio: '+s.premio+'\nChave entregue no perfil!');
+  carregarSorteios();
+}
+
+async function pararSorteioById(id){
+  if(!confirm('Parar este sorteio sem sortear?'))return;
+  await sb.from('sorteios_periodicos').update({ativo:false}).eq('id',id);
+  showToast('Sorteio pausado');carregarSorteios();
+}
+
 async function excluirSorteio(id){
-  if(!confirm('Excluir este sorteio?'))return;
-  await sb.from('sorteios').delete().eq('id',id);
+  if(!confirm('Excluir permanentemente?'))return;
+  await sb.from('sorteios_periodicos').delete().eq('id',id);
   showToast('Sorteio excluído');carregarSorteios();
 }
+async function salvarSorteio(){await salvarSorteioPeriodico();}
 
 /* ══ FAVORITOS ══ */
 function carregarFavoritos(){
