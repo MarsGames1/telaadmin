@@ -768,6 +768,21 @@ tr:hover td{background:rgba(255,255,255,.012)}
         </select>
       </div>
     </div>
+    <!-- Keys / Credenciais -->
+    <div class="form-row" style="margin-top:4px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <label class="form-label" style="margin:0">🔑 Keys / Credenciais <span style="color:var(--muted);font-weight:600;font-size:9px">(uma por linha — entregues automaticamente após pagamento)</span></label>
+        <span id="keys-counter" style="font-size:10px;font-weight:700;color:var(--green)">0 keys</span>
+      </div>
+      <textarea class="form-textarea" id="prod-keys"
+        placeholder="XXXX-YYYY-ZZZZ&#10;AAAA-BBBB-CCCC&#10;usuario:senha (para contas)&#10;https://link-de-entrega.com"
+        style="min-height:110px;font-family:monospace;font-size:11px;letter-spacing:.5px"
+        oninput="contarKeys()"></textarea>
+      <div style="margin-top:6px;padding:8px 12px;background:rgba(0,255,85,.04);border:1px solid rgba(0,255,85,.12);border-radius:8px;font-size:10px;color:var(--muted);line-height:1.6">
+        ⚡ Cada linha = 1 entrega. Quando um pedido é marcado como <strong style="color:var(--green)">pago</strong>, a próxima key disponível é entregue ao cliente automaticamente.<br>
+        Keys já entregues ficam marcadas e não são reaproveitadas.
+      </div>
+    </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('produto')">Cancelar</button>
       <button class="btn btn-green" id="btn-salvar-prod" onclick="salvarProduto()">Salvar produto</button>
@@ -858,109 +873,41 @@ tr:hover td{background:rgba(255,255,255,.012)}
 var SUPABASE_URL='https://rzjtlghpsygxkivgwgws.supabase.co';
 var SUPABASE_KEY='sb_publishable_sDCnL56QQzg976Pt9if_GA_2mZn2Wzm';
 var ADMINS=['rone.mars15@gmail.com','marconde.jr@gmail.com'];
-var sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{
-  auth:{
-    flowType:'implicit',
-    detectSessionInUrl:true,
-    persistSession:true,
-    autoRefreshToken:true,
-    storageKey:'mg_auth'
-  }
-});
+var sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 var todosOsProdutos=[],todosClientes=[],currentUser=null,currentEmail='';
 var favTab='produtos',favsProdutos=[],favsClientes=[];
 
 /* ══ AUTH ══ */
-
-/* URL limpa do admin — sem query params que possam confundir o redirect */
-var ADM_URL = window.location.origin + window.location.pathname;
-
 async function loginGoogle(){
-  /* Limpa qualquer erro anterior da URL antes de tentar login */
-  if(window.location.hash.includes('error')){
-    history.replaceState(null,'',ADM_URL);
-  }
-  var{error}=await sb.auth.signInWithOAuth({
-    provider:'google',
-    options:{
-      redirectTo: ADM_URL,
-      queryParams:{ prompt:'select_account', access_type:'offline' }
-    }
-  });
-  if(error) showToast('Erro ao conectar: '+error.message, true);
+  var{error}=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:window.location.href}});
+  if(error)showToast('Erro ao conectar',true);
 }
-
 async function logout(){
   if(currentEmail) await registrarPresenca(currentEmail,false);
-  _painelCarregado=false; currentEmail=''; currentUser=null;
   await sb.auth.signOut();
-  /* Limpa a URL de qualquer token/hash */
-  history.replaceState(null,'',ADM_URL);
-  showLogin();
+  document.getElementById('app').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
 }
-
-var _painelCarregado=false;
-
-function entrarNoPainel(session){
+async function checkAuth(){
+  var{data:{session}}=await sb.auth.getSession();
+  if(!session){showLogin();return}
   var email=session.user.email;
-  if(!ADMINS.includes(email)){
-    sb.auth.signOut();
-    history.replaceState(null,'',ADM_URL);
-    showLogin();
-    showToast('Acesso negado: '+email, true);
-    return;
-  }
-  /* Já está no painel com o mesmo usuário — não recarrega */
-  if(_painelCarregado && currentEmail===email) return;
-  _painelCarregado=true;
+  if(!ADMINS.includes(email)){await sb.auth.signOut();showLogin();alert('Acesso negado.');return}
   currentEmail=email;
   currentUser=session.user;
-  /* Limpa o hash da URL (remove #access_token=... ou #error=...) */
-  history.replaceState(null,'',ADM_URL);
-  var nome=(session.user.user_metadata&&session.user.user_metadata.full_name)||email.split('@')[0];
+  var nome=session.user.user_metadata.full_name||email.split('@')[0];
   var inits=nome.split(' ').map(function(w){return w[0]}).slice(0,2).join('').toUpperCase();
   document.getElementById('sbAvatar').textContent=inits;
   document.getElementById('sbUserName').textContent=nome.split(' ')[0];
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').style.display='block';
-  registrarPresenca(email,true);
-  registrarLog(nome,email);
+  await registrarPresenca(email,true);
+  await registrarLog(nome,email);
   iniciarPresenca();
   carregarDashboard();
   carregarFavoritos();
 }
-
-function checkAuth(){
-  /* Verifica se a URL tem erro do Supabase (ex: acesso negado pelo banco) */
-  var hash=window.location.hash;
-  if(hash.includes('error')){
-    var msg=decodeURIComponent((hash.match(/error_description=([^&]+)/)||['','Erro desconhecido'])[1]).replace(/\+/g,' ');
-    history.replaceState(null,'',ADM_URL);
-    showLogin();
-    showToast('Erro de autenticação: '+msg, true);
-    return;
-  }
-
-  sb.auth.onAuthStateChange(function(event, session){
-    if(event==='INITIAL_SESSION'){
-      if(session) entrarNoPainel(session); else showLogin();
-    }
-    if(event==='SIGNED_IN' && session){
-      _painelCarregado=false;
-      entrarNoPainel(session);
-    }
-    if(event==='SIGNED_OUT'){
-      _painelCarregado=false; currentEmail=''; currentUser=null;
-      history.replaceState(null,'',ADM_URL);
-      showLogin();
-    }
-  });
-}
-
-function showLogin(){
-  document.getElementById('login-screen').style.display='flex';
-  document.getElementById('app').style.display='none';
-}
+function showLogin(){document.getElementById('login-screen').style.display='flex';document.getElementById('app').style.display='none'}
 
 /* ══ PRESENÇA REALTIME ══ */
 async function registrarPresenca(email,online){
@@ -1066,6 +1013,15 @@ function showPage(id,el){
 /* ══ DASHBOARD ══ */
 async function carregarDashboard(){
   document.getElementById('dash-date').textContent=new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'});
+  /* Carrega estado atual de manutenção */
+  sb.from('config').select('value').eq('key','manutencao').maybeSingle().then(function(r){
+    if(!r.data) return;
+    var on=r.data.value==='1';
+    document.getElementById('maintenance-toggle').checked=on;
+    var label=document.getElementById('maintenance-label');
+    label.textContent=on?'⚠ Site em manutenção':'Modo manutenção';
+    label.className='maintenance-label'+(on?' active-label':'');
+  });
   var[prods,peds,avals,pts]=await Promise.all([
     sb.from('produtos').select('id',{count:'exact'}).eq('ativo',true),
     sb.from('pedidos').select('id',{count:'exact'}),
@@ -1199,6 +1155,12 @@ async function toggleProd(id,ativo){
   await registrarHistorico('produto',(ativo?'ativou':'desativou')+' produto',{ativo:!ativo},{ativo});
   showToast(ativo?'Produto ativado':'Produto desativado');
 }
+function contarKeys(){
+  var raw=document.getElementById('prod-keys').value;
+  var keys=raw.split('\n').map(function(k){return k.trim()}).filter(Boolean);
+  document.getElementById('keys-counter').textContent=keys.length+' key'+(keys.length!==1?'s':'');
+}
+
 async function salvarProduto(){
   var id=document.getElementById('prod-id').value;
   var nome=document.getElementById('prod-nome').value.trim();
@@ -1206,18 +1168,30 @@ async function salvarProduto(){
   var cat=document.getElementById('prod-cat').value;
   var img=document.getElementById('prod-img').value.trim();
   var desc=document.getElementById('prod-desc').value.trim();
-  var est=parseInt(document.getElementById('prod-estoque').value)||0;
   var plat=document.getElementById('prod-plat').value;
   if(!nome||!preco||!cat){showToast('Preencha os campos obrigatórios',true);return}
+
+  /* Processa keys do textarea */
+  var keysRaw=document.getElementById('prod-keys').value;
+  var keysNovas=keysRaw.split('\n').map(function(k){return k.trim()}).filter(Boolean);
+
+  /* Se editando: mescla keys existentes não entregues com as novas */
+  var prodAtual=id?todosOsProdutos.find(function(p){return p.id===id}):null;
+  var keysExistentes=(prodAtual&&prodAtual.keys_disponiveis)||[];
+  /* Remove duplicatas */
+  var todasKeys=keysExistentes.concat(keysNovas.filter(function(k){return !keysExistentes.includes(k)}));
+
+  var est=todasKeys.length; /* Estoque = número de keys disponíveis */
+
   var btn=document.getElementById('btn-salvar-prod');
   btn.disabled=true;btn.textContent='Salvando...';
-  var dados={nome,preco,categoria:cat,imagem:img,descricao:desc,estoque:est,plataforma:plat,ativo:true};
-  var antes=id?todosOsProdutos.find(function(p){return p.id===id}):null;
+  var dados={nome,preco,categoria:cat,imagem:img,descricao:desc,estoque:est,plataforma:plat,ativo:true,keys_disponiveis:todasKeys};
+  var antes=prodAtual||null;
   var res=id?await sb.from('produtos').update(dados).eq('id',id):await sb.from('produtos').insert(dados);
   btn.disabled=false;btn.textContent='Salvar produto';
   if(res.error){showToast('Erro: '+res.error.message,true);return}
-  await registrarHistorico('produto',id?('editou produto "'+nome+'"'):('cadastrou produto "'+nome+'"'),antes,dados);
-  showToast(id?'Produto atualizado!':'Produto cadastrado!');
+  await registrarHistorico('produto',id?('editou produto "'+nome+'" ('+todasKeys.length+' keys)'):('cadastrou produto "'+nome+'" com '+todasKeys.length+' keys'),antes,dados);
+  showToast(id?'Produto atualizado! '+todasKeys.length+' keys disponíveis.':'Produto cadastrado com '+todasKeys.length+' keys!');
   closeModal('produto');carregarProdutos();
 }
 function editarProduto(p){
@@ -1230,7 +1204,11 @@ function editarProduto(p){
   document.getElementById('prod-desc').value=p.descricao||'';
   document.getElementById('prod-estoque').value=p.estoque||0;
   document.getElementById('prod-plat').value=p.plataforma||'Steam';
-  openModalEditar('produto'); /* ← não limpa os campos */
+  /* Carrega keys disponíveis no textarea */
+  var keys=(p.keys_disponiveis||[]);
+  document.getElementById('prod-keys').value=keys.join('\n');
+  document.getElementById('keys-counter').textContent=keys.length+' key'+(keys.length!==1?'s':'');
+  openModalEditar('produto');
 }
 async function excluirProduto(id){
   if(!confirm('Excluir este produto? Esta ação não pode ser desfeita.'))return;
@@ -1651,6 +1629,8 @@ function openModal(id){
     document.getElementById('modal-prod-title').textContent='Novo produto';
     document.getElementById('prod-id').value='';
     ['prod-nome','prod-preco','prod-img','prod-desc','prod-estoque'].forEach(function(f){document.getElementById(f).value=''});
+    document.getElementById('prod-keys').value='';
+    document.getElementById('keys-counter').textContent='0 keys';
     document.getElementById('prod-cat').value='';
     document.getElementById('prod-plat').value='Steam';
   }
