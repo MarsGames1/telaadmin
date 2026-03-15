@@ -23,9 +23,7 @@
 ::-webkit-scrollbar-thumb:hover{background:linear-gradient(180deg,#00ff55,#e8421a)}
 .sidebar::-webkit-scrollbar{width:3px}
 .sidebar::-webkit-scrollbar-thumb{background:rgba(0,255,85,.25);border-radius:99px}
-*{scrollbar-width:thin;scrollbar-color:rgba(0,255,85,.4) transparent
-}
-}
+*{scrollbar-width:thin;scrollbar-color:rgba(0,255,85,.4) transparent}
 @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(1.4)}}
@@ -319,7 +317,7 @@ tr:hover td{background:rgba(255,255,255,.012)}
 <body>
 
 <!-- ══ LOGIN ══ -->
-<div id="login-screen">
+<div id="login-screen" style="display:flex">
   <div class="login-card">
     <div class="login-logo">Mars<span>Games</span></div>
     <div class="login-sub">Painel Administrativo</div>
@@ -333,7 +331,7 @@ tr:hover td{background:rgba(255,255,255,.012)}
 </div>
 
 <!-- ══ APP ══ -->
-<div id="app">
+<div id="app" style="display:none">
 <div class="layout">
 
 <!-- SIDEBAR -->
