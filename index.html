@@ -1618,21 +1618,53 @@ async function verKey(id){
 async function carregarClientes(){
   var tbody=document.getElementById('cli-tbody');
   tbody.innerHTML='<tr><td colspan="7" class="empty-state"><span class="loader-inline"></span></td></tr>';
-  var[{data:peds},{data:pts}]=await Promise.all([
+
+  /* Busca perfis (todos que fizeram login), pedidos e marspoints em paralelo */
+  var[perfisRes,pedsRes,ptsRes]=await Promise.all([
+    sb.from('perfis').select('id,email,nome,avatar_url,created_at'),
     sb.from('pedidos').select('cliente_email,valor,produto_nome,created_at,status'),
-    sb.from('marspoints').select('*')
+    sb.from('marspoints').select('user_email,pontos,obs,bloqueado')
   ]);
-  if(!peds){tbody.innerHTML='<tr><td colspan="7" class="empty-state">Sem dados.</td></tr>';return}
+
+  var perfis=perfisRes.data||[];
+  var peds=pedsRes.data||[];
+  var pts=ptsRes.data||[];
+
+  if(!perfis.length){tbody.innerHTML='<tr><td colspan="7" class="empty-state">Nenhum cliente cadastrado ainda.</td></tr>';return}
+
+  /* Monta mapa baseado em perfis — inclui TODOS que fizeram login */
   var map={};
+  perfis.forEach(function(p){
+    map[p.email]={
+      email:p.email,
+      nome:p.nome||p.email,
+      avatar:p.avatar_url||'',
+      total:0,compras:[],
+      pontos:0,obs:'',bloqueado:false,
+      criado:p.created_at
+    };
+  });
+
+  /* Enriquece com pedidos */
   peds.forEach(function(p){
-    if(!map[p.cliente_email])map[p.cliente_email]={email:p.cliente_email,total:0,compras:[],bloqueado:false};
+    if(!p.cliente_email) return;
+    if(!map[p.cliente_email]){
+      map[p.cliente_email]={email:p.cliente_email,nome:p.cliente_email,avatar:'',total:0,compras:[],pontos:0,obs:'',bloqueado:false,criado:null};
+    }
     map[p.cliente_email].total+=Number(p.valor||0);
     map[p.cliente_email].compras.push(p);
   });
-  if(pts)pts.forEach(function(p){
-    if(map[p.user_email]){map[p.user_email].pontos=p.pontos||0;map[p.user_email].obs=p.obs||'';map[p.user_email].bloqueado=p.bloqueado||false}
+
+  /* Enriquece com marspoints */
+  pts.forEach(function(p){
+    if(map[p.user_email]){
+      map[p.user_email].pontos=p.pontos||0;
+      map[p.user_email].obs=p.obs||'';
+      map[p.user_email].bloqueado=p.bloqueado||false;
+    }
   });
-  todosClientes=Object.values(map).sort(function(a,b){return b.total-a.total});
+
+  todosClientes=Object.values(map).sort(function(a,b){return b.total-a.total||b.pontos-a.pontos});
   renderClientes(todosClientes);
 }
 function nivelCliente(pts){
@@ -1648,24 +1680,36 @@ function renderClientes(lista){
   tbody.innerHTML=lista.map(function(c){
     var nv=nivelCliente(c.pontos||0);
     var isFav=favsClientes.includes(c.email);
+    var ini=(c.nome||c.email||'?')[0].toUpperCase();
     return '<tr class="'+(c.bloqueado?'cliente-row-bloqueado':'')+'">'+
-      '<td style="font-weight:700;color:'+(c.bloqueado?'var(--red)':'#fff')+'">'+esc(c.email)+
-        (c.bloqueado?'<span class="badge badge-blocked" style="margin-left:6px">BLOQUEADO</span>':'')+
+      '<td>'+
+        '<div style="display:flex;align-items:center;gap:8px">'+
+          (c.avatar?
+            '<img src="'+esc(c.avatar)+'" style="width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0" onerror="this.style.display='none'">':
+            '<div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,rgba(232,66,26,.3),rgba(0,255,85,.2));display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:#fff;flex-shrink:0">'+ini+'</div>'
+          )+
+          '<div>'+
+            '<div style="font-weight:700;color:'+(c.bloqueado?'var(--red)':'#fff')+'">'+esc(c.nome||c.email)+'</div>'+
+            '<div style="font-size:10px;color:var(--muted)">'+esc(c.email)+'</div>'+
+          '</div>'+
+          (c.bloqueado?'<span class="badge badge-blocked" style="margin-left:6px">BLOQUEADO</span>':'')+
+        '</div>'+
       '</td>'+
-      '<td><span class="badge '+nv.cls+'">'+nv.l+'</span></td>'+
+      '<td><span class="badge '+nv.cls+'">'+nv.l+'</span><div style="font-size:9px;color:var(--muted);margin-top:3px">'+(c.pontos||0)+' pts</div></td>'+
       '<td style="color:var(--green);font-weight:900">R$ '+c.total.toFixed(2).replace('.',',')+'</td>'+
-      '<td>'+c.compras.length+' compras</td>'+
+      '<td>'+(c.compras.length?c.compras.length+' compras':'<span style="color:var(--muted)">Sem compras</span>')+'</td>'+
       '<td class="obs-cell" title="'+esc(c.obs||'')+'">'+esc(c.obs||'—')+'</td>'+
       '<td>'+(!c.bloqueado?'<span class="badge badge-green">Ativo</span>':'<span class="badge badge-red">Bloqueado</span>')+'</td>'+
       '<td><div class="td-actions">'+
-        '<button class="btn btn-outline btn-sm" onclick="verComprasCliente(\''+esc(c.email)+'\')">Compras</button>'+
-        '<button class="btn btn-outline btn-sm" onclick="abrirObs(\''+esc(c.email)+'\',\''+esc(c.obs||'')+'\')" title="Observação">📝</button>'+
-        '<button class="btn btn-outline btn-sm" onclick="toggleFavCliente(\''+esc(c.email)+'\')" style="'+(isFav?'color:var(--amber);border-color:var(--amber)':'')+'">★</button>'+
-        '<button class="btn btn-block btn-sm" onclick="bloquearCliente(\''+esc(c.email)+'\','+(c.bloqueado?'false':'true')+')">'+
+        '<button class="btn btn-outline btn-sm" onclick="verComprasCliente(''+esc(c.email)+'')">Compras</button>'+
+        '<button class="btn btn-outline btn-sm" onclick="abrirObs(''+esc(c.email)+'',''+esc(c.obs||'')+'')" title="Obs">📝</button>'+
+        '<button class="btn btn-outline btn-sm" onclick="toggleFavCliente(''+esc(c.email)+'')" style="'+(isFav?'color:var(--amber);border-color:var(--amber)':'')+'">★</button>'+
+        '<button class="btn btn-block btn-sm" onclick="bloquearCliente(''+esc(c.email)+'','+(c.bloqueado?'false':'true')+')">'+
           (c.bloqueado?'DESBLOQUEAR':'BLOQUEAR')+'</button>'+
       '</div></td></tr>';
   }).join('');
 }
+
 function filtrarClientes(q){
   renderClientes(todosClientes.filter(function(c){return(c.email||'').toLowerCase().includes(q.toLowerCase())}));
 }
