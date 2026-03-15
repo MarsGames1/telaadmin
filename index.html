@@ -858,7 +858,15 @@ tr:hover td{background:rgba(255,255,255,.012)}
 var SUPABASE_URL='https://rzjtlghpsygxkivgwgws.supabase.co';
 var SUPABASE_KEY='sb_publishable_sDCnL56QQzg976Pt9if_GA_2mZn2Wzm';
 var ADMINS=['rone.mars15@gmail.com','marconde.jr@gmail.com'];
-var sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+var sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{
+  auth:{
+    flowType:'implicit',
+    detectSessionInUrl:true,
+    persistSession:true,
+    autoRefreshToken:true,
+    storageKey:'mg_auth'
+  }
+});
 var todosOsProdutos=[],todosClientes=[],currentUser=null,currentEmail='';
 var favTab='produtos',favsProdutos=[],favsClientes=[];
 
@@ -873,11 +881,12 @@ async function logout(){
   document.getElementById('app').style.display='none';
   document.getElementById('login-screen').style.display='flex';
 }
-async function checkAuth(){
-  var{data:{session}}=await sb.auth.getSession();
-  if(!session){showLogin();return}
+function entrarNoPainel(session){
   var email=session.user.email;
-  if(!ADMINS.includes(email)){await sb.auth.signOut();showLogin();alert('Acesso negado.');return}
+  if(!ADMINS.includes(email)){
+    sb.auth.signOut();showLogin();
+    alert('Acesso negado: '+email+' não é admin.');return;
+  }
   currentEmail=email;
   currentUser=session.user;
   var nome=session.user.user_metadata.full_name||email.split('@')[0];
@@ -886,11 +895,25 @@ async function checkAuth(){
   document.getElementById('sbUserName').textContent=nome.split(' ')[0];
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').style.display='block';
-  await registrarPresenca(email,true);
-  await registrarLog(nome,email);
+  registrarPresenca(email,true);
+  registrarLog(nome,email);
   iniciarPresenca();
   carregarDashboard();
   carregarFavoritos();
+}
+async function checkAuth(){
+  /* onAuthStateChange captura tanto sessão existente quanto redirect OAuth */
+  sb.auth.onAuthStateChange(function(event, session){
+    if(session){
+      entrarNoPainel(session);
+    } else {
+      showLogin();
+    }
+  });
+  /* Fallback: verifica sessão já existente imediatamente */
+  var{data:{session}}=await sb.auth.getSession();
+  if(session){ entrarNoPainel(session); }
+  else { showLogin(); }
 }
 function showLogin(){document.getElementById('login-screen').style.display='flex';document.getElementById('app').style.display='none'}
 
