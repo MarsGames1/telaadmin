@@ -1295,17 +1295,30 @@ tr:hover td{background:rgba(255,255,255,.012)}
 var SUPABASE_URL='https://rzjtlghpsygxkivgwgws.supabase.co';
 var SUPABASE_KEY='sb_publishable_sDCnL56QQzg976Pt9if_GA_2mZn2Wzm';
 var ADMINS=['rone.mars15@gmail.com','marconde.jr@gmail.com'];
-var sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{
-  auth:{
-    flowType:'implicit',
-    detectSessionInUrl:true,
-    persistSession:true,
-    autoRefreshToken:true,
-    storageKey:'mg_auth'
-  }
-});
+var sb=null;
 var todosOsProdutos=[],todosClientes=[],currentUser=null,currentEmail='';
 var favTab='produtos',favsProdutos=[],favsClientes=[];
+
+// Aguardar Supabase JS carregar antes de inicializar
+function initAdmin(){
+  if(typeof window.supabase==='undefined'){
+    setTimeout(initAdmin,100);
+    return;
+  }
+  sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{
+    auth:{
+      flowType:'implicit',
+      detectSessionInUrl:true,
+      persistSession:true,
+      autoRefreshToken:true,
+      storageKey:'mg_auth'
+    }
+  });
+  checkAuth();
+}
+
+// Iniciar quando página carregar
+initAdmin();
 
 /* ══ AUTH ══ */
 var ADM_URL = window.location.origin + window.location.pathname;
@@ -1656,12 +1669,12 @@ function contarKeys(){
 async function salvarProduto(){
   var id=document.getElementById('prod-id').value;
   var nome=document.getElementById('prod-nome').value.trim();
-  var preco=parseFloat(document.getElementById('prod-preco').value);
+  var preco=Math.round(parseFloat(document.getElementById('prod-preco').value)*100)/100;
   var cat=document.getElementById('prod-cat').value;
   var img=document.getElementById('prod-img').value.trim();
   var desc=document.getElementById('prod-desc').value.trim();
   var plat=document.getElementById('prod-plat').value;
-  if(!nome||!preco||!cat){showToast('Preencha os campos obrigatórios',true);return}
+  if(!nome||isNaN(preco)||preco<=0||!cat){showToast('Preencha os campos obrigatórios — preço deve ser maior que zero',true);return}
 
   /* Processa keys do textarea */
   var keysRaw=document.getElementById('prod-keys').value;
@@ -1686,8 +1699,17 @@ async function salvarProduto(){
   var tipoKeyEl=document.getElementById('prod-tipo-key');
   var tipoKey=tipoKeyEl?tipoKeyEl.value:'login_senha';
   
-  var dados={nome,preco,preco_original:precoOrig,desconto:descPct,
-    categoria:cat,imagem:img,descricao:desc,plataforma:plat,ativo:true};
+  var dados={
+    nome:nome,
+    preco:Number(preco.toFixed(2)),
+    preco_original:Number(precoOrig.toFixed(2)),
+    desconto:descPct,
+    categoria:cat,
+    imagem:img,
+    descricao:desc,
+    plataforma:plat,
+    ativo:true
+  };
   var antes=prodAtual||null;
   
   var res,prodId=id;
@@ -2647,7 +2669,11 @@ function iniciarRealtimeNotifs(){
     ).subscribe();
 }
 
-checkAuth();
+  checkAuth();
+}
+
+// Iniciar
+initAdmin();
 </script>
 <!-- Painel de notificações -->
 <div class="notif-overlay" id="notifOverlay" onclick="toggleNotifs()"></div>
