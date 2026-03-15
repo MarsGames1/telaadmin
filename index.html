@@ -881,15 +881,20 @@ async function logout(){
   document.getElementById('app').style.display='none';
   document.getElementById('login-screen').style.display='flex';
 }
+var _painelCarregado=false;
+
 function entrarNoPainel(session){
   var email=session.user.email;
   if(!ADMINS.includes(email)){
     sb.auth.signOut();showLogin();
-    alert('Acesso negado: '+email+' não é admin.');return;
+    alert('Acesso negado: '+email);return;
   }
+  /* Evita recarregar tudo se já está no painel com o mesmo user */
+  if(_painelCarregado && currentEmail===email) return;
+  _painelCarregado=true;
   currentEmail=email;
   currentUser=session.user;
-  var nome=session.user.user_metadata.full_name||email.split('@')[0];
+  var nome=session.user.user_metadata&&session.user.user_metadata.full_name||email.split('@')[0];
   var inits=nome.split(' ').map(function(w){return w[0]}).slice(0,2).join('').toUpperCase();
   document.getElementById('sbAvatar').textContent=inits;
   document.getElementById('sbUserName').textContent=nome.split(' ')[0];
@@ -901,19 +906,19 @@ function entrarNoPainel(session){
   carregarDashboard();
   carregarFavoritos();
 }
-async function checkAuth(){
-  /* onAuthStateChange captura tanto sessão existente quanto redirect OAuth */
+function checkAuth(){
   sb.auth.onAuthStateChange(function(event, session){
-    if(session){
+    if(event==='INITIAL_SESSION'){
+      if(session) entrarNoPainel(session); else showLogin();
+    }
+    if(event==='SIGNED_IN' && session){
+      _painelCarregado=false; /* nova sessão — recarregar */
       entrarNoPainel(session);
-    } else {
-      showLogin();
+    }
+    if(event==='SIGNED_OUT'){
+      _painelCarregado=false; currentEmail=''; currentUser=null; showLogin();
     }
   });
-  /* Fallback: verifica sessão já existente imediatamente */
-  var{data:{session}}=await sb.auth.getSession();
-  if(session){ entrarNoPainel(session); }
-  else { showLogin(); }
 }
 function showLogin(){document.getElementById('login-screen').style.display='flex';document.getElementById('app').style.display='none'}
 
