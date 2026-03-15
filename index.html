@@ -1626,6 +1626,11 @@ async function carregarClientes(){
     sb.from('marspoints').select('user_email,pontos,obs,bloqueado')
   ]);
 
+  /* Debug — mostra erro no console se houver */
+  if(perfisRes.error) console.error('Perfis error:',perfisRes.error);
+  if(pedsRes.error) console.error('Pedidos error:',pedsRes.error);
+  if(ptsRes.error) console.error('MarsPoints error:',ptsRes.error);
+
   var perfis=perfisRes.data||[];
   var peds=pedsRes.data||[];
   var pts=ptsRes.data||[];
@@ -1685,7 +1690,7 @@ function renderClientes(lista){
       '<td>'+
         '<div style="display:flex;align-items:center;gap:8px">'+
           (c.avatar?
-            '<img src="'+esc(c.avatar)+'" style="width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0" onerror="this.style.display='none'">':
+            '<img src="'+esc(c.avatar)+'" style="width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0" onerror="this.style.display=\'none\'">':
             '<div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,rgba(232,66,26,.3),rgba(0,255,85,.2));display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:#fff;flex-shrink:0">'+ini+'</div>'
           )+
           '<div>'+
