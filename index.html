@@ -1311,7 +1311,7 @@ function initAdmin(){
       detectSessionInUrl:true,
       persistSession:true,
       autoRefreshToken:true,
-      storageKey:'mg_admin_auth'  /* Sessão separada do site */
+      storageKey:'mg_admin_auth'
     }
   });
   checkAuth();
@@ -1346,7 +1346,8 @@ async function loginGoogle(){
 async function logout(){
   if(currentEmail) await registrarPresenca(currentEmail,false);
   _painelAberto=false; currentEmail=''; currentUser=null;
-  await sb.auth.signOut();
+  /* scope:'local' — limpa só o localStorage do admin, não invalida o token no servidor */
+  await sb.auth.signOut({scope:'local'});
   history.replaceState(null,'',ADM_URL);
   showLogin();
 }
@@ -1354,7 +1355,7 @@ async function logout(){
 function entrarNoPainel(session){
   var email=session.user.email;
   if(!ADMINS.includes(email)){
-    sb.auth.signOut();
+    sb.auth.signOut({scope:'local'});
     history.replaceState(null,'',ADM_URL);
     showLogin();
     showToast('Acesso negado: '+email,true);
@@ -1403,6 +1404,13 @@ function checkAuth(){
     }
     if(event==='SIGNED_OUT'){
       _painelAberto=false; currentEmail=''; currentUser=null;
+      /* Limpa só a sessão do admin no storage */
+      try{
+        var keys=Object.keys(localStorage);
+        keys.forEach(function(k){
+          if(k.startsWith('mg_admin_auth')) localStorage.removeItem(k);
+        });
+      }catch(e){}
       history.replaceState(null,'',ADM_URL);
       showLogin();
     }
