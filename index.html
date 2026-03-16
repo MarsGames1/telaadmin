@@ -1294,6 +1294,7 @@ tr:hover td{background:rgba(255,255,255,.012)}
 <script>
 var SUPABASE_URL='https://rzjtlghpsygxkivgwgws.supabase.co';
 var SUPABASE_KEY='sb_publishable_sDCnL56QQzg976Pt9if_GA_2mZn2Wzm';
+var WEBHOOK='https://discord.com/api/webhooks/1482046917205557443/H7w5ZFSXY9dVLk4cPTC2FljzniZLu4os8LsYqOL_DqBsHicVcVkclqTrZ4OEXnyKvVX0';
 var ADMINS=['rone.mars15@gmail.com','marconde.jr@gmail.com'];
 var sb=null;
 var todosOsProdutos=[],todosClientes=[],currentUser=null,currentEmail='';
@@ -1515,6 +1516,7 @@ function showPage(id,el){
   if(el)el.classList.add('active');
   var map={
     dashboard:carregarDashboard,produtos:carregarProdutos,pedidos:carregarPedidos,
+    estoque:carregarEstoque,
     avaliacoes:carregarAvaliacoes,marspoints:carregarMarsPoints,marstickets:carregarMarsTickets,clientes:carregarClientes,
     historico:carregarHistorico,logs:carregarLogs,cupons:carregarCupons,
     sorteios:carregarSorteios,favoritos:carregarFavoritos,
@@ -1687,14 +1689,13 @@ async function salvarProduto(){
   /* Processa keys do textarea */
   var keysRaw=document.getElementById('prod-keys').value;
   var keysNovas=keysRaw.split('\n').map(function(k){return k.trim()}).filter(Boolean);
-
-  /* Se editando: mescla keys existentes não entregues com as novas */
-  var prodAtual=id?todosOsProdutos.find(function(p){return p.id===id}):null;
-  var keysExistentes=(prodAtual&&prodAtual.keys_disponiveis)||[];
-  /* Remove duplicatas */
-  var todasKeys=keysExistentes.concat(keysNovas.filter(function(k){return !keysExistentes.includes(k)}));
-
-  var est=todasKeys.length; /* Estoque = número de keys disponíveis */
+  /* Remove duplicatas — busca keys existentes na tabela real para evitar reinsersão */
+  var keysExistentes=[];
+  if(id && keysNovas.length>0){
+    var{data:existentes}=await sb.from('estoque_chaves').select('conteudo').eq('produto_id',id).eq('status','disponivel');
+    keysExistentes=(existentes||[]).map(function(e){return e.conteudo});
+  }
+  keysNovas=keysNovas.filter(function(k){return!keysExistentes.includes(k)});
 
   var btn=document.getElementById('btn-salvar-prod');
   btn.disabled=true;btn.textContent='Salvando...';
@@ -1797,35 +1798,243 @@ async function excluirProduto(id){
 /* ── ALERTA ESTOQUE ── */
 async function verificarEstoqueBaixo(produtos){
   var baixo=produtos.filter(function(p){return p.ativo&&p.estoque>=0&&p.estoque<=3});
-  if(baixo.length===0)return;
-  var DISCORD_WEBHOOK='SEU_WEBHOOK_DISCORD_AQUI';
-  if(DISCORD_WEBHOOK==='SEU_WEBHOOK_DISCORD_AQUI')return;
+  var alertEl=document.getElementById('est-alerta');
+  var alertLista=document.getElementById('est-alerta-lista');
+  var badge=document.getElementById('estoque-badge');
+  if(baixo.length===0){
+    if(alertEl)alertEl.style.display='none';
+    if(badge)badge.style.display='none';
+    return;
+  }
+  /* Alerta visual na página de estoque */
+  if(alertEl)alertEl.style.display='block';
+  if(alertLista)alertLista.textContent=baixo.map(function(p){return p.nome+'('+p.estoque+')'}).join(', ');
+  if(badge)badge.style.display='';
+  /* Notificação Discord */
   var msg='⚠️ **ALERTA DE ESTOQUE BAIXO — MarsGames**\n\n'+
     baixo.map(function(p){return '🎮 **'+p.nome+'** — '+p.estoque+' key(s) restante(s)'}).join('\n');
-  fetch(DISCORD_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:msg})});
+  fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:msg})}).catch(function(){});
+}
+
+/* ══ ESTOQUE DE CHAVES ══ */
+var _todasAsChaves=[];
+
+async function carregarEstoque(){
+  var tbody=document.getElementById('est-tbody');
+  tbody.innerHTML='<tr><td colspan="6" class="empty-state"><span class="loader-inline"></span></td></tr>';
+
+  var{data,error}=await sb.from('estoque_chaves').select('*').order('created_at',{ascending:false});
+  if(error){tbody.innerHTML='<tr><td colspan="6" class="empty-state" style="color:var(--red)">Erro ao carregar: '+esc(error.message)+'</td></tr>';return}
+  _todasAsChaves=data||[];
+
+  /* Stats */
+  var disp=_todasAsChaves.filter(function(c){return c.status==='disponivel'}).length;
+  var entregues=_todasAsChaves.filter(function(c){return c.status==='entregue'}).length;
+  var reservadas=_todasAsChaves.filter(function(c){return c.status==='reservada'}).length;
+  document.getElementById('est-stat-disp').textContent=disp;
+  document.getElementById('est-stat-entregues').textContent=entregues;
+  document.getElementById('est-stat-total').textContent=_todasAsChaves.length;
+
+  /* Produtos sem estoque */
+  var{data:prods}=await sb.from('produtos').select('id,nome,ativo').eq('ativo',true);
+  var prodIds=(prods||[]).map(function(p){return p.id});
+  var dispPorProd={};
+  _todasAsChaves.filter(function(c){return c.status==='disponivel'}).forEach(function(c){
+    dispPorProd[c.produto_id]=(dispPorProd[c.produto_id]||0)+1;
+  });
+  var zerados=(prods||[]).filter(function(p){return!(dispPorProd[p.id]>0)});
+  document.getElementById('est-stat-zerados').textContent=zerados.length;
+  var alertEl=document.getElementById('est-alerta');
+  var alertLista=document.getElementById('est-alerta-lista');
+  if(zerados.length>0&&alertEl){
+    alertEl.style.display='block';
+    alertLista.textContent=zerados.map(function(p){return p.nome}).join(', ');
+  } else if(alertEl) alertEl.style.display='none';
+
+  renderEstoque(_todasAsChaves);
+}
+
+function filtrarEstoque(q){
+  var status=document.getElementById('est-filtro-status').value;
+  var filtrado=_todasAsChaves.filter(function(c){
+    var matchQ=!q||(c.produto_nome||'').toLowerCase().includes(q.toLowerCase())||(c.conteudo||'').toLowerCase().includes(q.toLowerCase());
+    var matchS=!status||c.status===status;
+    return matchQ&&matchS;
+  });
+  renderEstoque(filtrado);
+}
+
+function renderEstoque(lista){
+  var tbody=document.getElementById('est-tbody');
+  if(!lista||lista.length===0){tbody.innerHTML='<tr><td colspan="6" class="empty-state">Nenhuma chave encontrada.</td></tr>';return}
+  tbody.innerHTML=lista.map(function(c){
+    var statusBadge={
+      disponivel:'<span class="badge badge-green">Disponível</span>',
+      entregue:'<span class="badge badge-blue">Entregue</span>',
+      reservada:'<span class="badge badge-amber">Reservada</span>'
+    }[c.status]||'<span class="badge badge-gray">'+esc(c.status)+'</span>';
+    var tipo=c.tipo==='login_senha'?'<span class="badge badge-purple">Login+Senha</span>':'<span class="badge badge-gray">Chave</span>';
+    /* Máscara parcial do conteúdo — mostra só primeiros e últimos chars */
+    var conteudo=c.conteudo||'';
+    var exibido=c.status==='entregue'
+      ? '<span style="font-family:monospace;font-size:10px;color:var(--muted)">'+esc(conteudo.slice(0,6))+'••••'+esc(conteudo.slice(-4))+'</span>'
+      : '<span style="font-family:monospace;font-size:10px;color:var(--green)">'+esc(conteudo.slice(0,8))+'••••</span>';
+    var acoes='<div class="td-actions">';
+    if(c.status==='disponivel'){
+      acoes+='<button class="btn btn-outline btn-sm" onclick="copiarChave(\''+c.id+'\')">Copiar</button>';
+      acoes+='<button class="btn btn-red btn-sm" onclick="removerChave(\''+c.id+'\')">Remover</button>';
+    }
+    if(c.status==='reservada'){
+      acoes+='<button class="btn btn-outline btn-sm" onclick="liberarChave(\''+c.id+'\')">Liberar</button>';
+      acoes+='<button class="btn btn-red btn-sm" onclick="removerChave(\''+c.id+'\')">Remover</button>';
+    }
+    if(c.status==='entregue'){
+      acoes+='<button class="btn btn-outline btn-sm" onclick="verChaveCompleta(\''+c.id+'\')">Ver</button>';
+    }
+    acoes+='</div>';
+    return '<tr>'+
+      '<td style="font-weight:700;color:#fff;max-width:160px">'+esc(c.produto_nome||'—')+'</td>'+
+      '<td>'+tipo+'</td>'+
+      '<td>'+exibido+'</td>'+
+      '<td>'+statusBadge+'</td>'+
+      '<td style="color:var(--muted);font-size:10px">'+(c.entregue_em?fmtDateTime(c.entregue_em):'—')+'</td>'+
+      '<td>'+acoes+'</td></tr>';
+  }).join('');
+}
+
+async function copiarChave(id){
+  var c=_todasAsChaves.find(function(x){return x.id===id});
+  if(!c)return;
+  navigator.clipboard.writeText(c.conteudo||'').then(function(){showToast('Chave copiada!')}).catch(function(){showToast('Erro ao copiar',true)});
+}
+
+async function verChaveCompleta(id){
+  var{data}=await sb.from('estoque_chaves').select('conteudo,produto_nome').eq('id',id).single();
+  if(!data)return;
+  showToast('🔑 '+esc(data.produto_nome)+': '+esc(data.conteudo));
+  navigator.clipboard.writeText(data.conteudo||'').catch(function(){});
+}
+
+async function removerChave(id){
+  if(!confirm('Remover esta chave permanentemente do estoque?'))return;
+  var c=_todasAsChaves.find(function(x){return x.id===id});
+  var{error}=await sb.from('estoque_chaves').delete().eq('id',id);
+  if(error){showToast('Erro: '+error.message,true);return}
+  await registrarHistorico('produto','removeu chave do estoque de "'+(c?c.produto_nome:'?')+'"',{conteudo:'[removida]'},null);
+  showToast('Chave removida do estoque');
+  carregarEstoque();
+}
+
+async function liberarChave(id){
+  var{error}=await sb.from('estoque_chaves').update({status:'disponivel'}).eq('id',id);
+  if(error){showToast('Erro: '+error.message,true);return}
+  showToast('Chave liberada para o estoque!');
+  carregarEstoque();
+}
+
+function abrirAdicionarChave(){
+  openModal('produto');
+  /* Foca no campo de keys */
+  setTimeout(function(){
+    var ta=document.getElementById('prod-keys');
+    if(ta)ta.focus();
+  },300);
+}
+
+function abrirImportCSV(){
+  var input=document.createElement('input');
+  input.type='file';input.accept='.csv,.txt';
+  input.onchange=function(e){
+    var file=e.target.files[0];
+    if(!file)return;
+    var reader=new FileReader();
+    reader.onload=function(ev){
+      var linhas=ev.target.result.split('\n').map(function(l){return l.trim()}).filter(Boolean);
+      /* Abre modal produto com as linhas no textarea */
+      openModal('produto');
+      setTimeout(function(){
+        document.getElementById('prod-keys').value=linhas.join('\n');
+        contarKeys();
+        showToast(linhas.length+' keys importadas do CSV — selecione o produto e salve');
+      },200);
+    };
+    reader.readAsText(file);
+  };
+  input.click();
 }
 
 /* ══ PEDIDOS ══ */
+var _todosOsPedidos=[];
 async function carregarPedidos(){
   var tbody=document.getElementById('ped-tbody');
   tbody.innerHTML='<tr><td colspan="7" class="empty-state"><span class="loader-inline"></span></td></tr>';
   var{data}=await sb.from('pedidos').select('*').order('created_at',{ascending:false});
+  _todosOsPedidos=data||[];
+  renderPedidos(_todosOsPedidos);
+  var busca=document.querySelector('#page-pedidos .t-search');
+  if(busca) busca.oninput=function(){filtrarPedidos(this.value);};
+}
+function filtrarPedidos(q){
+  if(!q) return renderPedidos(_todosOsPedidos);
+  renderPedidos(_todosOsPedidos.filter(function(p){
+    return (p.cliente_email||'').toLowerCase().includes(q.toLowerCase())||
+           (p.produto_nome||'').toLowerCase().includes(q.toLowerCase())||
+           (p.reference||'').toLowerCase().includes(q.toLowerCase());
+  }));
+}
+function renderPedidos(data){
+  var tbody=document.getElementById('ped-tbody');
   if(!data||data.length===0){tbody.innerHTML='<tr><td colspan="7" class="empty-state">Nenhum pedido ainda.</td></tr>';return}
   tbody.innerHTML=data.map(function(p){
-    return '<tr><td style="font-family:monospace;font-size:10px;color:var(--muted)">#'+String(p.id).slice(0,8)+'</td>'+
+    var chavesQtd=(p.chaves_entregues||[]).length;
+    var chavesIcon=chavesQtd>0
+      ?'<span style="color:var(--green);font-size:9px;font-weight:900;margin-left:4px">✓ '+chavesQtd+' chave'+(chavesQtd>1?'s':'')+'</span>'
+      :'<span style="color:var(--red);font-size:9px;font-weight:700;margin-left:4px">sem chave</span>';
+    return '<tr><td style="font-family:monospace;font-size:10px;color:var(--muted)">#'+String(p.id||'').slice(0,8)+'</td>'+
       '<td>'+esc(p.cliente_email||'—')+'</td>'+
-      '<td>'+esc(p.produto_nome||'—')+'</td>'+
+      '<td>'+esc(p.produto_nome||'—')+chavesIcon+'</td>'+
       '<td style="color:var(--green);font-weight:900">R$ '+Number(p.valor||0).toFixed(2).replace('.',',')+'</td>'+
       '<td>'+badgeStatus(p.status)+'</td>'+
       '<td>'+fmtDate(p.created_at)+'</td>'+
-      '<td><button class="btn btn-outline btn-sm" onclick="verKey(\''+p.id+'\')">Ver key</button></td></tr>';
+      '<td><button class="btn btn-outline btn-sm" onclick="verKey(\''+p.id+'\')">Ver chave</button></td></tr>';
   }).join('');
 }
 async function verKey(id){
   var{data}=await sb.from('pedidos').select('*').eq('id',id).single();
   if(!data)return;
-  showToast('🔑 Key: '+(data.key_entregue||'Não disponível'));
-  if(data.key_entregue) navigator.clipboard.writeText(data.key_entregue).catch(function(){});
+  var chaves=data.chaves_entregues||[];
+  if(chaves.length===0){
+    showToast('Nenhuma chave entregue neste pedido — pagamento pode estar pendente',true);
+    return;
+  }
+  /* Exibe modal de detalhes */
+  var html='<div style="display:flex;flex-direction:column;gap:12px">';
+  html+='<div style="font-size:10px;color:var(--muted);margin-bottom:4px">Pedido #'+String(id).slice(0,8)+' — '+esc(data.cliente_email||'')+'</div>';
+  chaves.forEach(function(c){
+    var corpo=c.tipo==='login_senha'
+      ? (function(){var p=(c.conteudo||'').split('|');
+          return '<div style="margin-top:6px"><div style="font-size:9px;color:var(--muted)">Login:</div><div style="font-family:monospace;color:var(--amber);word-break:break-all">'+esc(p[0]||'')+'</div></div>'+
+                 '<div><div style="font-size:9px;color:var(--muted)">Senha:</div><div style="font-family:monospace;color:var(--amber);word-break:break-all">'+esc(p[1]||'')+'</div></div>';})()
+      : '<div style="font-family:monospace;font-size:13px;color:var(--amber);word-break:break-all;margin-top:6px">'+esc(c.conteudo||'')+'</div>';
+    html+='<div style="background:rgba(232,66,26,.06);border:1px dashed rgba(232,66,26,.3);border-radius:8px;padding:12px">'+
+      '<div style="font-size:9px;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase">'+esc(c.produto_nome||'Chave')+'</div>'+
+      corpo+
+      '<button onclick="navigator.clipboard.writeText(\''+esc(c.conteudo||'')+'\').then(function(){showToast(\'Copiado!\')})" '+
+        'style="margin-top:8px;padding:4px 12px;border-radius:6px;background:var(--amber);border:none;color:#000;font-weight:900;font-size:10px;cursor:pointer">Copiar</button>'+
+    '</div>';
+  });
+  html+='</div>';
+  /* Usa o modal de obs que tem campos livres */
+  document.getElementById('modal-obs').querySelector('.modal-title').textContent='🔑 Chaves do pedido';
+  document.getElementById('obs-email').value=id;
+  document.getElementById('obs-text').style.display='none';
+  var obsModal=document.getElementById('modal-obs');
+  var existente=obsModal.querySelector('.chave-detalhe');
+  if(existente)existente.remove();
+  var div=document.createElement('div');div.className='chave-detalhe';div.innerHTML=html;
+  obsModal.querySelector('.modal').insertBefore(div,obsModal.querySelector('.modal-footer'));
+  obsModal.querySelector('.modal-footer').querySelector('.btn-green').style.display='none';
+  openModal('obs');
 }
 
 /* ══ CLIENTES ══ */
@@ -2600,7 +2809,20 @@ function openModalEditar(id){
   /* Abre modal SEM limpar os campos — usado por editarProduto */
   document.getElementById('modal-'+id).classList.add('open');
 }
-function closeModal(id){document.getElementById('modal-'+id).classList.remove('open')}
+function closeModal(id){
+  document.getElementById('modal-'+id).classList.remove('open');
+  /* Restaura modal de obs se foi usado para exibir chaves */
+  if(id==='obs'){
+    var obsModal=document.getElementById('modal-obs');
+    var existente=obsModal.querySelector('.chave-detalhe');
+    if(existente)existente.remove();
+    obsModal.querySelector('.modal-title').textContent='Observação do cliente';
+    var ta=document.getElementById('obs-text');
+    if(ta)ta.style.display='';
+    var btnGreen=obsModal.querySelector('.modal-footer .btn-green');
+    if(btnGreen)btnGreen.style.display='';
+  }
+}
 document.querySelectorAll('.modal-overlay').forEach(function(el){
   el.addEventListener('click',function(e){if(e.target===el)el.classList.remove('open')});
 });
