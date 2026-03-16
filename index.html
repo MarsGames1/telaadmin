@@ -1847,7 +1847,7 @@ async function adicionarKeysSomente(){
     listaEl.innerHTML='<div style="margin-top:10px;border:1px solid rgba(0,255,85,.2);border-radius:10px;overflow:hidden">'+
       '<div style="padding:8px 12px;background:rgba(0,255,85,.06);font-size:8px;font-weight:700;letter-spacing:2px;color:var(--green);text-transform:uppercase;display:flex;justify-content:space-between;align-items:center">'+
         '<span>✅ CHAVES NO ESTOQUE ('+chaves.length+')</span>'+
-        '<button onclick="removerTodasChavesProd(''+id+'')" style="background:rgba(255,68,68,.1);border:1px solid rgba(255,68,68,.2);color:var(--red);font-family:Montserrat,sans-serif;font-size:8px;font-weight:700;padding:3px 8px;border-radius:5px;cursor:pointer">REMOVER TODAS</button>'+
+        '<button onclick="removerTodasChavesProd(\''+id+'\')">REMOVER TODAS</button>'+
       '</div>'+
       '<div style="max-height:200px;overflow-y:auto">'+
       chaves.map(function(c){
@@ -1855,8 +1855,8 @@ async function adicionarKeysSomente(){
         var exibido=conteudo.length>36?conteudo.slice(0,16)+'•••'+conteudo.slice(-12):conteudo;
         return '<div id="chave-item-'+c.id+'" style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.04)">'+
           '<span style="font-family:monospace;font-size:10px;color:'+(c.tipo==='login_senha'?'var(--blue)':'var(--amber)')+';flex:1;word-break:break-all">'+esc(exibido)+'</span>'+
-          '<button onclick="copiarChaveModal(''+esc(conteudo)+'')" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);color:#888;font-family:Montserrat,sans-serif;font-size:8px;font-weight:700;padding:3px 7px;border-radius:5px;cursor:pointer;flex-shrink:0">Copiar</button>'+
-          '<button onclick="removerChaveModal(''+c.id+'',''+id+'')" style="background:rgba(255,68,68,.08);border:1px solid rgba(255,68,68,.18);color:var(--red);font-family:Montserrat,sans-serif;font-size:8px;font-weight:700;padding:3px 7px;border-radius:5px;cursor:pointer;flex-shrink:0">✕</button>'+
+          '<button onclick="copiarChaveModal(\''+esc(conteudo)+'\')">Copiar</button>'+
+          '<button onclick="removerChaveModal(\''+c.id+'\',\''+id+'\')">✕</button>'+
         '</div>';
       }).join('')+
       '</div></div>';
