@@ -1773,19 +1773,85 @@ async function editarProduto(p){
   document.getElementById('prod-plat').value=p.plataforma||'Steam Offline';
   document.getElementById('prod-keys').value='';
   document.getElementById('keys-counter').textContent='0 keys';
-  
-  /* Mostra estoque atual da tabela estoque_chaves */
-  var{data:estoque}=await sb.from('estoque_chaves')
-    .select('id',{count:'exact'})
+
+  /* Carrega chaves disponíveis da tabela estoque_chaves */
+  var{data:chaves}=await sb.from('estoque_chaves')
+    .select('id,conteudo,tipo,status,created_at')
     .eq('produto_id',p.id)
-    .eq('status','disponivel');
-  var qtd=estoque?estoque.length:0;
+    .eq('status','disponivel')
+    .order('created_at',{ascending:true});
+
+  var qtd=chaves?chaves.length:0;
   var estEl=document.getElementById('est-prod-atual');
   var estCount=document.getElementById('est-prod-count');
-  if(estEl){estEl.style.display=qtd>0?'block':'none';}
-  if(estCount){estCount.textContent=qtd;}
-  
+  if(estEl) estEl.style.display=qtd>0?'block':'none';
+  if(estCount) estCount.textContent=qtd;
+
+  /* Renderiza lista de chaves gerenciável */
+  var listaEl=document.getElementById('chaves-lista-prod');
+  if(!listaEl){
+    /* Cria o container uma vez e injeta no modal */
+    listaEl=document.createElement('div');
+    listaEl.id='chaves-lista-prod';
+    var keyArea=document.getElementById('est-prod-atual');
+    if(keyArea&&keyArea.parentNode) keyArea.parentNode.insertBefore(listaEl,keyArea.nextSibling);
+  }
+
+  if(chaves&&chaves.length>0){
+    listaEl.innerHTML='<div style="margin-top:10px;border:1px solid rgba(255,255,255,.07);border-radius:10px;overflow:hidden">'
+      +'<div style="padding:8px 12px;background:rgba(0,0,0,.2);font-size:8px;font-weight:700;letter-spacing:2px;color:#7070a0;text-transform:uppercase;display:flex;justify-content:space-between;align-items:center">'
+      +'<span>CHAVES EM ESTOQUE ('+chaves.length+')</span>'
+      +'<button onclick="removerTodasChavesProd(\''+p.id+'\')" style="background:rgba(255,68,68,.1);border:1px solid rgba(255,68,68,.2);color:var(--red);font-family:Montserrat,sans-serif;font-size:8px;font-weight:700;padding:3px 8px;border-radius:5px;cursor:pointer;letter-spacing:1px">REMOVER TODAS</button>'
+      +'</div>'
+      +'<div style="max-height:180px;overflow-y:auto">'
+      +chaves.map(function(c,i){
+        var conteudo=c.conteudo||'';
+        var exibido=conteudo.length>30?conteudo.slice(0,14)+'•••'+conteudo.slice(-10):conteudo;
+        return '<div id="chave-item-'+c.id+'" style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.04);">'
+          +'<span style="font-family:monospace;font-size:10px;color:'+(c.tipo==='login_senha'?'var(--blue)':'var(--amber)')+';flex:1;word-break:break-all">'+esc(exibido)+'</span>'
+          +'<button onclick="copiarChaveModal(\''+esc(conteudo)+'\')" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);color:#888;font-family:Montserrat,sans-serif;font-size:8px;font-weight:700;padding:3px 7px;border-radius:5px;cursor:pointer;flex-shrink:0">Copiar</button>'
+          +'<button onclick="removerChaveModal(\''+c.id+'\',\''+p.id+'\')" style="background:rgba(255,68,68,.08);border:1px solid rgba(255,68,68,.18);color:var(--red);font-family:Montserrat,sans-serif;font-size:8px;font-weight:700;padding:3px 7px;border-radius:5px;cursor:pointer;flex-shrink:0">✕</button>'
+          +'</div>';
+      }).join('')
+      +'</div></div>';
+  } else {
+    listaEl.innerHTML='<div style="margin-top:8px;padding:10px 12px;background:rgba(255,68,68,.05);border:1px solid rgba(255,68,68,.12);border-radius:8px;font-size:10px;color:var(--red);font-weight:600">⚠ Sem estoque — adicione chaves abaixo.</div>';
+  }
+
   openModalEditar('produto');
+}
+
+async function removerChaveModal(chaveId,prodId){
+  if(!confirm('Remover esta chave do estoque?'))return;
+  await sb.from('estoque_chaves').delete().eq('id',chaveId);
+  var el=document.getElementById('chave-item-'+chaveId);
+  if(el) el.remove();
+  /* Atualiza contador */
+  var restantes=document.querySelectorAll('[id^="chave-item-"]').length;
+  var estCount=document.getElementById('est-prod-count');
+  if(estCount) estCount.textContent=restantes;
+  showToast('Chave removida!');
+  if(restantes===0){
+    var listaEl=document.getElementById('chaves-lista-prod');
+    if(listaEl) listaEl.innerHTML='<div style="margin-top:8px;padding:10px 12px;background:rgba(255,68,68,.05);border:1px solid rgba(255,68,68,.12);border-radius:8px;font-size:10px;color:var(--red);font-weight:600">⚠ Sem estoque — adicione chaves abaixo.</div>';
+    var estEl=document.getElementById('est-prod-atual');
+    if(estEl) estEl.style.display='none';
+  }
+}
+
+async function removerTodasChavesProd(prodId){
+  if(!confirm('Remover TODAS as chaves disponíveis deste produto? Esta ação é irreversível.'))return;
+  var{error}=await sb.from('estoque_chaves').delete().eq('produto_id',prodId).eq('status','disponivel');
+  if(error){showToast('Erro: '+error.message,true);return;}
+  var listaEl=document.getElementById('chaves-lista-prod');
+  if(listaEl) listaEl.innerHTML='<div style="margin-top:8px;padding:10px 12px;background:rgba(255,68,68,.05);border:1px solid rgba(255,68,68,.12);border-radius:8px;font-size:10px;color:var(--red);font-weight:600">⚠ Estoque zerado.</div>';
+  var estEl=document.getElementById('est-prod-atual');if(estEl)estEl.style.display='none';
+  var estCount=document.getElementById('est-prod-count');if(estCount)estCount.textContent='0';
+  showToast('Todas as chaves removidas!',true);
+}
+
+function copiarChaveModal(texto){
+  navigator.clipboard.writeText(texto).then(function(){showToast('Chave copiada!')}).catch(function(){});
 }
 async function excluirProduto(id){
   if(!confirm('Excluir este produto? Esta ação não pode ser desfeita.'))return;
@@ -2811,6 +2877,10 @@ function openModalEditar(id){
 }
 function closeModal(id){
   document.getElementById('modal-'+id).classList.remove('open');
+  if(id==='produto'){
+    var listaEl=document.getElementById('chaves-lista-prod');
+    if(listaEl) listaEl.innerHTML='';
+  }
   /* Restaura modal de obs se foi usado para exibir chaves */
   if(id==='obs'){
     var obsModal=document.getElementById('modal-obs');
