@@ -1035,8 +1035,9 @@ tr:hover td{background:rgba(255,255,255,.012)}
         📦 Estoque atual: <strong id="est-prod-count">0</strong> keys disponíveis
       </div>
     </div>
-    <div class="modal-footer">
+    <div class="modal-footer" style="flex-wrap:wrap;gap:8px">
       <button class="btn btn-outline" onclick="closeModal('produto')">Cancelar</button>
+      <button class="btn btn-outline" id="btn-add-keys" onclick="adicionarKeysSomente()" style="border-color:var(--amber);color:var(--amber)">🔑 Adicionar Keys</button>
       <button class="btn btn-green" id="btn-salvar-prod" onclick="salvarProduto()">Salvar produto</button>
     </div>
   </div>
@@ -1628,6 +1629,11 @@ async function carregarProdutos(){
   tbody.innerHTML='<tr><td colspan="7" class="empty-state"><span class="loader-inline"></span></td></tr>';
   var{data}=await sb.from('produtos').select('*').order('created_at',{ascending:false});
   todosOsProdutos=data||[];
+  /* Conta keys disponíveis por produto direto da tabela de estoque */
+  var{data:chaves}=await sb.from('estoque_chaves').select('produto_id').eq('status','disponivel');
+  var contPorProd={};
+  (chaves||[]).forEach(function(c){contPorProd[c.produto_id]=(contPorProd[c.produto_id]||0)+1;});
+  todosOsProdutos=todosOsProdutos.map(function(p){return Object.assign({},p,{estoque:contPorProd[p.id]||0});});
   renderProdutos(todosOsProdutos);
   verificarEstoqueBaixo(todosOsProdutos);
 }
@@ -1686,20 +1692,11 @@ async function salvarProduto(){
   var plat=document.getElementById('prod-plat').value;
   if(!nome||isNaN(preco)||preco<=0||!cat){showToast('Preencha os campos obrigatórios — preço deve ser maior que zero',true);return}
 
-  /* Processa keys do textarea */
-  var keysRaw=document.getElementById('prod-keys').value;
-  var keysNovas=keysRaw.split('\n').map(function(k){return k.trim()}).filter(Boolean);
-  /* Remove duplicatas — busca keys existentes na tabela real para evitar reinsersão */
-  var keysExistentes=[];
-  if(id && keysNovas.length>0){
-    var{data:existentes}=await sb.from('estoque_chaves').select('conteudo').eq('produto_id',id).eq('status','disponivel');
-    keysExistentes=(existentes||[]).map(function(e){return e.conteudo});
-  }
-  keysNovas=keysNovas.filter(function(k){return!keysExistentes.includes(k)});
-
   var btn=document.getElementById('btn-salvar-prod');
+  var btnK=document.getElementById('btn-add-keys');
   btn.disabled=true;btn.textContent='Salvando...';
-  
+  if(btnK)btnK.disabled=true;
+
   /* Campos extras */
   var precoOrigEl=document.getElementById('prod-preco-orig');
   var precoOrig=precoOrigEl?parseFloat(precoOrigEl.value)||preco:preco;
@@ -1707,7 +1704,7 @@ async function salvarProduto(){
   var descPct=descEl?parseInt(descEl.value)||0:Math.round((1-preco/precoOrig)*100);
   var tipoKeyEl=document.getElementById('prod-tipo-key');
   var tipoKey=tipoKeyEl?tipoKeyEl.value:'login_senha';
-  
+
   var dados={
     nome:nome,
     preco:Number(preco.toFixed(2)),
@@ -1720,7 +1717,7 @@ async function salvarProduto(){
     ativo:true
   };
   var antes=prodAtual||null;
-  
+
   var res,prodId=id;
   if(id){
     res=await sb.from('produtos').update(dados).eq('id',id);
@@ -1729,26 +1726,158 @@ async function salvarProduto(){
     res=insRes;
     if(insRes.data) prodId=insRes.data.id;
   }
-  
-  btn.disabled=false;btn.textContent='Salvar produto';
-  if(res.error){showToast('Erro: '+res.error.message,true);return}
-  
-  /* Salva novas keys na tabela estoque_chaves */
+
+  if(res.error){
+    showToast('Erro ao salvar produto: '+res.error.message,true);
+    btn.disabled=false;btn.textContent='Salvar produto';
+    if(btnK)btnK.disabled=false;
+    return;
+  }
+
+  /* Adiciona keys pendentes do textarea */
+  var keysRaw=document.getElementById('prod-keys').value;
+  var keysNovas=keysRaw.split('\n').map(function(k){return k.trim()}).filter(Boolean);
+  var qtdAdicionadas=0;
   if(keysNovas.length>0 && prodId){
-    var insertsEstoque=keysNovas.map(function(k){
-      return {produto_id:prodId,produto_nome:nome,tipo:tipoKey,conteudo:k,status:'disponivel'};
-    });
-    var estRes=await sb.from('estoque_chaves').insert(insertsEstoque);
-    if(estRes.error){showToast('Produto salvo mas erro nas keys: '+estRes.error.message,true);}
-    else{showToast((id?'Produto atualizado':'Produto cadastrado')+' + '+keysNovas.length+' key(s) no estoque!');}
+    /* Dedup contra existentes */
+    var keysExistentes=[];
+    try{
+      var{data:ex}=await sb.from('estoque_chaves').select('conteudo').eq('produto_id',prodId).eq('status','disponivel');
+      keysExistentes=(ex||[]).map(function(e){return e.conteudo});
+    }catch(e){}
+    keysNovas=keysNovas.filter(function(k){return!keysExistentes.includes(k)});
+    if(keysNovas.length>0){
+      var inserts=keysNovas.map(function(k){
+        return {produto_id:prodId,produto_nome:nome,tipo:tipoKey,conteudo:k,status:'disponivel'};
+      });
+      var estRes=await sb.from('estoque_chaves').insert(inserts);
+      if(estRes.error){showToast('Produto salvo mas erro nas keys: '+estRes.error.message,true);}
+      else{qtdAdicionadas=keysNovas.length;}
+    }
+  }
+
+  /* Atualiza coluna estoque em produtos para manter sincronizado */
+  if(prodId){
+    var{count}=await sb.from('estoque_chaves').select('id',{count:'exact',head:true}).eq('produto_id',prodId).eq('status','disponivel');
+    await sb.from('produtos').update({estoque:count||0}).eq('id',prodId);
+  }
+
+  btn.disabled=false;btn.textContent='Salvar produto';
+  if(btnK)btnK.disabled=false;
+
+  if(qtdAdicionadas>0){
+    showToast((id?'Produto atualizado':'Produto cadastrado')+' + '+qtdAdicionadas+' key(s) no estoque!');
   } else {
     showToast(id?'Produto atualizado!':'Produto cadastrado!');
   }
-  
-  await registrarHistorico('produto',
-    id?('editou "'+nome+'" +'+keysNovas.length+' keys'):('cadastrou "'+nome+'" com '+keysNovas.length+' keys'),
-    antes,dados);
+
+  /* Fecha e recarrega primeiro, histórico em background */
   closeModal('produto');carregarProdutos();
+  registrarHistorico('produto',
+    id?('editou "'+nome+'" +'+qtdAdicionadas+' keys'):('cadastrou "'+nome+'" com '+qtdAdicionadas+' keys'),
+    antes,dados).catch(function(e){console.warn('[historico]',e);});
+}
+
+/* Adiciona apenas as keys sem salvar o produto — para uso em edição */
+async function adicionarKeysSomente(){
+  var id=document.getElementById('prod-id').value;
+  if(!id){showToast('Salve o produto primeiro antes de adicionar keys',true);return;}
+  var nome=document.getElementById('prod-nome').value.trim()||'produto';
+  var keysRaw=document.getElementById('prod-keys').value;
+  var keysNovas=keysRaw.split('\n').map(function(k){return k.trim()}).filter(Boolean);
+  if(keysNovas.length===0){showToast('Digite ao menos uma key no campo acima',true);return;}
+
+  var tipoKeyEl=document.getElementById('prod-tipo-key');
+  var tipoKey=tipoKeyEl?tipoKeyEl.value:'login_senha';
+
+  var btn=document.getElementById('btn-add-keys');
+  var btnS=document.getElementById('btn-salvar-prod');
+  btn.disabled=true;btn.textContent='⏳ Adicionando...';
+  if(btnS)btnS.disabled=true;
+
+  /* Dedup */
+  var keysExistentes=[];
+  try{
+    var{data:ex}=await sb.from('estoque_chaves').select('conteudo').eq('produto_id',id).eq('status','disponivel');
+    keysExistentes=(ex||[]).map(function(e){return e.conteudo});
+  }catch(e){}
+  var unicas=keysNovas.filter(function(k){return!keysExistentes.includes(k)});
+  var duplicadas=keysNovas.length-unicas.length;
+
+  if(unicas.length===0){
+    showToast('Todas as keys já estão no estoque ('+duplicadas+' duplicata(s))',false,true);
+    btn.disabled=false;btn.textContent='🔑 Adicionar Keys';
+    if(btnS)btnS.disabled=false;
+    return;
+  }
+
+  var inserts=unicas.map(function(k){
+    return {produto_id:id,produto_nome:nome,tipo:tipoKey,conteudo:k,status:'disponivel'};
+  });
+  var{error}=await sb.from('estoque_chaves').insert(inserts);
+
+  if(error){
+    showToast('Erro ao adicionar keys: '+error.message,true);
+    btn.disabled=false;btn.textContent='🔑 Adicionar Keys';
+    if(btnS)btnS.disabled=false;
+    return;
+  }
+
+  /* Atualiza coluna estoque */
+  var{count}=await sb.from('estoque_chaves').select('id',{count:'exact',head:true}).eq('produto_id',id).eq('status','disponivel');
+  await sb.from('produtos').update({estoque:count||0}).eq('id',id);
+
+  /* Limpa textarea e atualiza lista de chaves no modal */
+  document.getElementById('prod-keys').value='';
+  document.getElementById('keys-counter').textContent='0 keys';
+
+  var msg=unicas.length+' key(s) adicionada(s) com sucesso!';
+  if(duplicadas>0) msg+=' ('+duplicadas+' duplicada(s) ignorada(s))';
+  showToast(msg);
+
+  /* Recarrega lista de chaves dentro do modal para o admin ver */
+  var prodAtualObj={id:id,nome:nome};
+  var{data:chaves}=await sb.from('estoque_chaves')
+    .select('id,conteudo,tipo,status,created_at')
+    .eq('produto_id',id).eq('status','disponivel')
+    .order('created_at',{ascending:true});
+
+  var qtd=chaves?chaves.length:0;
+  var estEl=document.getElementById('est-prod-atual');
+  var estCount=document.getElementById('est-prod-count');
+  if(estEl){estEl.style.display=qtd>0?'block':'none';}
+  if(estCount){estCount.textContent=qtd;}
+
+  var listaEl=document.getElementById('chaves-lista-prod');
+  if(!listaEl){
+    listaEl=document.createElement('div');listaEl.id='chaves-lista-prod';
+    var keyArea=document.getElementById('est-prod-atual');
+    if(keyArea&&keyArea.parentNode)keyArea.parentNode.insertBefore(listaEl,keyArea.nextSibling);
+  }
+  if(chaves&&chaves.length>0){
+    listaEl.innerHTML='<div style="margin-top:10px;border:1px solid rgba(0,255,85,.15);border-radius:10px;overflow:hidden">'+
+      '<div style="padding:8px 12px;background:rgba(0,255,85,.05);font-size:8px;font-weight:700;letter-spacing:2px;color:var(--green);text-transform:uppercase;display:flex;justify-content:space-between;align-items:center">'+
+      '<span>✅ CHAVES NO ESTOQUE ('+chaves.length+')</span>'+
+      '<button onclick="removerTodasChavesProd(\''+id+'\')" style="background:rgba(255,68,68,.1);border:1px solid rgba(255,68,68,.2);color:var(--red);font-family:Montserrat,sans-serif;font-size:8px;font-weight:700;padding:3px 8px;border-radius:5px;cursor:pointer;letter-spacing:1px">REMOVER TODAS</button>'+
+      '</div>'+
+      '<div style="max-height:180px;overflow-y:auto">'+
+      chaves.map(function(c,i){
+        var conteudo=c.conteudo||'';
+        var exibido=conteudo.length>30?conteudo.slice(0,14)+'•••'+conteudo.slice(-10):conteudo;
+        return '<div id="chave-item-'+c.id+'" style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.04)">'+
+          '<span style="font-family:monospace;font-size:10px;color:'+(c.tipo==='login_senha'?'var(--blue)':'var(--amber)')+';flex:1;word-break:break-all">'+esc(exibido)+'</span>'+
+          '<button onclick="copiarChaveModal(\''+esc(conteudo)+'\''+')" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);color:#888;font-family:Montserrat,sans-serif;font-size:8px;font-weight:700;padding:3px 7px;border-radius:5px;cursor:pointer;flex-shrink:0">Copiar</button>'+
+          '<button onclick="removerChaveModal(\''+c.id+'\',\''+id+'\')" style="background:rgba(255,68,68,.08);border:1px solid rgba(255,68,68,.18);color:var(--red);font-family:Montserrat,sans-serif;font-size:8px;font-weight:700;padding:3px 7px;border-radius:5px;cursor:pointer;flex-shrink:0">✕</button>'+
+        '</div>';
+      }).join('')+
+      '</div></div>';
+  } else {
+    listaEl.innerHTML='';
+  }
+
+  btn.disabled=false;btn.textContent='🔑 Adicionar Keys';
+  if(btnS)btnS.disabled=false;
+  carregarProdutos();
 }
 function atualizarPlaceholderKey(){
   var tipo=document.getElementById('prod-tipo-key').value;
@@ -1826,10 +1955,14 @@ async function removerChaveModal(chaveId,prodId){
   await sb.from('estoque_chaves').delete().eq('id',chaveId);
   var el=document.getElementById('chave-item-'+chaveId);
   if(el) el.remove();
-  /* Atualiza contador */
   var restantes=document.querySelectorAll('[id^="chave-item-"]').length;
   var estCount=document.getElementById('est-prod-count');
   if(estCount) estCount.textContent=restantes;
+  /* Sincroniza coluna estoque */
+  if(prodId){
+    var{count}=await sb.from('estoque_chaves').select('id',{count:'exact',head:true}).eq('produto_id',prodId).eq('status','disponivel');
+    await sb.from('produtos').update({estoque:count||0}).eq('id',prodId);
+  }
   showToast('Chave removida!');
   if(restantes===0){
     var listaEl=document.getElementById('chaves-lista-prod');
@@ -1843,11 +1976,13 @@ async function removerTodasChavesProd(prodId){
   if(!confirm('Remover TODAS as chaves disponíveis deste produto? Esta ação é irreversível.'))return;
   var{error}=await sb.from('estoque_chaves').delete().eq('produto_id',prodId).eq('status','disponivel');
   if(error){showToast('Erro: '+error.message,true);return;}
+  await sb.from('produtos').update({estoque:0}).eq('id',prodId);
   var listaEl=document.getElementById('chaves-lista-prod');
   if(listaEl) listaEl.innerHTML='<div style="margin-top:8px;padding:10px 12px;background:rgba(255,68,68,.05);border:1px solid rgba(255,68,68,.12);border-radius:8px;font-size:10px;color:var(--red);font-weight:600">⚠ Estoque zerado.</div>';
   var estEl=document.getElementById('est-prod-atual');if(estEl)estEl.style.display='none';
   var estCount=document.getElementById('est-prod-count');if(estCount)estCount.textContent='0';
   showToast('Todas as chaves removidas!',true);
+  carregarProdutos();
 }
 
 function copiarChaveModal(texto){
