@@ -320,6 +320,21 @@ tr:hover td{background:rgba(255,255,255,.012)}
 .cliente-row-bloqueado td{opacity:.5}
 .obs-cell{max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-style:italic;color:var(--muted)}
 
+/* ── CARDS DE AVALIAÇÃO ── */
+.aval-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;transition:border-color .2s;position:relative}
+.aval-card:hover{border-color:var(--border2)}
+.aval-card-header{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.aval-card-img{width:44px;height:44px;border-radius:8px;object-fit:cover;background:var(--dim);border:1px solid var(--border);flex-shrink:0}
+.aval-card-info{flex:1;min-width:0}
+.aval-card-produto{font-size:11px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.aval-card-email{font-size:9px;color:var(--muted);font-weight:600;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.aval-card-stars{font-size:14px;letter-spacing:1px;margin-bottom:8px}
+.aval-card-comentario{font-size:11px;color:#bbb;font-weight:600;line-height:1.6;font-style:italic;padding:8px 10px;background:rgba(255,255,255,.025);border-radius:6px;border-left:2px solid rgba(255,183,0,.3)}
+.aval-card-footer{display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+.aval-card-data{font-size:9px;color:#555;font-weight:600}
+.aval-del-btn{background:rgba(255,68,68,.08);border:1px solid rgba(255,68,68,.2);color:var(--red);font-family:'Montserrat',sans-serif;font-size:9px;font-weight:700;letter-spacing:1px;padding:5px 10px;border-radius:6px;cursor:pointer;transition:background .2s}
+.aval-del-btn:hover{background:rgba(255,68,68,.18)}
+
 /* MOBILE */
 @media(max-width:768px){
   :root{--sidebar:0px}
@@ -826,11 +841,44 @@ tr:hover td{background:rgba(255,255,255,.012)}
   <div class="page" id="page-avaliacoes">
     <div class="page-head">
       <div><div class="page-eyebrow">Comunidade</div><div class="page-title">Avaliações</div></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="aval-filtro-estrelas" class="t-search" style="width:150px;background:var(--bg)" onchange="filtrarAvaliacoes()">
+          <option value="">Todas as notas</option>
+          <option value="5">★★★★★ 5 estrelas</option>
+          <option value="4">★★★★ 4 estrelas</option>
+          <option value="3">★★★ 3 estrelas</option>
+          <option value="2">★★ 2 estrelas</option>
+          <option value="1">★ 1 estrela</option>
+        </select>
+        <input class="t-search" id="aval-search" placeholder="Buscar cliente ou produto..." oninput="filtrarAvaliacoes()" style="width:220px">
+      </div>
     </div>
-    <div class="table-wrap">
-      <div class="table-head"><div class="table-title">Avaliações dos clientes</div></div>
-      <table><thead><tr><th>Cliente</th><th>Produto</th><th>Nota</th><th>Comentário</th><th>Status</th><th>Ações</th></tr></thead>
-      <tbody id="aval-tbody"><tr><td colspan="6" class="empty-state"><span class="loader-inline"></span></td></tr></tbody></table>
+
+    <!-- Stats rápidas -->
+    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px">
+      <div class="stat-card">
+        <div class="stat-label">Total de avaliações</div>
+        <div class="stat-value" id="aval-stat-total">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Nota média</div>
+        <div class="stat-value amber" id="aval-stat-media">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">5 estrelas</div>
+        <div class="stat-value green" id="aval-stat-5">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">1-2 estrelas</div>
+        <div class="stat-value" style="color:var(--red)" id="aval-stat-baixo">0</div>
+      </div>
+    </div>
+
+    <!-- Cards de avaliação -->
+    <div id="aval-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px">
+      <div class="empty-state" style="grid-column:1/-1;padding:40px;text-align:center">
+        <span class="loader-inline"></span>
+      </div>
     </div>
   </div>
 
@@ -2354,32 +2402,110 @@ async function salvarObs(){
 }
 
 /* ══ AVALIAÇÕES ══ */
+var _avalData=[];
+
 async function carregarAvaliacoes(){
-  var tbody=document.getElementById('aval-tbody');
-  tbody.innerHTML='<tr><td colspan="6" class="empty-state"><span class="loader-inline"></span></td></tr>';
-  var{data}=await sb.from('avaliacoes').select('*').order('created_at',{ascending:false});
-  if(!data||data.length===0){tbody.innerHTML='<tr><td colspan="6" class="empty-state">Nenhuma avaliação ainda.</td></tr>';return}
-  tbody.innerHTML=data.map(function(a){
-    return '<tr><td style="font-weight:700;color:#fff">'+esc(a.nome||'—')+'</td>'+
-      '<td>'+esc(a.produto||'—')+'</td>'+
-      '<td style="color:#FFD700">'+esc(a.estrelas||'')+'</td>'+
-      '<td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-style:italic">'+esc(a.comentario||'')+'</td>'+
-      '<td>'+(a.aprovado?'<span class="badge badge-green">Aprovada</span>':'<span class="badge badge-amber">Pendente</span>')+'</td>'+
-      '<td><div class="td-actions">'+
-        (!a.aprovado?'<button class="btn btn-green btn-sm" onclick="aprovarAval(\''+a.id+'\')">Aprovar</button>':'')+
-        '<button class="btn btn-red btn-sm" onclick="excluirAval(\''+a.id+'\')">Remover</button>'+
-      '</div></td></tr>';
+  var grid=document.getElementById('aval-grid');
+  if(!grid) return;
+  grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted)"><span class="loader-inline"></span></div>';
+  var{data,error}=await sb.from('avaliacoes').select('*').order('created_at',{ascending:false});
+  if(error||!data||data.length===0){
+    grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:48px;color:var(--muted);font-size:12px;font-weight:600">Nenhuma avaliação recebida ainda.</div>';
+    return;
+  }
+  _avalData=data;
+  /* Stats */
+  var total=data.length;
+  var soma=data.reduce(function(s,a){return s+(a.estrelas||0);},0);
+  var media=total>0?(soma/total).toFixed(1):'—';
+  var cinco=data.filter(function(a){return a.estrelas===5;}).length;
+  var baixo=data.filter(function(a){return a.estrelas<=2;}).length;
+  if(document.getElementById('aval-stat-total'))document.getElementById('aval-stat-total').textContent=total;
+  if(document.getElementById('aval-stat-media'))document.getElementById('aval-stat-media').textContent=media+' ★';
+  if(document.getElementById('aval-stat-5'))document.getElementById('aval-stat-5').textContent=cinco;
+  if(document.getElementById('aval-stat-baixo'))document.getElementById('aval-stat-baixo').textContent=baixo;
+  /* Também atualiza dashboard */
+  if(document.getElementById('stat-aval'))document.getElementById('stat-aval').textContent=total;
+  renderAvaliacoes(data);
+}
+
+function renderAvaliacoes(data){
+  var grid=document.getElementById('aval-grid');
+  if(!grid) return;
+  if(!data||data.length===0){
+    grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted);font-size:12px;font-weight:600">Nenhuma avaliação encontrada.</div>';
+    return;
+  }
+  grid.innerHTML=data.map(function(a){
+    var estrelas='';
+    for(var i=1;i<=5;i++) estrelas+='<span style="color:'+(i<=a.estrelas?'#FFD700':'#333');estrelas+='">★</span>';
+    // reconstruir corretamente
+    estrelas='';
+    for(var i=1;i<=5;i++) estrelas+='<span style="color:'+(i<=(a.estrelas||0)?'#FFD700':'#2a2a3a')+'">★</span>';
+    var data_fmt=new Date(a.created_at).toLocaleString('pt-BR');
+    var nome=esc(a.user_nome||a.user_email||'—');
+    var email=esc(a.user_email||'');
+    var produto=esc(a.produto_nome||'—');
+    var comentario=esc(a.comentario||'');
+    var img=esc(a.produto_img||'');
+    return '<div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:12px;transition:border-color .2s" onmouseover="this.style.borderColor=\'var(--border2)\'" onmouseout="this.style.borderColor=\'var(--border)\'">'+
+      /* Cabeçalho: produto */
+      '<div style="display:flex;align-items:center;gap:10px">'+
+        (img?'<img src="'+img+'" style="width:42px;height:42px;border-radius:8px;object-fit:cover;background:var(--dim);flex-shrink:0" onerror="this.style.display=\'none\'">':'')+
+        '<div style="flex:1;min-width:0">'+
+          '<div style="font-size:12px;font-weight:900;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+produto+'</div>'+
+          '<div style="font-size:9px;color:var(--muted);font-weight:600;margin-top:2px">'+data_fmt+'</div>'+
+        '</div>'+
+      '</div>'+
+      /* Estrelas */
+      '<div style="display:flex;align-items:center;gap:6px">'+
+        '<span style="font-size:18px;letter-spacing:1px">'+estrelas+'</span>'+
+        '<span style="font-size:10px;font-weight:900;color:var(--amber)">'+(a.estrelas||0)+'/5</span>'+
+      '</div>'+
+      /* Comentário */
+      (comentario?'<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:8px;padding:10px 12px;font-size:11px;color:#bbb;font-style:italic;line-height:1.6">"'+comentario+'"</div>':'')+
+      /* Cliente */
+      '<div style="padding-top:10px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">'+
+        '<div>'+
+          '<div style="font-size:11px;font-weight:700;color:#ddd">'+nome+'</div>'+
+          '<div style="font-size:9px;color:var(--muted)">'+email+'</div>'+
+        '</div>'+
+        '<button class="btn btn-red btn-sm" onclick="excluirAval(\''+esc(a.id)+'\',this)">🗑 Excluir</button>'+
+      '</div>'+
+    '</div>';
   }).join('');
 }
-async function aprovarAval(id){
-  await sb.from('avaliacoes').update({aprovado:true}).eq('id',id);
-  await registrarHistorico('produto','aprovou avaliação',null,{aprovado:true});
-  showToast('Avaliação aprovada!');carregarAvaliacoes();
+
+function filtrarAvaliacoes(){
+  var estrelas=document.getElementById('aval-filtro-estrelas')?document.getElementById('aval-filtro-estrelas').value:'';
+  var busca=(document.getElementById('aval-filtro-busca')?document.getElementById('aval-filtro-busca').value:document.getElementById('aval-search')?document.getElementById('aval-search').value:'').toLowerCase();
+  var filtrado=_avalData.filter(function(a){
+    if(estrelas&&String(a.estrelas)!==estrelas) return false;
+    if(busca){
+      var haystack=((a.user_email||'')+(a.user_nome||'')+(a.produto_nome||'')+(a.comentario||'')).toLowerCase();
+      if(haystack.indexOf(busca)<0) return false;
+    }
+    return true;
+  });
+  renderAvaliacoes(filtrado);
 }
-async function excluirAval(id){
-  if(!confirm('Remover esta avaliação?'))return;
-  await sb.from('avaliacoes').delete().eq('id',id);
-  showToast('Removida');carregarAvaliacoes();
+
+async function excluirAval(id,btn){
+  if(!confirm('Remover esta avaliação? Esta ação não pode ser desfeita.')) return;
+  if(btn){btn.disabled=true;btn.textContent='...';}
+  var{error}=await sb.from('avaliacoes').delete().eq('id',id);
+  if(error){showToast('Erro ao remover avaliação.',true);if(btn){btn.disabled=false;btn.textContent='🗑 Excluir';}return;}
+  _avalData=_avalData.filter(function(a){return a.id!==id;});
+  /* Atualiza stats */
+  var total=_avalData.length;
+  var soma=_avalData.reduce(function(s,a){return s+(a.estrelas||0);},0);
+  if(document.getElementById('aval-stat-total'))document.getElementById('aval-stat-total').textContent=total;
+  if(document.getElementById('aval-stat-media'))document.getElementById('aval-stat-media').textContent=(total>0?(soma/total).toFixed(1):'—')+' ★';
+  if(document.getElementById('aval-stat-5'))document.getElementById('aval-stat-5').textContent=_avalData.filter(function(a){return a.estrelas===5;}).length;
+  if(document.getElementById('aval-stat-baixo'))document.getElementById('aval-stat-baixo').textContent=_avalData.filter(function(a){return a.estrelas<=2;}).length;
+  if(document.getElementById('stat-aval'))document.getElementById('stat-aval').textContent=total;
+  filtrarAvaliacoes();
+  showToast('Avaliação removida com sucesso!');
 }
 
 /* ══ MARSPOINTS ══ */
@@ -3028,6 +3154,88 @@ function showToast(msg,erro,warn){
   t.textContent=msg;
   t.className='show'+(erro?' error':warn?' warn':'');
   clearTimeout(t._t);t._t=setTimeout(function(){t.className=''},3200);
+}
+
+/* ══ AVALIAÇÕES ADMIN ══ */
+var _avalTodas=[];
+
+async function carregarAvaliacoes(){
+  var grid=document.getElementById('aval-grid');
+  if(!grid) return;
+  grid.innerHTML='<div class="empty-state" style="grid-column:1/-1;padding:40px;text-align:center"><span class="loader-inline"></span></div>';
+  var{data,error}=await sb.from('avaliacoes').select('*').order('created_at',{ascending:false});
+  if(error||!data){
+    grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">Erro ao carregar avaliações.</div>';
+    return;
+  }
+  _avalTodas=data;
+  renderAvaliacoes(data);
+}
+
+function renderAvaliacoes(data){
+  var grid=document.getElementById('aval-grid');
+  if(!grid) return;
+
+  /* Stats */
+  var total=data.length;
+  var media=total?( data.reduce(function(s,a){return s+(a.estrelas||0);},0)/total ).toFixed(1):'—';
+  var cinco=data.filter(function(a){return a.estrelas===5;}).length;
+  var comComent=data.filter(function(a){return a.comentario&&a.comentario.trim();}).length;
+  var st=document.getElementById('aval-stat-total');if(st)st.textContent=total;
+  var sm=document.getElementById('aval-stat-media');if(sm)sm.textContent=media+(total?'★':'');
+  var s5=document.getElementById('aval-stat-5');if(s5)s5.textContent=cinco;
+  var sc=document.getElementById('aval-stat-com');if(sc)sc.textContent=comComent;
+  /* Stat global no dashboard */
+  var sd=document.getElementById('stat-aval');if(sd)sd.textContent=total;
+
+  if(!data.length){
+    grid.innerHTML='<div class="empty-state" style="grid-column:1/-1;padding:40px;text-align:center">Nenhuma avaliação ainda.</div>';
+    return;
+  }
+
+  grid.innerHTML=data.map(function(a){
+    var stars='';
+    for(var i=1;i<=5;i++) stars+=(i<=a.estrelas?'★':'☆');
+    var starColor=a.estrelas>=4?'var(--amber)':a.estrelas>=3?'#888':'var(--red)';
+    return '<div class="aval-card" id="aval-card-'+esc(a.id)+'">'+
+      '<div class="aval-card-header">'+
+        (a.produto_img?'<img class="aval-card-img" src="'+esc(a.produto_img)+'" alt="" onerror="this.style.display=\'none\'">':
+          '<div class="aval-card-img" style="display:flex;align-items:center;justify-content:center;font-size:20px">🎮</div>')+
+        '<div class="aval-card-info">'+
+          '<div class="aval-card-produto">'+esc(a.produto_nome||'—')+'</div>'+
+          '<div class="aval-card-email">'+esc(a.user_nome||a.user_email||'—')+'</div>'+
+        '</div>'+
+      '</div>'+
+      '<div class="aval-card-stars" style="color:'+starColor+'">'+stars+' <span style="font-size:10px;font-weight:700;color:#888">('+a.estrelas+'/5)</span></div>'+
+      (a.comentario?'<div class="aval-card-comentario">"'+esc(a.comentario)+'"</div>':
+        '<div style="font-size:10px;color:#555;font-style:italic">Sem comentário</div>')+
+      '<div class="aval-card-footer">'+
+        '<div class="aval-card-data">'+fmtDateTime(a.created_at)+'</div>'+
+        '<button class="aval-del-btn" onclick="excluirAvaliacao(\''+esc(a.id)+'\')">🗑 Excluir</button>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+
+function filtrarAvaliacoes(q){
+  if(!q.trim()){renderAvaliacoes(_avalTodas);return;}
+  var ql=q.toLowerCase();
+  var filtradas=_avalTodas.filter(function(a){
+    return (a.user_email&&a.user_email.toLowerCase().includes(ql))||
+           (a.user_nome&&a.user_nome.toLowerCase().includes(ql))||
+           (a.produto_nome&&a.produto_nome.toLowerCase().includes(ql))||
+           (a.comentario&&a.comentario.toLowerCase().includes(ql));
+  });
+  renderAvaliacoes(filtradas);
+}
+
+async function excluirAvaliacao(id){
+  if(!confirm('Excluir esta avaliação permanentemente?')) return;
+  var{error}=await sb.from('avaliacoes').delete().eq('id',id);
+  if(error){showToast('Erro ao excluir.',true);return;}
+  showToast('Avaliação excluída.');
+  _avalTodas=_avalTodas.filter(function(a){return a.id!==id;});
+  renderAvaliacoes(_avalTodas);
 }
 
 /* ══ NOTIFICAÇÕES ADMIN ══ */
