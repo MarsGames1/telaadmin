@@ -335,23 +335,132 @@ tr:hover td{background:rgba(255,255,255,.012)}
 .aval-del-btn{background:rgba(255,68,68,.08);border:1px solid rgba(255,68,68,.2);color:var(--red);font-family:'Montserrat',sans-serif;font-size:9px;font-weight:700;letter-spacing:1px;padding:5px 10px;border-radius:6px;cursor:pointer;transition:background .2s}
 .aval-del-btn:hover{background:rgba(255,68,68,.18)}
 
-/* MOBILE */
+/* ══ MOBILE ══ */
 @media(max-width:768px){
   :root{--sidebar:0px}
-  .sidebar{width:100%;height:auto;position:relative;flex-direction:row;flex-wrap:wrap}
+
+  /* Layout vira coluna */
   .layout{flex-direction:column}
-  .content{margin-left:0;padding:16px}
-  .sb-nav{display:flex;flex-wrap:wrap;padding:6px}
-  .sb-section{display:none}
-  .sb-item{padding:7px 10px;border-left:none;border-bottom:2px solid transparent;font-size:10px}
-  .sb-item.active{border-bottom-color:var(--green);border-left-color:transparent}
+  .content{margin-left:0;padding:14px 12px 80px}
+
+  /* Sidebar vira overlay deslizante */
+  .sidebar{
+    width:280px;height:100vh;
+    position:fixed;top:0;left:-290px;
+    flex-direction:column;
+    z-index:300;
+    transition:left .3s cubic-bezier(.4,0,.2,1);
+    box-shadow:4px 0 24px rgba(0,0,0,.6);
+  }
+  .sidebar.mob-open{left:0}
+
+  /* Presença e busca visíveis dentro do menu lateral */
+  .sb-presence{display:flex}
+  .sb-search{display:block}
+
+  /* Manutenção visível e destacada no mobile */
+  .sb-maintenance{display:block}
+  .maintenance-row{
+    background:rgba(255,184,0,.06);
+    border-color:rgba(255,184,0,.2);
+  }
+
+  /* Seções da nav normais */
+  .sb-nav{flex-direction:column;padding:4px 0}
+  .sb-section{display:block}
+  .sb-item{
+    padding:10px 20px;
+    border-left:2px solid transparent;
+    border-bottom:none;
+    font-size:11px;
+  }
+  .sb-item.active{
+    border-bottom-color:transparent;
+    border-left-color:var(--green);
+  }
+
+  /* Topbar mobile */
+  .mob-topbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:0 14px;
+    height:54px;
+    background:var(--card);
+    border-bottom:1px solid var(--border);
+    position:sticky;top:0;z-index:200;
+    flex-shrink:0;
+  }
+  .mob-logo{font-family:'Orbitron',sans-serif;font-size:13px;font-weight:900;letter-spacing:2px;color:#fff}
+  .mob-logo span{color:var(--green)}
+  .mob-topbar-right{display:flex;align-items:center;gap:8px}
+  .mob-maint-pill{
+    display:flex;align-items:center;gap:6px;
+    background:rgba(255,184,0,.08);
+    border:1px solid rgba(255,184,0,.25);
+    border-radius:20px;padding:5px 10px;
+    font-size:9px;font-weight:700;color:var(--amber);
+    letter-spacing:.5px;cursor:pointer;
+  }
+  .mob-maint-pill.off{
+    background:rgba(255,255,255,.03);
+    border-color:var(--border);
+    color:var(--muted);
+  }
+  .mob-notif-btn{
+    width:36px;height:36px;border-radius:9px;
+    background:rgba(255,255,255,.04);
+    border:1px solid var(--border);
+    display:flex;align-items:center;justify-content:center;
+    font-size:15px;cursor:pointer;position:relative;
+  }
+  .mob-hamburger{
+    width:38px;height:38px;border-radius:9px;
+    background:rgba(255,255,255,.04);
+    border:1px solid var(--border);
+    display:flex;flex-direction:column;
+    align-items:center;justify-content:center;
+    gap:4px;cursor:pointer;flex-shrink:0;
+  }
+  .mob-hamburger span{
+    display:block;width:16px;height:2px;
+    background:#aaa;border-radius:2px;
+    transition:all .2s;
+  }
+
+  /* Overlay do menu mobile */
+  .mob-overlay{
+    display:none;position:fixed;inset:0;
+    background:rgba(0,0,0,.7);z-index:299;
+  }
+  .mob-overlay.open{display:block}
+
+  /* Stats 2 colunas */
   .stats-grid{grid-template-columns:repeat(2,1fr)}
-  .sb-presence,.sb-search,.sb-maintenance{display:none}
+
+  /* Tabelas: scroll horizontal */
+  .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table{min-width:600px}
+
+  /* Page head empilha */
+  .page-head{flex-direction:column;align-items:flex-start;gap:10px}
+  .page-head .btn{width:100%;justify-content:center}
+
+  /* Modal full screen */
+  .modal{max-width:100%;margin:0;border-radius:12px}
 }
+
 @media(max-width:480px){
   .stats-grid{grid-template-columns:1fr}
   .form-row-2{grid-template-columns:1fr}
+  .mob-topbar{padding:0 10px}
+  .content{padding:10px 10px 80px}
 }
+
+/* Topbar mobile só aparece em mobile */
+.mob-topbar{display:none}
+@media(max-width:768px){.mob-topbar{display:flex}}
+
 </style>
 </head>
 <body>
@@ -372,6 +481,32 @@ tr:hover td{background:rgba(255,255,255,.012)}
 
 <!-- ══ APP ══ -->
 <div id="app" style="display:none">
+
+<!-- TOPBAR MOBILE -->
+<div class="mob-topbar">
+  <div style="display:flex;align-items:center;gap:10px">
+    <div class="mob-hamburger" onclick="toggleMobMenu()" id="mobHamburger">
+      <span></span><span></span><span></span>
+    </div>
+    <div class="mob-logo">Mars<span>Games</span></div>
+  </div>
+  <div class="mob-topbar-right">
+    <!-- Manutenção rápida -->
+    <div class="mob-maint-pill off" id="mobMaintPill" onclick="toggleMaintenanceMob()">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+      <span id="mobMaintLabel">Manutenção</span>
+    </div>
+    <!-- Notificações -->
+    <div class="mob-notif-btn" onclick="toggleNotifs()">
+      🔔
+      <span id="notifBadgeMob" style="display:none;position:absolute;top:-4px;right:-4px;background:var(--mars);color:#fff;font-size:7px;font-weight:900;padding:1px 4px;border-radius:99px">0</span>
+    </div>
+  </div>
+</div>
+
+<!-- OVERLAY MENU MOBILE -->
+<div class="mob-overlay" id="mobOverlay" onclick="toggleMobMenu()"></div>
+
 <div class="layout">
 
 <!-- SIDEBAR -->
@@ -1585,6 +1720,7 @@ async function carregarDashboard(){
     var label=document.getElementById('maintenance-label');
     label.textContent=on?'⚠ Site em manutenção':'Modo manutenção';
     label.className='maintenance-label'+(on?' active-label':'');
+    syncMobMaintPill(on);
   });
   var[prods,peds,avals,pts]=await Promise.all([
     sb.from('produtos').select('id',{count:'exact'}).eq('ativo',true),
@@ -3043,6 +3179,7 @@ async function toggleMaintenance(on){
   var label=document.getElementById('maintenance-label');
   label.textContent=on?'⚠ Site em manutenção':'Modo manutenção';
   label.className='maintenance-label'+(on?' active-label':'');
+  syncMobMaintPill(on);
   await registrarHistorico('sistema',on?'ativou modo manutenção':'desativou modo manutenção',null,{manutencao:on});
   showToast(on?'Site em manutenção!':'Site voltou ao ar!',on);
 }
@@ -3156,7 +3293,63 @@ function showToast(msg,erro,warn){
   clearTimeout(t._t);t._t=setTimeout(function(){t.className=''},3200);
 }
 
-/* ══ NOTIFICAÇÕES ADMIN ══ */
+/* ══ MENU MOBILE ══ */
+function toggleMobMenu(){
+  var sidebar=document.querySelector('.sidebar');
+  var overlay=document.getElementById('mobOverlay');
+  var isOpen=sidebar.classList.contains('mob-open');
+  sidebar.classList.toggle('mob-open',!isOpen);
+  overlay.classList.toggle('open',!isOpen);
+  document.body.style.overflow=isOpen?'':'hidden';
+}
+
+/* Fecha menu ao clicar em item da nav no mobile */
+document.querySelectorAll('.sb-item').forEach(function(item){
+  item.addEventListener('click',function(){
+    if(window.innerWidth<=768){
+      var sidebar=document.querySelector('.sidebar');
+      var overlay=document.getElementById('mobOverlay');
+      sidebar.classList.remove('mob-open');
+      overlay.classList.remove('open');
+      document.body.style.overflow='';
+    }
+  });
+});
+
+/* Manutenção rápida pela pílula mobile */
+function toggleMaintenanceMob(){
+  var toggle=document.getElementById('maintenance-toggle');
+  toggle.checked=!toggle.checked;
+  toggleMaintenance(toggle.checked);
+}
+
+/* Sincroniza pílula mobile com estado de manutenção */
+function syncMobMaintPill(ativo){
+  var pill=document.getElementById('mobMaintPill');
+  var label=document.getElementById('mobMaintLabel');
+  if(!pill)return;
+  if(ativo){
+    pill.classList.remove('off');
+    if(label) label.textContent='ATIVO';
+  } else {
+    pill.classList.add('off');
+    if(label) label.textContent='Manutenção';
+  }
+}
+
+/* Sincroniza badge de notificação mobile */
+var _origCarregarNotifs=carregarNotifs;
+carregarNotifs=async function(){
+  await _origCarregarNotifs();
+  var badge=document.getElementById('notifBadge');
+  var badgeMob=document.getElementById('notifBadgeMob');
+  if(badge&&badgeMob){
+    badgeMob.textContent=badge.textContent;
+    badgeMob.style.display=badge.style.display;
+  }
+};
+
+
 var _notifsAbertas=false;
 
 function toggleNotifs(){
