@@ -2935,10 +2935,9 @@ async function salvarSorteioPeriodico(){
   var ativo=document.getElementById('sp-ativo').checked;
   var plat=document.getElementById('sp-plat').value;
   if(!titulo||!premio||!fim){showToast('Preencha título, prêmio e data de encerramento',true);return}
-  if(ativo){await sb.from('sorteios_periodicos').update({ativo:false,status:'encerrado'}).eq('tipo',tipo).eq('ativo',true);}
+  if(ativo){await sb.from('sorteios_periodicos').update({ativo:false}).eq('tipo',tipo).eq('ativo',true);}
   var{error}=await sb.from('sorteios_periodicos').insert({
     tipo,titulo,descricao:desc,premio,chave_premio:chave||null,ativo,
-    status:ativo?'ativo':'inativo',
     data_inicio:new Date().toISOString(),data_fim:fim?new Date(fim).toISOString():null,
     plataforma:plat,total_participantes:0
   });
@@ -2979,9 +2978,9 @@ async function realizarSorteioById(id){
     if(errS||!s){showToast('Erro ao buscar sorteio: '+(errS&&errS.message||''),true);return;}
     var chave=s.chave_premio||'(sem chave cadastrada)';
 
-    /* Encerra com ativo:false + status:'encerrado' */
+    /* Encerra com ativo:false */
     var{error:errUpd}=await sb.from('sorteios_periodicos').update({
-      ativo:false,status:'encerrado',
+      ativo:false,
       vencedor_email:emailVenc,vencedor_nome:emailVenc,
       data_sorteio:new Date().toISOString()
     }).eq('id',id);
@@ -3042,8 +3041,7 @@ async function pararSorteioById(id){
   if(!confirm('Parar este sorteio sem sortear? Os participantes mantêm seus tickets.'))return;
 
   var{error}=await sb.from('sorteios_periodicos').update({
-    ativo:false,
-    status:'encerrado'   /* 'encerrado' para o sorteio.html parar de mostrar */
+    ativo:false
   }).eq('id',id);
 
   if(error){showToast('Erro ao parar sorteio: '+error.message,true);return;}
