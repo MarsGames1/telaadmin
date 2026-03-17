@@ -2935,9 +2935,10 @@ async function salvarSorteioPeriodico(){
   var ativo=document.getElementById('sp-ativo').checked;
   var plat=document.getElementById('sp-plat').value;
   if(!titulo||!premio||!fim){showToast('Preencha título, prêmio e data de encerramento',true);return}
-  if(ativo){await sb.from('sorteios_periodicos').update({ativo:false}).eq('tipo',tipo).eq('ativo',true);}
+  if(ativo){await sb.from('sorteios_periodicos').update({ativo:false,status:'encerrado'}).eq('tipo',tipo).eq('ativo',true);}
   var{error}=await sb.from('sorteios_periodicos').insert({
     tipo,titulo,descricao:desc,premio,chave_premio:chave||null,ativo,
+    status:ativo?'ativo':'inativo',
     data_inicio:new Date().toISOString(),data_fim:fim?new Date(fim).toISOString():null,
     plataforma:plat,total_participantes:0
   });
@@ -2950,39 +2951,68 @@ async function realizarSorteio(){if(sortAtivoAtual)await realizarSorteioById(sor
 async function pararSorteio(){if(sortAtivoAtual)await pararSorteioById(sortAtivoAtual.id);}
 
 async function realizarSorteioById(id){
-  if(!confirm('Realizar o sorteio agora? Um vencedor será sorteado e a chave entregue!'))return;
-  var{data:parts}=await sb.from('sorteio_participacoes').select('user_email,user_id,tickets_usados').eq('sorteio_id',id);
+  if(!confirm('Realizar o sorteio agora? Um vencedor será sorteado proporcionalmente aos tickets!'))return;
+
+  var{data:parts}=await sb.from('sorteio_participacoes')
+    .select('user_email,user_id,tickets_usados').eq('sorteio_id',id);
   if(!parts||parts.length===0){showToast('Nenhum participante ainda!',false,true);return}
+
+  /* Pool ponderado + Fisher-Yates para aleatoriedade real */
   var pool=[];
   parts.forEach(function(p){for(var i=0;i<(p.tickets_usados||1);i++)pool.push(p);});
+  for(var i=pool.length-1;i>0;i--){
+    var j=Math.floor(Math.random()*(i+1));
+    var tmp=pool[i];pool[i]=pool[j];pool[j]=tmp;
+  }
   var venc=pool[Math.floor(Math.random()*pool.length)];
   var emailVenc=venc.user_email;
+
   var{data:s}=await sb.from('sorteios_periodicos').select('*').eq('id',id).single();
   var chave=s.chave_premio||'(sem chave cadastrada)';
-  await sb.from('sorteios_periodicos').update({ativo:false,vencedor_email:emailVenc,vencedor_nome:emailVenc}).eq('id',id);
+
+  /* Encerra com ativo:false E status:'encerrado' — sincroniza com sorteio.html */
+  await sb.from('sorteios_periodicos').update({
+    ativo:false,status:'encerrado',
+    vencedor_email:emailVenc,vencedor_nome:emailVenc,
+    data_sorteio:new Date().toISOString()
+  }).eq('id',id);
+
+  /* MarsPoints + histórico do vencedor */
   var{data:mp}=await sb.from('marspoints').select('*').eq('user_email',emailVenc).maybeSingle();
   var hist=(mp&&mp.historico)||[];
   var BONUS_SORTEIO=100;
   hist.unshift({
     descricao:'🏆 SORTUDO — Ganhou o sorteio '+s.tipo+'! Prêmio: '+s.premio,
-    pontos:BONUS_SORTEIO,data:new Date().toISOString(),tipo:'sorteio',chave:chave,titulo_desbloqueado:'SORTUDO'
+    pontos:BONUS_SORTEIO,data:new Date().toISOString(),
+    tipo:'sorteio',chave:chave,titulo_desbloqueado:'SORTUDO'
   });
   var pontosAtuais=mp?mp.pontos||0:0;
   if(mp){await sb.from('marspoints').update({pontos:pontosAtuais+BONUS_SORTEIO,historico:hist}).eq('user_email',emailVenc);}
   else{await sb.from('marspoints').insert({user_email:emailVenc,pontos:BONUS_SORTEIO,historico:hist});}
   await sb.from('perfis').update({titulo_exibido:'SORTUDO'}).eq('email',emailVenc);
-  await registrarHistorico('sorteio','realizou sorteio "'+s.titulo+'" — vencedor: '+emailVenc,null,{vencedor:emailVenc,premio:s.premio});
-  showToast('🏆 VENCEDOR: '+emailVenc+'!');
-  /* Modal de resultado do sorteio */
-  var msg='🏆 SORTEIO REALIZADO!\n\nVencedor: '+emailVenc+'\nPrêmio: '+s.premio+'\nChave entregue automaticamente no perfil do cliente!';
+
+  /* Notificação no painel admin */
+  await sb.from('notificacoes_admin').insert({
+    titulo:'🏆 Sorteio '+(s.tipo||'')+' realizado!',
+    mensagem:'Vencedor: '+emailVenc+' | Prêmio: '+s.premio+
+      ' | Participantes: '+parts.length+' | Tickets no pote: '+pool.length,
+    lida:false
+  }).catch(function(){});
+
+  await registrarHistorico('sorteio','realizou sorteio "'+s.titulo+'" — vencedor: '+emailVenc,null,{vencedor:emailVenc,premio:s.premio,chave:chave});
   showToast('🏆 Vencedor: '+emailVenc);
-  setTimeout(function(){alert(msg);}, 300);
+  setTimeout(function(){
+    alert('🏆 SORTEIO REALIZADO!\n\nVencedor: '+emailVenc+
+      '\nPrêmio: '+s.premio+'\nChave: '+chave+
+      '\n\nParticipantes: '+parts.length+' | Tickets no pote: '+pool.length+
+      '\n\nA chave foi entregue no perfil do cliente automaticamente!');
+  },300);
   carregarSorteios();
 }
 
 async function pararSorteioById(id){
   if(!confirm('Parar este sorteio sem sortear?'))return;
-  await sb.from('sorteios_periodicos').update({ativo:false}).eq('id',id);
+  await sb.from('sorteios_periodicos').update({ativo:false,status:'pausado'}).eq('id',id);
   showToast('Sorteio pausado');carregarSorteios();
 }
 
