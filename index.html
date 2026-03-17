@@ -3160,17 +3160,43 @@ async function ajustarTickets(sinal){
     (isAdd?'Adição manual admin':'Remoção manual admin');
   if(!email||isNaN(qtdRaw)||qtdRaw<=0){showToast('Preencha email e quantidade',true);return}
 
-  var{data:atual}=await sb.from('tickets').select('*').eq('user_email',email).maybeSingle();
+  /* Busca saldo atual */
+  var{data:atual,error:errBusca}=await sb.from('tickets').select('*').eq('user_email',email).maybeSingle();
+  if(errBusca){showToast('Erro ao buscar tickets: '+errBusca.message,true);return;}
+
   var antes=atual?atual.quantidade||0:0;
   var novo=Math.max(0,antes+(isAdd?qtdRaw:-qtdRaw));
   var totalAcum=(atual?atual.total_acumulado||0:0)+(isAdd?qtdRaw:0);
 
+  var errOp;
   if(atual){
-    await sb.from('tickets').update({quantidade:novo,total_acumulado:totalAcum,updated_at:new Date().toISOString()}).eq('user_email',email);
+    var res=await sb.from('tickets').update({
+      quantidade:novo,
+      total_acumulado:totalAcum,
+      updated_at:new Date().toISOString()
+    }).eq('user_email',email);
+    errOp=res.error;
   } else {
-    await sb.from('tickets').insert({user_email:email,quantidade:Math.max(0,qtdRaw),total_acumulado:qtdRaw,ultima_renovacao:new Date().toISOString()});
+    /* Precisa do user_id — busca no perfis */
+    var{data:perfil}=await sb.from('perfis').select('id').eq('email',email).maybeSingle();
+    var res2=await sb.from('tickets').insert({
+      user_id:perfil?perfil.id:null,
+      user_email:email,
+      quantidade:Math.max(0,qtdRaw),
+      total_acumulado:qtdRaw,
+      ultima_renovacao:new Date().toISOString()
+    });
+    errOp=res2.error;
   }
-  await registrarHistorico('tickets',(isAdd?'adicionou +':'removeu ')+qtdRaw+' tickets de '+email+': '+motivo,{tickets:antes},{tickets:novo});
+
+  if(errOp){showToast('Erro ao salvar tickets: '+errOp.message,true);return;}
+
+  /* Registra histórico sem bloquear se falhar */
+  registrarHistorico('tickets',
+    (isAdd?'adicionou +':'removeu ')+qtdRaw+' tickets de '+email+': '+motivo,
+    {tickets:antes},{tickets:novo}
+  ).catch(function(){});
+
   showToast((isAdd?'✓ +':'✓ −')+qtdRaw+' tickets — '+email);
   closeModal(isAdd?'add-tickets':'rm-tickets');
   carregarMarsTickets();
