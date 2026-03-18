@@ -604,6 +604,11 @@ tr:hover td{background:rgba(255,255,255,.012)}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 9a3 3 0 010-6h20a3 3 0 010 6"/><path d="M2 15a3 3 0 000 6h20a3 3 0 000-6"/><path d="M6 9v6M10 9v6M14 9v6M18 9v6"/></svg>
       MarsTickets
     </div>
+    <div class="sb-item" onclick="showPage('marspass',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
+      MarsPass
+      <span class="sb-badge" id="mp-badge" style="display:none">!</span>
+    </div>
     <div class="sb-item" onclick="showPage('chargeback',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
       Chargeback
@@ -1144,6 +1149,106 @@ tr:hover td{background:rgba(255,255,255,.012)}
   </div>
 
   <!-- ══ LOG DE ACESSO ══ -->
+  <!-- ══ MARSPASS ══ -->
+  <div class="page" id="page-marspass">
+    <div class="page-head">
+      <div><div class="page-eyebrow">Assinaturas</div><div class="page-title">🌌 MarsPass</div></div>
+      <button class="btn btn-green" onclick="openModal('nova-assinatura')">+ Nova assinatura</button>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid" style="grid-template-columns:repeat(5,1fr)">
+      <div class="stat-card"><div class="stat-label">Assinantes ativos</div><div class="stat-value green" id="mp-stat-ativos">0</div></div>
+      <div class="stat-card"><div class="stat-label">Receita estimada/mês</div><div class="stat-value" id="mp-stat-receita" style="color:var(--amber)">R$ 0</div></div>
+      <div class="stat-card"><div class="stat-label">Vencendo em 7 dias</div><div class="stat-value" id="mp-stat-vencendo" style="color:var(--red)">0</div></div>
+      <div class="stat-card"><div class="stat-label">Pendentes ativação</div><div class="stat-value" id="mp-stat-pendentes" style="color:#888">0</div></div>
+      <div class="stat-card"><div class="stat-label">Total histórico</div><div class="stat-value" id="mp-stat-total">0</div></div>
+    </div>
+
+    <!-- Distribuição por plano -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
+      <div style="background:var(--surface);border:1px solid rgba(124,106,247,.3);border-radius:12px;padding:14px 16px;text-align:center">
+        <div style="font-size:18px;margin-bottom:4px">🌀</div>
+        <div style="font-family:'Orbitron',sans-serif;font-size:9px;font-weight:900;letter-spacing:2px;color:#7c6af7;margin-bottom:6px">ANDRÔMEDA</div>
+        <div style="font-size:20px;font-weight:900;color:#fff" id="mp-count-andromeda">0</div>
+        <div style="font-size:9px;color:var(--muted)">assinantes</div>
+      </div>
+      <div style="background:var(--surface);border:1px solid rgba(0,212,255,.3);border-radius:12px;padding:14px 16px;text-align:center">
+        <div style="font-size:18px;margin-bottom:4px">🔺</div>
+        <div style="font-family:'Orbitron',sans-serif;font-size:9px;font-weight:900;letter-spacing:2px;color:#00d4ff;margin-bottom:6px">TRIÂNGULO</div>
+        <div style="font-size:20px;font-weight:900;color:#fff" id="mp-count-triangulo">0</div>
+        <div style="font-size:9px;color:var(--muted)">assinantes</div>
+      </div>
+      <div style="background:var(--surface);border:1px solid rgba(255,179,0,.3);border-radius:12px;padding:14px 16px;text-align:center">
+        <div style="font-size:18px;margin-bottom:4px">⚡</div>
+        <div style="font-family:'Orbitron',sans-serif;font-size:9px;font-weight:900;letter-spacing:2px;color:#ffb300;margin-bottom:6px">CENTAURUS</div>
+        <div style="font-size:20px;font-weight:900;color:#fff" id="mp-count-centaurus">0</div>
+        <div style="font-size:9px;color:var(--muted)">assinantes</div>
+      </div>
+      <div style="background:var(--surface);border:1px solid rgba(255,60,110,.3);border-radius:12px;padding:14px 16px;text-align:center">
+        <div style="font-size:18px;margin-bottom:4px">🌐</div>
+        <div style="font-family:'Orbitron',sans-serif;font-size:9px;font-weight:900;letter-spacing:2px;color:#ff3c6e;margin-bottom:6px">SOMBRERO</div>
+        <div style="font-size:20px;font-weight:900;color:#fff" id="mp-count-sombrero">0</div>
+        <div style="font-size:9px;color:var(--muted)">assinantes</div>
+      </div>
+    </div>
+
+    <!-- Filtros -->
+    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
+      <select class="form-select" id="mp-filtro-status" style="max-width:160px;padding:8px 12px;font-size:11px" onchange="carregarMarsPass()">
+        <option value="">Todos os status</option>
+        <option value="ativo">Ativos</option>
+        <option value="pendente">Pendentes</option>
+        <option value="expirado">Expirados</option>
+        <option value="cancelado">Cancelados</option>
+      </select>
+      <select class="form-select" id="mp-filtro-plano" style="max-width:160px;padding:8px 12px;font-size:11px" onchange="carregarMarsPass()">
+        <option value="">Todos os planos</option>
+        <option value="andromeda">🌀 Andrômeda</option>
+        <option value="triangulo">🔺 Triângulo</option>
+        <option value="centaurus">⚡ Centaurus</option>
+        <option value="sombrero">🌐 Sombrero</option>
+      </select>
+      <input class="form-input" id="mp-busca" placeholder="Buscar por email..." style="max-width:220px;padding:8px 12px;font-size:11px" oninput="carregarMarsPass()">
+      <button class="btn btn-outline btn-sm" onclick="carregarMarsPass()">↻ Atualizar</button>
+    </div>
+
+    <!-- Tabela -->
+    <div class="table-wrap">
+      <div class="table-head">
+        <div class="table-title">Todos os assinantes</div>
+        <a href="marspass.html" target="_blank" style="font-size:10px;font-weight:700;color:var(--green);text-decoration:none">Ver página pública →</a>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Cliente</th>
+            <th>Plano</th>
+            <th>Status</th>
+            <th>Início</th>
+            <th>Vencimento</th>
+            <th>Renovações</th>
+            <th>Jogo mês</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody id="mp-tbody"><tr><td colspan="8" class="empty-state"><span class="loader-inline"></span></td></tr></tbody>
+      </table>
+    </div>
+
+    <!-- Solicitações de jogo pendentes -->
+    <div id="mp-jogos-section" style="display:none;margin-top:20px">
+      <div class="table-wrap">
+        <div class="table-head"><div class="table-title">🎮 Solicitações de jogo do mês pendentes</div></div>
+        <table>
+          <thead><tr><th>Cliente</th><th>Plano</th><th>Jogo solicitado</th><th>Limite</th><th>Data</th><th>Ação</th></tr></thead>
+          <tbody id="mp-jogos-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ LOG DE ACESSO ══ -->
   <div class="page" id="page-logs">
     <div class="page-head">
       <div><div class="page-eyebrow">Segurança</div><div class="page-title">Log de Acesso</div></div>
@@ -1157,6 +1262,75 @@ tr:hover td{background:rgba(255,255,255,.012)}
 
 </main>
 </div>
+</div>
+
+<!-- ══ MODAL NOVA ASSINATURA ══ -->
+<div class="modal-overlay" id="modal-nova-assinatura">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-title">🌌 Ativar Assinatura MarsPass</div>
+    <div class="form-row">
+      <label class="form-label">Email do cliente *</label>
+      <input class="form-input" id="mp-email" placeholder="cliente@email.com">
+    </div>
+    <div class="form-row-2">
+      <div>
+        <label class="form-label">Plano *</label>
+        <select class="form-select" id="mp-plano" onchange="mpAtualizarValor()">
+          <option value="andromeda">🌀 Andrômeda — R$14,99</option>
+          <option value="triangulo">🔺 Triângulo — R$19,90</option>
+          <option value="centaurus">⚡ Centaurus — R$29,90</option>
+          <option value="sombrero">🌐 Sombrero — R$39,90</option>
+        </select>
+      </div>
+      <div>
+        <label class="form-label">Duração</label>
+        <select class="form-select" id="mp-duracao">
+          <option value="30">30 dias (1 mês)</option>
+          <option value="60">60 dias (2 meses)</option>
+          <option value="90">90 dias (3 meses)</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row-2">
+      <div>
+        <label class="form-label">Forma de pagamento</label>
+        <select class="form-select" id="mp-metodo">
+          <option value="pix">Pix</option>
+          <option value="cartao">Cartão</option>
+          <option value="cortesia">Cortesia</option>
+          <option value="mercadopago">Mercado Pago</option>
+        </select>
+      </div>
+      <div>
+        <label class="form-label">Referência (opcional)</label>
+        <input class="form-input" id="mp-ref" placeholder="ID do pagamento MP">
+      </div>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Observação</label>
+      <input class="form-input" id="mp-obs" placeholder="Nota interna opcional">
+    </div>
+    <div style="padding:10px 14px;background:rgba(0,255,85,.05);border:1px solid rgba(0,255,85,.15);border-radius:8px;font-size:10px;color:#888;line-height:1.6;margin-bottom:4px">
+      ✅ Ao ativar: MarsPoints serão creditados, badge aplicado, tickets adicionados automaticamente.
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('nova-assinatura')">Cancelar</button>
+      <button class="btn btn-green" onclick="ativarAssinatura()">✓ Ativar assinatura</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL DETALHES ASSINANTE ══ -->
+<div class="modal-overlay" id="modal-detalhe-assinante">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-title" id="md-titulo">Assinante</div>
+    <div id="md-conteudo"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('detalhe-assinante')">Fechar</button>
+      <button class="btn btn-green" id="md-btn-renovar" onclick="">↻ Renovar 30 dias</button>
+      <button class="btn btn-red" id="md-btn-cancelar" onclick="">✕ Cancelar</button>
+    </div>
+  </div>
 </div>
 
 <!-- ══ MODALS ══ -->
@@ -1703,7 +1877,7 @@ function showPage(id,el){
     estoque:carregarEstoque,
     avaliacoes:carregarAvaliacoes,marspoints:carregarMarsPoints,marstickets:carregarMarsTickets,clientes:carregarClientes,
     historico:carregarHistorico,logs:carregarLogs,cupons:carregarCupons,
-    sorteios:carregarSorteios,favoritos:carregarFavoritos,
+    sorteios:carregarSorteios,favoritos:carregarFavoritos,marspass:carregarMarsPass,
     chargeback:carregarChargeback
   };
   if(map[id])map[id]();
@@ -3200,6 +3374,245 @@ async function ajustarTickets(sinal){
   showToast((isAdd?'✓ +':'✓ −')+qtdRaw+' tickets — '+email);
   closeModal(isAdd?'add-tickets':'rm-tickets');
   carregarMarsTickets();
+}
+
+/* ══ MARSPASS ══ */
+var MP_PLANOS={
+  andromeda:{nome:'Andrômeda',icon:'🌀',valor:14.99,pontos:50,tickets:3,desconto:3,cor:'#7c6af7'},
+  triangulo:{nome:'Triângulo',icon:'🔺',valor:19.90,pontos:80,tickets:5,desconto:5,cor:'#00d4ff'},
+  centaurus:{nome:'Centaurus',icon:'⚡',valor:29.90,pontos:100,tickets:8,desconto:10,cor:'#ffb300'},
+  sombrero:{nome:'Sombrero',icon:'🌐',valor:39.90,pontos:150,tickets:12,desconto:15,cor:'#ff3c6e'}
+};
+
+function mpAtualizarValor(){
+  /* atualiza placeholder quando muda o plano */
+}
+
+async function carregarMarsPass(){
+  var tbody=document.getElementById('mp-tbody');
+  tbody.innerHTML='<tr><td colspan="8" class="empty-state"><span class="loader-inline"></span></td></tr>';
+
+  var statusFiltro=document.getElementById('mp-filtro-status').value;
+  var planoFiltro=document.getElementById('mp-filtro-plano').value;
+  var busca=(document.getElementById('mp-busca').value||'').toLowerCase().trim();
+
+  var q=sb.from('marspass_assinaturas').select('*').order('created_at',{ascending:false});
+  if(statusFiltro) q=q.eq('status',statusFiltro);
+  if(planoFiltro) q=q.eq('plano',planoFiltro);
+
+  var{data,error}=await q;
+  if(error){tbody.innerHTML='<tr><td colspan="8" class="empty-state">Erro ao carregar</td></tr>';return;}
+  data=data||[];
+
+  /* Filtra por busca */
+  if(busca) data=data.filter(function(a){return a.user_email&&a.user_email.toLowerCase().includes(busca);});
+
+  /* Stats */
+  var ativos=data.filter(function(a){return a.status==='ativo'});
+  var pendentes=data.filter(function(a){return a.status==='pendente'});
+  var hoje=new Date();
+  var em7dias=new Date(hoje.getTime()+7*86400000);
+  var vencendo=ativos.filter(function(a){var v=new Date(a.data_vencimento);return v>=hoje&&v<=em7dias;});
+  var receita=ativos.reduce(function(s,a){return s+(a.valor||0)},0);
+
+  document.getElementById('mp-stat-ativos').textContent=ativos.length;
+  document.getElementById('mp-stat-receita').textContent='R$ '+receita.toFixed(2).replace('.',',');
+  document.getElementById('mp-stat-vencendo').textContent=vencendo.length;
+  document.getElementById('mp-stat-pendentes').textContent=pendentes.length;
+  document.getElementById('mp-stat-total').textContent=data.length;
+
+  /* Contagem por plano */
+  ['andromeda','triangulo','centaurus','sombrero'].forEach(function(p){
+    var el=document.getElementById('mp-count-'+p);
+    if(el) el.textContent=ativos.filter(function(a){return a.plano===p}).length;
+  });
+
+  /* Badge no sidebar */
+  var badge=document.getElementById('mp-badge');
+  if(badge){badge.style.display=pendentes.length>0?'flex':'none';badge.textContent=pendentes.length;}
+
+  if(!data.length){tbody.innerHTML='<tr><td colspan="8" class="empty-state">Nenhuma assinatura encontrada.</td></tr>';return;}
+
+  var statusCor={ativo:'badge-green',pendente:'badge-amber',expirado:'badge-gray',cancelado:'badge-red'};
+  var statusLabel={ativo:'Ativo',pendente:'Pendente',expirado:'Expirado',cancelado:'Cancelado'};
+
+  tbody.innerHTML=data.map(function(a){
+    var pl=MP_PLANOS[a.plano]||{nome:a.plano,icon:'🌌',cor:'#888'};
+    var venc=a.data_vencimento?new Date(a.data_vencimento):null;
+    var vencStr=venc?venc.toLocaleDateString('pt-BR'):'—';
+    var vencido=venc&&venc<hoje&&a.status==='ativo';
+    var jogoIcon=a.jogo_mensal_entregue?'✅':(a.jogo_mensal_solicitacao?'⏳':'—');
+    return '<tr>'+
+      '<td style="font-weight:700;color:#fff;max-width:200px;overflow:hidden;text-overflow:ellipsis">'+esc(a.user_email)+'</td>'+
+      '<td><span style="color:'+pl.cor+';font-weight:900;font-size:12px">'+pl.icon+' '+pl.nome+'</span></td>'+
+      '<td><span class="badge '+(statusCor[a.status]||'badge-gray')+'">'+statusLabel[a.status]+'</span></td>'+
+      '<td style="font-size:11px;color:#888">'+(a.data_inicio?new Date(a.data_inicio).toLocaleDateString('pt-BR'):'—')+'</td>'+
+      '<td style="font-size:11px;color:'+(vencido?'var(--red)':'var(--green)')+'">'+vencStr+(vencido?' ⚠':'')+'</td>'+
+      '<td style="text-align:center;color:#888">'+( a.renovacoes||0)+'x</td>'+
+      '<td style="text-align:center">'+jogoIcon+(a.jogo_mensal_solicitacao&&!a.jogo_mensal_entregue?'<br><span style="font-size:9px;color:#888">'+esc((a.jogo_mensal_solicitacao||'').substring(0,20))+'</span>':'')+'</td>'+
+      '<td><div class="td-actions">'+
+        (a.status==='pendente'?'<button class="btn btn-green btn-sm" onclick="ativarAssinaturaDireta(\''+a.id+'\',\''+a.plano+'\',\''+esc(a.user_email)+'\')">✓ Ativar</button>':'') +
+        (a.status==='ativo'?'<button class="btn btn-outline btn-sm" onclick="renovarAssinatura(\''+a.id+'\')">↻</button>':'') +
+        (a.jogo_mensal_solicitacao&&!a.jogo_mensal_entregue?'<button class="btn btn-amber btn-sm" onclick="entregarJogo(\''+a.id+'\',\''+esc(a.user_email)+'\')">🎮</button>':'') +
+        '<button class="btn btn-outline btn-sm" onclick="verDetalheAssinante(\''+a.id+'\')">👁</button>'+
+        (a.status!=='cancelado'?'<button class="btn btn-red btn-sm" onclick="cancelarAssinatura(\''+a.id+'\')">✕</button>':'') +
+      '</div></td></tr>';
+  }).join('');
+
+  /* Solicitações de jogo pendentes */
+  var jogos=data.filter(function(a){return a.jogo_mensal_solicitacao&&!a.jogo_mensal_entregue});
+  var jogosSection=document.getElementById('mp-jogos-section');
+  if(jogos.length>0){
+    jogosSection.style.display='block';
+    var limites={triangulo:'Editor',centaurus:'R$10',sombrero:'R$15'};
+    document.getElementById('mp-jogos-tbody').innerHTML=jogos.map(function(a){
+      var pl=MP_PLANOS[a.plano]||{nome:a.plano,icon:'🌌'};
+      return '<tr>'+
+        '<td style="font-weight:700;color:#fff">'+esc(a.user_email)+'</td>'+
+        '<td>'+pl.icon+' '+pl.nome+'</td>'+
+        '<td style="color:var(--amber);font-weight:700">'+esc(a.jogo_mensal_solicitacao||'')+'</td>'+
+        '<td style="font-size:11px;color:#888">'+(limites[a.plano]||'—')+'</td>'+
+        '<td style="font-size:11px;color:#888">'+(a.updated_at?new Date(a.updated_at).toLocaleDateString('pt-BR'):'—')+'</td>'+
+        '<td><button class="btn btn-green btn-sm" onclick="entregarJogo(\''+a.id+'\',\''+esc(a.user_email)+'\')">✅ Entregar</button></td>'+
+      '</tr>';
+    }).join('');
+  } else {
+    jogosSection.style.display='none';
+  }
+}
+
+async function ativarAssinatura(){
+  var email=document.getElementById('mp-email').value.trim();
+  var plano=document.getElementById('mp-plano').value;
+  var dias=parseInt(document.getElementById('mp-duracao').value)||30;
+  var metodo=document.getElementById('mp-metodo').value;
+  var ref=document.getElementById('mp-ref').value.trim();
+  var obs=document.getElementById('mp-obs').value.trim();
+  if(!email){showToast('Informe o email do cliente',true);return;}
+
+  var pl=MP_PLANOS[plano];
+  var inicio=new Date();
+  var venc=new Date(inicio.getTime()+dias*86400000);
+
+  /* Cancela assinatura ativa anterior se houver */
+  await sb.from('marspass_assinaturas').update({status:'cancelado'})
+    .eq('user_email',email).eq('status','ativo').catch(function(){});
+
+  var{data,error}=await sb.from('marspass_assinaturas').insert({
+    user_email:email,plano:plano,status:'ativo',valor:pl.valor,
+    data_inicio:inicio.toISOString(),data_vencimento:venc.toISOString(),
+    metodo_pagamento:metodo,referencia_pagamento:ref||null,
+    observacao:obs||null,ativado_por:currentEmail
+  }).select().single();
+
+  if(error){showToast('Erro: '+error.message,true);return;}
+
+  /* Aplica benefícios */
+  await aplicarBeneficiosAtivacao(email,plano,pl);
+
+  await registrarHistorico('sistema','ativou assinatura MarsPass '+plano+' para '+email,null,{plano,dias,email});
+  showToast('✅ Assinatura '+pl.nome+' ativada para '+email+'!');
+  closeModal('nova-assinatura');
+  carregarMarsPass();
+}
+
+async function ativarAssinaturaDireta(id, plano, email){
+  var pl=MP_PLANOS[plano];
+  if(!pl){showToast('Plano inválido',true);return;}
+  var venc=new Date();
+  venc.setDate(venc.getDate()+30);
+  var{error}=await sb.from('marspass_assinaturas').update({
+    status:'ativo',data_inicio:new Date().toISOString(),
+    data_vencimento:venc.toISOString(),ativado_por:currentEmail
+  }).eq('id',id);
+  if(error){showToast('Erro: '+error.message,true);return;}
+  await aplicarBeneficiosAtivacao(email,plano,pl);
+  showToast('✅ Assinatura ativada!');
+  carregarMarsPass();
+}
+
+async function aplicarBeneficiosAtivacao(email, plano, pl){
+  /* MarsPoints */
+  var{data:mp}=await sb.from('marspoints').select('*').eq('user_email',email).maybeSingle();
+  var hist=(mp&&mp.historico)||[];
+  hist.unshift({descricao:'🌌 MarsPass '+pl.nome+' ativado! Bônus de boas-vindas.',pontos:pl.pontos,data:new Date().toISOString(),tipo:'marspass'});
+  var pts=(mp?mp.pontos||0:0)+pl.pontos;
+  if(mp){await sb.from('marspoints').update({pontos:pts,historico:hist}).eq('user_email',email);}
+  else{await sb.from('marspoints').insert({user_email:email,pontos:pts,historico:hist});}
+
+  /* MarsTickets */
+  var{data:tk}=await sb.from('tickets').select('*').eq('user_email',email).maybeSingle();
+  if(tk){
+    await sb.from('tickets').update({
+      quantidade:(tk.quantidade||0)+pl.tickets,
+      total_acumulado:(tk.total_acumulado||0)+pl.tickets,
+      updated_at:new Date().toISOString()
+    }).eq('user_email',email);
+  }
+
+  /* Atualiza última adição semanal */
+  await sb.from('marspass_assinaturas').update({
+    tickets_semana_ultimo:new Date().toISOString().split('T')[0]
+  }).eq('user_email',email).eq('status','ativo').catch(function(){});
+}
+
+async function renovarAssinatura(id){
+  if(!confirm('Renovar esta assinatura por mais 30 dias?'))return;
+  var{data:a}=await sb.from('marspass_assinaturas').select('*').eq('id',id).single();
+  if(!a)return;
+  var base=new Date(a.data_vencimento)>new Date()?new Date(a.data_vencimento):new Date();
+  base.setDate(base.getDate()+30);
+  var{error}=await sb.from('marspass_assinaturas').update({
+    data_vencimento:base.toISOString(),
+    renovacoes:(a.renovacoes||0)+1,
+    status:'ativo'
+  }).eq('id',id);
+  if(error){showToast('Erro: '+error.message,true);return;}
+  showToast('↻ Renovada até '+base.toLocaleDateString('pt-BR'));
+  carregarMarsPass();
+}
+
+async function cancelarAssinatura(id){
+  if(!confirm('Cancelar esta assinatura?'))return;
+  var{error}=await sb.from('marspass_assinaturas').update({
+    status:'cancelado',data_cancelamento:new Date().toISOString()
+  }).eq('id',id);
+  if(error){showToast('Erro: '+error.message,true);return;}
+  showToast('Assinatura cancelada');
+  carregarMarsPass();
+}
+
+async function entregarJogo(id, email){
+  if(!confirm('Marcar jogo como entregue para '+email+'?'))return;
+  var{error}=await sb.from('marspass_assinaturas').update({
+    jogo_mensal_entregue:true,updated_at:new Date().toISOString()
+  }).eq('id',id);
+  if(error){showToast('Erro: '+error.message,true);return;}
+  showToast('🎮 Jogo marcado como entregue!');
+  carregarMarsPass();
+}
+
+async function verDetalheAssinante(id){
+  var{data:a}=await sb.from('marspass_assinaturas').select('*').eq('id',id).single();
+  if(!a)return;
+  var pl=MP_PLANOS[a.plano]||{nome:a.plano,icon:'🌌',cor:'#888'};
+  var statusCor={ativo:'var(--green)',pendente:'var(--amber)',expirado:'#888',cancelado:'var(--red)'};
+  document.getElementById('md-titulo').textContent=pl.icon+' '+pl.nome+' — '+a.user_email;
+  document.getElementById('md-conteudo').innerHTML=
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">'+
+      '<div style="background:var(--surface);border-radius:8px;padding:12px"><div style="font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:4px">STATUS</div><div style="font-weight:900;color:'+(statusCor[a.status]||'#fff')+'">'+a.status.toUpperCase()+'</div></div>'+
+      '<div style="background:var(--surface);border-radius:8px;padding:12px"><div style="font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:4px">VALOR</div><div style="font-weight:900;color:#fff">R$ '+Number(a.valor).toFixed(2).replace('.',',')+'</div></div>'+
+      '<div style="background:var(--surface);border-radius:8px;padding:12px"><div style="font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:4px">INÍCIO</div><div style="font-size:12px;color:#ccc">'+(a.data_inicio?new Date(a.data_inicio).toLocaleDateString('pt-BR'):'—')+'</div></div>'+
+      '<div style="background:var(--surface);border-radius:8px;padding:12px"><div style="font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:4px">VENCIMENTO</div><div style="font-size:12px;color:var(--green)">'+(a.data_vencimento?new Date(a.data_vencimento).toLocaleDateString('pt-BR'):'—')+'</div></div>'+
+      '<div style="background:var(--surface);border-radius:8px;padding:12px"><div style="font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:4px">RENOVAÇÕES</div><div style="font-weight:900;color:#fff">'+(a.renovacoes||0)+'x</div></div>'+
+      '<div style="background:var(--surface);border-radius:8px;padding:12px"><div style="font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:4px">ATIVADO POR</div><div style="font-size:11px;color:#888">'+(a.ativado_por||'sistema')+'</div></div>'+
+    '</div>'+
+    (a.jogo_mensal_solicitacao?'<div style="background:rgba(255,179,0,.06);border:1px solid rgba(255,179,0,.2);border-radius:8px;padding:12px;margin-bottom:10px"><div style="font-size:9px;color:var(--amber);margin-bottom:4px">JOGO SOLICITADO</div><div style="color:#fff;font-weight:700">'+esc(a.jogo_mensal_solicitacao)+'</div><div style="font-size:10px;color:#888;margin-top:4px">Entregue: '+(a.jogo_mensal_entregue?'✅ Sim':'⏳ Pendente')+'</div></div>':'')+
+    (a.observacao?'<div style="background:var(--surface);border-radius:8px;padding:12px"><div style="font-size:9px;color:var(--muted);margin-bottom:4px">OBSERVAÇÃO</div><div style="font-size:11px;color:#888">'+esc(a.observacao)+'</div></div>':'');
+
+  document.getElementById('md-btn-renovar').onclick=function(){closeModal('detalhe-assinante');renovarAssinatura(id);};
+  document.getElementById('md-btn-cancelar').onclick=function(){closeModal('detalhe-assinante');cancelarAssinatura(id);};
+  openModal('detalhe-assinante');
 }
 
 /* ══ FAVORITOS ══ */
