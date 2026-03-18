@@ -1063,10 +1063,47 @@ tr:hover td{background:rgba(255,255,255,.012)}
       <div><div class="page-eyebrow">Loja</div><div class="page-title">Cupons de Desconto</div></div>
       <button class="btn btn-green" onclick="openModal('cupom')">+ Novo cupom</button>
     </div>
-    <div class="table-wrap">
-      <div class="table-head"><div class="table-title">Cupons cadastrados</div></div>
-      <table><thead><tr><th>Código</th><th>Desconto</th><th>Usos</th><th>Validade</th><th>Status</th><th>Ações</th></tr></thead>
+
+    <!-- Stats -->
+    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px">
+      <div class="stat-card"><div class="stat-label">Cupons ativos</div><div class="stat-value green" id="cup-stat-ativos">0</div></div>
+      <div class="stat-card"><div class="stat-label">Total de usos</div><div class="stat-value" id="cup-stat-usos">0</div></div>
+      <div class="stat-card"><div class="stat-label">Cupons vencidos</div><div class="stat-value" style="color:var(--red)" id="cup-stat-vencidos">0</div></div>
+      <div class="stat-card"><div class="stat-label">Desconto médio</div><div class="stat-value amber" id="cup-stat-desc">0%</div></div>
+    </div>
+
+    <!-- Aviso sobre fluxo -->
+    <div style="padding:12px 16px;border-radius:10px;background:rgba(0,255,85,.05);border:1px solid rgba(0,255,85,.15);margin-bottom:16px;font-size:11px;color:#7070a0;line-height:1.6">
+      💡 <strong style="color:var(--green)">Como funciona:</strong> O cupom é aplicado no <strong style="color:#fff">produto de menor valor</strong> do carrinho. Cada cupom pode ser usado <strong style="color:#fff">1 vez por email</strong> por padrão — você pode liberar mais usos individualmente abaixo.
+    </div>
+
+    <!-- Tabela de cupons -->
+    <div class="table-wrap" style="margin-bottom:24px">
+      <div class="table-head">
+        <div class="table-title">Cupons cadastrados</div>
+        <input class="t-search" placeholder="Buscar cupom..." oninput="filtrarCupons(this.value)" style="width:180px">
+      </div>
+      <table><thead><tr>
+        <th>Código</th><th>Desconto</th><th>Usos / Máx</th>
+        <th>Validade</th><th>Status</th><th>Ações</th>
+      </tr></thead>
       <tbody id="cup-tbody"><tr><td colspan="6" class="empty-state"><span class="loader-inline"></span></td></tr></tbody></table>
+    </div>
+
+    <!-- Controle de usos por email -->
+    <div class="table-wrap">
+      <div class="table-head">
+        <div class="table-title">🔍 Controle de usos por email</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select class="t-search" id="cup-filtro-cupom" onchange="carregarUsosCupom()" style="width:180px;background:var(--bg)">
+            <option value="">Selecione um cupom...</option>
+          </select>
+          <button class="btn btn-outline btn-sm" onclick="carregarUsosCupom()">↻</button>
+        </div>
+      </div>
+      <div id="cup-usos-area">
+        <div class="empty-state" style="padding:32px">Selecione um cupom para ver os usos por email.</div>
+      </div>
     </div>
   </div>
 
@@ -1731,12 +1768,18 @@ tr:hover td{background:rgba(255,255,255,.012)}
 <div class="modal-overlay" id="modal-cupom">
   <div class="modal">
     <div class="modal-title">Novo cupom</div>
-    <div class="form-row"><label class="form-label">Código do cupom *</label><input class="form-input" id="cup-codigo" placeholder="Ex: MARS10" style="text-transform:uppercase"></div>
+    <div class="form-row"><label class="form-label">Código do cupom *</label><input class="form-input" id="cup-codigo" placeholder="Ex: MARS10" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
     <div class="form-row-2">
-      <div><label class="form-label">Desconto (%)</label><input class="form-input" id="cup-desc" type="number" placeholder="10"></div>
+      <div><label class="form-label">Desconto (%) *</label><input class="form-input" id="cup-desc" type="number" min="1" max="100" placeholder="10"></div>
       <div><label class="form-label">Validade</label><input class="form-input" id="cup-validade" type="date"></div>
     </div>
-    <div class="form-row"><label class="form-label">Máximo de usos (0 = ilimitado)</label><input class="form-input" id="cup-max" type="number" placeholder="0"></div>
+    <div class="form-row-2">
+      <div><label class="form-label">Máx. usos totais (0 = ilimitado)</label><input class="form-input" id="cup-max" type="number" min="0" placeholder="0"></div>
+      <div><label class="form-label">Usos por email (padrão: 1)</label><input class="form-input" id="cup-max-por-email" type="number" min="1" placeholder="1"></div>
+    </div>
+    <div style="padding:10px 14px;background:rgba(0,255,85,.04);border:1px solid rgba(0,255,85,.1);border-radius:8px;font-size:10px;color:#7070a0;line-height:1.6;margin-bottom:4px">
+      ⚡ O desconto é aplicado no produto de menor valor do carrinho. Diferente do desconto MarsPass que é fixo na assinatura.
+    </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('cupom')">Cancelar</button>
       <button class="btn btn-green" onclick="salvarCupom()">Criar cupom</button>
@@ -3186,36 +3229,160 @@ async function carregarChargeback(){
 }
 
 /* ══ CUPONS ══ */
+var _todosCupons=[];
 async function carregarCupons(){
   var tbody=document.getElementById('cup-tbody');
   tbody.innerHTML='<tr><td colspan="6" class="empty-state"><span class="loader-inline"></span></td></tr>';
   var{data}=await sb.from('cupons').select('*').order('created_at',{ascending:false});
-  if(!data||data.length===0){tbody.innerHTML='<tr><td colspan="6" class="empty-state">Nenhum cupom criado ainda.</td></tr>';return}
-  tbody.innerHTML=data.map(function(c){
-    var vencido=c.validade&&new Date(c.validade)<new Date();
+  _todosCupons=data||[];
+  renderCupons(_todosCupons);
+  atualizarStatsCupons(_todosCupons);
+  preencherSelectCupons(_todosCupons);
+}
+function atualizarStatsCupons(lista){
+  var agora=new Date();
+  var ativos=lista.filter(function(c){return c.ativo&&(!c.validade||new Date(c.validade)>=agora)}).length;
+  var vencidos=lista.filter(function(c){return c.validade&&new Date(c.validade)<agora}).length;
+  var totalUsos=lista.reduce(function(s,c){return s+(c.usos||0)},0);
+  var descs=lista.filter(function(c){return c.desconto>0});
+  var mediaDesc=descs.length?Math.round(descs.reduce(function(s,c){return s+c.desconto},0)/descs.length):0;
+  var el=document.getElementById('cup-stat-ativos');if(el)el.textContent=ativos;
+  el=document.getElementById('cup-stat-usos');if(el)el.textContent=totalUsos;
+  el=document.getElementById('cup-stat-vencidos');if(el)el.textContent=vencidos;
+  el=document.getElementById('cup-stat-desc');if(el)el.textContent=mediaDesc+'%';
+}
+function preencherSelectCupons(lista){
+  var sel=document.getElementById('cup-filtro-cupom');
+  if(!sel)return;
+  var val=sel.value;
+  sel.innerHTML='<option value="">Selecione um cupom...</option>';
+  lista.forEach(function(c){
+    var opt=document.createElement('option');
+    opt.value=c.id;opt.textContent=c.codigo+' ('+c.desconto+'%)';
+    sel.appendChild(opt);
+  });
+  if(val)sel.value=val;
+}
+function filtrarCupons(q){
+  if(!q)return renderCupons(_todosCupons);
+  var lq=q.toLowerCase();
+  renderCupons(_todosCupons.filter(function(c){return (c.codigo||'').toLowerCase().includes(lq)}));
+}
+function renderCupons(lista){
+  var tbody=document.getElementById('cup-tbody');
+  if(!lista||lista.length===0){tbody.innerHTML='<tr><td colspan="6" class="empty-state">Nenhum cupom criado ainda.</td></tr>';return}
+  var agora=new Date();
+  tbody.innerHTML=lista.map(function(c){
+    var vencido=c.validade&&new Date(c.validade)<agora;
+    var maxUsosPorEmail=c.max_usos_por_email||1;
     return '<tr>'+
       '<td style="font-family:monospace;font-weight:900;color:var(--green);font-size:13px">'+esc(c.codigo)+'</td>'+
       '<td style="color:var(--amber);font-weight:900">'+c.desconto+'%</td>'+
-      '<td>'+esc(String(c.usos||0))+(c.max_usos?'/'+c.max_usos:'')+'</td>'+
+      '<td>'+esc(String(c.usos||0))+(c.max_usos?'/'+c.max_usos:'')+'<div style="font-size:9px;color:var(--muted)">max '+maxUsosPorEmail+'x/email</div></td>'+
       '<td>'+fmtDate(c.validade)+'</td>'+
       '<td>'+(vencido?'<span class="badge badge-red">Vencido</span>':c.ativo?'<span class="badge badge-green">Ativo</span>':'<span class="badge badge-gray">Inativo</span>')+'</td>'+
-      '<td><button class="btn btn-red btn-sm" onclick="excluirCupom(\''+c.id+'\')">Excluir</button></td></tr>';
+      '<td><div class="td-actions">'+
+        '<button class="btn btn-outline btn-sm" onclick="toggleCupomAtivo(\''+c.id+'\','+(c.ativo?'false':'true')+')">'+(c.ativo?'Pausar':'Ativar')+'</button>'+
+        '<button class="btn btn-red btn-sm" onclick="excluirCupom(\''+c.id+'\')">Excluir</button>'+
+      '</div></td></tr>';
   }).join('');
+}
+async function toggleCupomAtivo(id,ativo){
+  await sb.from('cupons').update({ativo:ativo}).eq('id',id);
+  showToast(ativo?'Cupom ativado!':'Cupom pausado!');
+  carregarCupons();
 }
 async function salvarCupom(){
   var codigo=document.getElementById('cup-codigo').value.trim().toUpperCase();
   var desc=parseInt(document.getElementById('cup-desc').value);
   var val=document.getElementById('cup-validade').value;
   var max=parseInt(document.getElementById('cup-max').value)||0;
-  if(!codigo||!desc){showToast('Preencha código e desconto',true);return}
-  await sb.from('cupons').insert({codigo,desconto:desc,validade:val||null,max_usos:max||null,usos:0,ativo:true});
-  await registrarHistorico('cupom','criou cupom '+codigo+' ('+desc+'% off)',null,{codigo,desconto:desc});
+  var maxPorEmail=parseInt(document.getElementById('cup-max-por-email').value)||1;
+  if(!codigo||!desc||desc<1||desc>100){showToast('Preencha código e desconto válido (1-100%)',true);return}
+  var{error}=await sb.from('cupons').insert({
+    codigo,desconto:desc,validade:val||null,
+    max_usos:max||null,usos:0,ativo:true,
+    max_usos_por_email:maxPorEmail,
+    emails_usados:[]
+  });
+  if(error){showToast('Erro: '+error.message,true);return}
+  await registrarHistorico('cupom','criou cupom '+codigo+' ('+desc+'% off, max '+maxPorEmail+'x/email)',null,{codigo,desconto:desc});
   showToast('Cupom '+codigo+' criado!');closeModal('cupom');carregarCupons();
 }
 async function excluirCupom(id){
-  if(!confirm('Excluir este cupom?'))return;
+  if(!confirm('Excluir este cupom? Não poderá ser recuperado.'))return;
   await sb.from('cupons').delete().eq('id',id);
   showToast('Cupom excluído');carregarCupons();
+}
+
+/* Painel de controle de usos por email */
+async function carregarUsosCupom(){
+  var sel=document.getElementById('cup-filtro-cupom');
+  var area=document.getElementById('cup-usos-area');
+  if(!sel||!area)return;
+  var cupomId=sel.value;
+  if(!cupomId){area.innerHTML='<div class="empty-state" style="padding:32px">Selecione um cupom para ver os usos por email.</div>';return}
+  area.innerHTML='<div class="empty-state" style="padding:24px"><span class="loader-inline"></span></div>';
+  var cupom=_todosCupons.find(function(c){return c.id===cupomId});
+  if(!cupom){area.innerHTML='<div class="empty-state">Cupom não encontrado.</div>';return}
+  var emailsUsados=cupom.emails_usados||[];
+  var maxPorEmail=cupom.max_usos_por_email||1;
+  if(!emailsUsados.length){
+    area.innerHTML='<div class="empty-state" style="padding:32px">Nenhum uso registrado para este cupom ainda.</div>';
+    return;
+  }
+  /* Agrupa usos por email */
+  var mapaUsos={};
+  emailsUsados.forEach(function(entry){
+    var email=typeof entry==='string'?entry:entry.email;
+    var data=typeof entry==='object'&&entry.data?entry.data:null;
+    if(!mapaUsos[email])mapaUsos[email]={email:email,usos:0,datas:[]};
+    mapaUsos[email].usos++;
+    if(data)mapaUsos[email].datas.push(data);
+  });
+  var linhas=Object.values(mapaUsos);
+  area.innerHTML='<table style="width:100%;border-collapse:collapse">'+
+    '<thead><tr>'+
+      '<th style="padding:9px 14px;font-size:8px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#9090b0;text-align:left;border-bottom:1px solid var(--border);background:rgba(0,0,0,.2)">Email</th>'+
+      '<th style="padding:9px 14px;font-size:8px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#9090b0;text-align:left;border-bottom:1px solid var(--border);background:rgba(0,0,0,.2)">Usos</th>'+
+      '<th style="padding:9px 14px;font-size:8px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#9090b0;text-align:left;border-bottom:1px solid var(--border);background:rgba(0,0,0,.2)">Último uso</th>'+
+      '<th style="padding:9px 14px;font-size:8px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#9090b0;text-align:left;border-bottom:1px solid var(--border);background:rgba(0,0,0,.2)">Ações</th>'+
+    '</tr></thead><tbody>'+
+    linhas.map(function(l){
+      var bloqueado=l.usos>=maxPorEmail;
+      var ultimoUso=l.datas.length?new Date(l.datas[l.datas.length-1]).toLocaleString('pt-BR'):'—';
+      return '<tr>'+
+        '<td style="padding:12px 14px;font-size:11px;font-weight:600;color:#d0d0e8;border-bottom:1px solid var(--dim)">'+esc(l.email)+'</td>'+
+        '<td style="padding:12px 14px;border-bottom:1px solid var(--dim)">'+
+          '<span style="color:'+(bloqueado?'var(--red)':'var(--green)')+';font-weight:900">'+l.usos+'</span>'+
+          '<span style="color:var(--muted);font-size:10px">/'+maxPorEmail+'</span>'+
+          (bloqueado?'<span class="badge badge-red" style="margin-left:6px;font-size:7px">Limite</span>':'')+
+        '</td>'+
+        '<td style="padding:12px 14px;font-size:10px;color:var(--muted);border-bottom:1px solid var(--dim)">'+ultimoUso+'</td>'+
+        '<td style="padding:12px 14px;border-bottom:1px solid var(--dim)">'+
+          (bloqueado?'<button class="btn btn-green btn-sm" onclick="liberarUsoCupom(\''+cupomId+'\',\''+esc(l.email)+'\')">Liberar mais 1 uso</button>':
+          '<span style="font-size:10px;color:var(--muted)">Disponível</span>')+
+        '</td></tr>';
+    }).join('')+
+  '</tbody></table>';
+}
+
+async function liberarUsoCupom(cupomId, email){
+  var cupom=_todosCupons.find(function(c){return c.id===cupomId});
+  if(!cupom){showToast('Cupom não encontrado',true);return}
+  /* Remove UMA entrada do email da lista emails_usados */
+  var emailsUsados=[].concat(cupom.emails_usados||[]);
+  var idx=emailsUsados.findIndex(function(e){
+    return (typeof e==='string'?e:e.email)===email;
+  });
+  if(idx>-1)emailsUsados.splice(idx,1);
+  var{error}=await sb.from('cupons').update({emails_usados:emailsUsados}).eq('id',cupomId);
+  if(error){showToast('Erro: '+error.message,true);return}
+  await registrarHistorico('cupom','liberou uso extra do cupom '+cupom.codigo+' para '+email,null,{email});
+  showToast('✅ Uso liberado para '+email+'!');
+  /* Atualiza local */
+  cupom.emails_usados=emailsUsados;
+  carregarUsosCupom();
 }
 
 /* ══ SORTEIOS ══ */
@@ -3982,16 +4149,24 @@ function openModal(id){
     prodAtual=null;
     document.getElementById('modal-prod-title').textContent='Novo produto';
     document.getElementById('prod-id').value='';
-    ['prod-nome','prod-preco','prod-img','prod-desc','prod-estoque'].forEach(function(f){document.getElementById(f).value=''});
+    ['prod-nome','prod-preco','prod-img','prod-desc'].forEach(function(f){var el=document.getElementById(f);if(el)el.value=''});
+    var precoOrigEl=document.getElementById('prod-preco-orig');if(precoOrigEl)precoOrigEl.value='';
     document.getElementById('prod-keys').value='';
     document.getElementById('keys-counter').textContent='0 keys';
     document.getElementById('prod-cat').value='';
-    document.getElementById('prod-plat').value='Steam';
+    document.getElementById('prod-plat').value='Steam Offline';
+    var tipoKeyEl=document.getElementById('prod-tipo-key');if(tipoKeyEl)tipoKeyEl.value='login_senha';
+    var listaEl=document.getElementById('chaves-lista-prod');if(listaEl)listaEl.innerHTML='';
+    var estEl=document.getElementById('est-prod-atual');if(estEl)estEl.style.display='none';
+    var btn=document.getElementById('btn-add-keys');if(btn)btn.style.display='none';
   }
   document.getElementById('modal-'+id).classList.add('open');
 }
 function openModalEditar(id){
   /* Abre modal SEM limpar os campos — usado por editarProduto */
+  if(id==='produto'){
+    var btn=document.getElementById('btn-add-keys');if(btn)btn.style.display='';
+  }
   document.getElementById('modal-'+id).classList.add('open');
 }
 function closeModal(id){
