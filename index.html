@@ -890,10 +890,13 @@ tr:hover td{background:rgba(255,255,255,.012)}
     </div>
 
     <!-- Tabs tipo -->
-    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
       <button class="btn btn-outline btn-sm" id="stab-diario" onclick="setSortTab('diario')" style="border-color:var(--mars);color:var(--mars)">🔥 Diário</button>
       <button class="btn btn-outline btn-sm" id="stab-semanal" onclick="setSortTab('semanal')">⭐ Semanal</button>
       <button class="btn btn-outline btn-sm" id="stab-mensal" onclick="setSortTab('mensal')">💎 Mensal</button>
+      <button class="btn btn-outline btn-sm" id="stab-premium" onclick="setSortTab('premium')" style="border-color:#7c6af7;color:#c4b8ff">🌌 Premium</button>
+      <button class="btn btn-outline btn-sm" id="stab-vip" onclick="setSortTab('vip')" style="border-color:#ff3c6e;color:#ff80a0">👑 VIP</button>
+      <span style="font-size:9px;color:var(--muted);padding:4px 8px;background:rgba(124,106,247,.08);border:1px solid rgba(124,106,247,.2);border-radius:6px;margin-left:4px">⚡ Premium = qualquer MarsPass · VIP = Centaurus/Sombrero</span>
     </div>
 
     <!-- Sorteio ativo do tipo selecionado -->
@@ -1578,6 +1581,8 @@ tr:hover td{background:rgba(255,255,255,.012)}
           <option value="diario">🔥 Diário</option>
           <option value="semanal">⭐ Semanal</option>
           <option value="mensal">💎 Mensal</option>
+          <option value="premium">🌌 Premium (qualquer MarsPass)</option>
+          <option value="vip">👑 VIP (Centaurus / Sombrero)</option>
         </select>
       </div>
       <div><label class="form-label">Plataforma</label>
@@ -1608,7 +1613,7 @@ tr:hover td{background:rgba(255,255,255,.012)}
       </div>
     </div>
     <div style="padding:10px 14px;background:rgba(255,183,0,.06);border:1px solid rgba(255,183,0,.15);border-radius:8px;font-size:10px;color:#888;line-height:1.6;margin-bottom:4px">
-      ⚡ Ao realizar o sorteio, um vencedor é sorteado proporcionalmente aos tickets e a chave é entregue automaticamente ao perfil dele com o troféu 🏆 <strong style="color:var(--amber)">SORTUDO</strong>.
+      ⚡ Ao realizar o sorteio, um vencedor é sorteado proporcionalmente aos tickets e a chave é entregue automaticamente ao perfil dele com o troféu 🏆 <strong style="color:var(--amber)">SORTUDO</strong>. Para sorteios <strong style="color:#c4b8ff">Premium</strong> e <strong style="color:#ff80a0">VIP</strong>, somente assinantes MarsPass com o plano correto podem participar — a verificação é feita automaticamente.
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('sorteio-periodico')">Cancelar</button>
@@ -3017,11 +3022,11 @@ var sortTabAtual='diario', sortAtivoAtual=null, sortAdmInterval=null;
 
 function setSortTab(tipo){
   sortTabAtual=tipo;
-  ['diario','semanal','mensal'].forEach(function(t){
+  ['diario','semanal','mensal','premium','vip'].forEach(function(t){
     var btn=document.getElementById('stab-'+t);
     if(!btn)return;
-    var cores={diario:'var(--mars)',semanal:'var(--amber)',mensal:'var(--dia)'};
-    if(t===tipo){btn.style.borderColor=cores[t];btn.style.color=cores[t];btn.style.background='rgba(255,255,255,.04)';}
+    var cores={diario:'var(--mars)',semanal:'var(--amber)',mensal:'var(--dia)',premium:'#7c6af7',vip:'#ff3c6e'};
+    if(t===tipo){btn.style.borderColor=cores[t];btn.style.color=cores[t];btn.style.background='rgba(255,255,255,.06)';}
     else{btn.style.borderColor='';btn.style.color='';btn.style.background='';}
   });
   carregarSorteios();
@@ -3063,10 +3068,10 @@ async function carregarSorteios(){
   var tbody=document.getElementById('sort-tbody-periodico');
   var filtrado=data.filter(function(s){return s.tipo===sortTabAtual});
   if(!filtrado.length){tbody.innerHTML='<tr><td colspan="8" class="empty-state">Nenhum sorteio '+sortTabAtual+' ainda.</td></tr>';return}
-  var tipoLabel={diario:'🔥 Diário',semanal:'⭐ Semanal',mensal:'💎 Mensal'};
+  var tipoLabel={diario:'🔥 Diário',semanal:'⭐ Semanal',mensal:'💎 Mensal',premium:'🌌 Premium',vip:'👑 VIP'};
   tbody.innerHTML=filtrado.map(function(s){
     return '<tr>'+
-      '<td><span class="badge '+(s.tipo==='diario'?'badge-red':s.tipo==='semanal'?'badge-amber':'badge-blue')+'">'+tipoLabel[s.tipo]+'</span></td>'+
+      '<td><span class="badge '+(s.tipo==='diario'?'badge-red':s.tipo==='semanal'?'badge-amber':s.tipo==='premium'?'badge-purple':s.tipo==='vip'?'badge-red':'badge-blue')+'">'+tipoLabel[s.tipo]+'</span></td>'+
       '<td style="font-weight:700;color:#fff;max-width:160px">'+esc(s.titulo)+'</td>'+
       '<td>'+esc(s.premio)+'</td>'+
       '<td style="color:var(--green);font-weight:900">'+(s.total_participantes||0)+'</td>'+
