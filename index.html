@@ -796,11 +796,22 @@ tr:hover td{background:rgba(255,255,255,.012)}
         </div>
       </div>
 
-      <!-- TOP 5 MAIS PROCURADOS (views) -->
+      <!-- TOP 5 MAIS PROCURADOS (buscas_log) -->
       <div class="stat-card-wide">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">
-          <div class="stat-label">🔍 Mais procurados</div>
-          <span style="font-size:8px;color:var(--muted);font-weight:600">por visualizações</span>
+          <div class="stat-label">🔍 Mais buscados</div>
+          <span style="font-size:8px;color:var(--muted);font-weight:600">por pesquisas no catálogo</span>
+        </div>
+        <div class="rank-list" id="dash-top-buscas">
+          <div class="empty-state" style="padding:12px;font-size:10px">Carregando...</div>
+        </div>
+      </div>
+
+      <!-- TOP 5 MAIS VISTOS (views) -->
+      <div class="stat-card-wide">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">
+          <div class="stat-label">👁 Mais vistos</div>
+          <span style="font-size:8px;color:var(--muted);font-weight:600">por visualizações de página</span>
         </div>
         <div class="rank-list" id="dash-top-views">
           <div class="empty-state" style="padding:12px;font-size:10px">Carregando...</div>
@@ -2110,7 +2121,34 @@ async function carregarDashboard(){
         '</div>';
       }).join('');
 
-  /* ── Top 5 mais procurados (por views) ── */
+  /* ── Top 5 mais buscados (buscas_log) ── */
+  var{data:buscasLog}=await sb.from('buscas_log').select('termo,created_at').order('created_at',{ascending:false}).limit(500);
+  var contagemBuscas={};
+  (buscasLog||[]).forEach(function(b){
+    var t=(b.termo||'').trim().toLowerCase();
+    if(t.length<2) return;
+    contagemBuscas[t]=(contagemBuscas[t]||0)+1;
+  });
+  var topBuscas=Object.entries(contagemBuscas).sort(function(a,b){return b[1]-a[1]}).slice(0,5);
+  var maxBuscas=topBuscas[0]?topBuscas[0][1]:1;
+  var elBuscas=document.getElementById('dash-top-buscas');
+  if(elBuscas){
+    elBuscas.innerHTML=topBuscas.length===0
+      ? '<div class="empty-state" style="padding:12px;font-size:10px">Nenhuma busca registrada ainda. As buscas dos clientes no catálogo aparecem aqui.</div>'
+      : topBuscas.map(function(e,i){
+          var pct=Math.max(8,Math.round((e[1]/maxBuscas)*100));
+          return '<div class="rank-item">'+
+            '<div class="rank-pos '+posClass[i]+'">'+(i+1)+'</div>'+
+            '<div class="rank-bar-wrap">'+
+              '<div class="rank-name" style="text-transform:capitalize">'+esc(e[0])+'</div>'+
+              '<div class="rank-bar-bg"><div class="rank-bar-fill" style="width:'+pct+'%;background:var(--mars)"></div></div>'+
+            '</div>'+
+            '<div class="rank-val" style="color:var(--mars)">'+e[1]+'x</div>'+
+          '</div>';
+        }).join('');
+  }
+
+  /* ── Top 5 mais vistos (views de página) ── */
   var{data:prdsViews}=await sb.from('produtos').select('nome,views,preco').eq('ativo',true).order('views',{ascending:false}).limit(5);
   var topViews=prdsViews||[];
   var maxViews=topViews[0]?(topViews[0].views||0):1;
@@ -2118,7 +2156,7 @@ async function carregarDashboard(){
     ? '<div class="empty-state" style="padding:12px;font-size:10px">Sem dados de views ainda.</div>'
     : topViews.map(function(p,i){
         var v=p.views||0;
-        var pct=Math.max(8,Math.round((v/maxViews)*100));
+        var pct=Math.max(8,Math.round((v/Math.max(maxViews,1))*100));
         return '<div class="rank-item">'+
           '<div class="rank-pos '+posClass[i]+'">'+(i+1)+'</div>'+
           '<div class="rank-bar-wrap">'+
