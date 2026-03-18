@@ -3495,20 +3495,24 @@ async function ativarAssinatura(){
   var venc=new Date(inicio.getTime()+dias*86400000);
 
   /* Cancela assinatura ativa anterior se houver */
-  await sb.from('marspass_assinaturas').update({status:'cancelado'})
+  await sb.from('marspass_assinaturas').update({status:'cancelado',data_cancelamento:new Date().toISOString()})
     .eq('user_email',email).eq('status','ativo').catch(function(){});
+
+  /* Cancela pendentes anteriores */
+  await sb.from('marspass_assinaturas').update({status:'cancelado',data_cancelamento:new Date().toISOString()})
+    .eq('user_email',email).eq('status','pendente').catch(function(){});
 
   var{data,error}=await sb.from('marspass_assinaturas').insert({
     user_email:email,plano:plano,status:'ativo',valor:pl.valor,
     data_inicio:inicio.toISOString(),data_vencimento:venc.toISOString(),
     metodo_pagamento:metodo,referencia_pagamento:ref||null,
-    observacao:obs||null,ativado_por:currentEmail
+    observacao:obs||null,ativado_por:currentEmail,renovacoes:1
   }).select().single();
 
   if(error){showToast('Erro: '+error.message,true);return;}
 
-  /* Aplica benefícios */
-  await aplicarBeneficiosAtivacao(email,plano,pl);
+  /* Benefícios: só aplica na criação MANUAL pelo admin (sem webhook) */
+  await aplicarBeneficiosSeNecessario(email,plano,pl,data.id);
 
   await registrarHistorico('sistema','ativou assinatura MarsPass '+plano+' para '+email,null,{plano,dias,email});
   showToast('✅ Assinatura '+pl.nome+' ativada para '+email+'!');
@@ -3517,28 +3521,57 @@ async function ativarAssinatura(){
 }
 
 async function ativarAssinaturaDireta(id, plano, email){
+  /* Esta função é chamada quando o webhook JÁ ATIVOU mas o admin quer confirmar.
+     Não aplica benefícios novamente — o webhook já fez isso. */
   var pl=MP_PLANOS[plano];
   if(!pl){showToast('Plano inválido',true);return;}
+
+  /* Verifica se já está ativo (webhook pode ter ativado entre o load e o clique) */
+  var{data:atual}=await sb.from('marspass_assinaturas').select('status,renovacoes').eq('id',id).maybeSingle();
+  if(atual&&atual.status==='ativo'){
+    showToast('✅ Já está ativo! Atualizando lista...');
+    carregarMarsPass();
+    return;
+  }
+
+  /* Cancela ativa anterior se houver */
+  await sb.from('marspass_assinaturas').update({status:'cancelado',data_cancelamento:new Date().toISOString()})
+    .eq('user_email',email).eq('status','ativo').catch(function(){});
+
   var venc=new Date();
   venc.setDate(venc.getDate()+30);
   var{error}=await sb.from('marspass_assinaturas').update({
-    status:'ativo',data_inicio:new Date().toISOString(),
-    data_vencimento:venc.toISOString(),ativado_por:currentEmail
+    status:'ativo',
+    data_inicio:new Date().toISOString(),
+    data_vencimento:venc.toISOString(),
+    ativado_por:currentEmail,
+    renovacoes:1
   }).eq('id',id);
+
   if(error){showToast('Erro: '+error.message,true);return;}
-  await aplicarBeneficiosAtivacao(email,plano,pl);
+
+  /* Verifica se benefícios já foram aplicados pelo webhook (renovacoes > 0) */
+  if(!atual||!atual.renovacoes){
+    await aplicarBeneficiosSeNecessario(email,plano,pl,id);
+  }
+
   showToast('✅ Assinatura ativada!');
   carregarMarsPass();
 }
 
-async function aplicarBeneficiosAtivacao(email, plano, pl){
-  /* MarsPoints */
-  var{data:mp}=await sb.from('marspoints').select('*').eq('user_email',email).maybeSingle();
+async function aplicarBeneficiosSeNecessario(email, plano, pl, assinaturaId){
+  /* Verifica se já existe histórico de ativação para evitar duplicata */
+  var{data:mp}=await sb.from('marspoints').select('historico,pontos').eq('user_email',email).maybeSingle();
   var hist=(mp&&mp.historico)||[];
-  hist.unshift({descricao:'🌌 MarsPass '+pl.nome+' ativado! Bônus de boas-vindas.',pontos:pl.pontos,data:new Date().toISOString(),tipo:'marspass'});
-  var pts=(mp?mp.pontos||0:0)+pl.pontos;
-  if(mp){await sb.from('marspoints').update({pontos:pts,historico:hist}).eq('user_email',email);}
-  else{await sb.from('marspoints').insert({user_email:email,pontos:pts,historico:hist});}
+  /* Checa se já tem entrada de marspass ativo no histórico */
+  var jaAplicado=hist.some(function(h){return h.tipo==='marspass'&&h.descricao&&h.descricao.indexOf(plano)!==-1});
+  if(jaAplicado){console.log('Benefícios já aplicados via webhook — pulando');return;}
+
+  /* MarsPoints */
+  var novoPts=(mp?mp.pontos||0:0)+pl.pontos;
+  hist.unshift({descricao:'🌌 MarsPass '+pl.nome+' ativado! (admin)',pontos:pl.pontos,data:new Date().toISOString(),tipo:'marspass'});
+  if(mp){await sb.from('marspoints').update({pontos:novoPts,historico:hist.slice(0,50)}).eq('user_email',email);}
+  else{await sb.from('marspoints').insert({user_email:email,pontos:novoPts,historico:hist});}
 
   /* MarsTickets */
   var{data:tk}=await sb.from('tickets').select('*').eq('user_email',email).maybeSingle();
@@ -3548,12 +3581,9 @@ async function aplicarBeneficiosAtivacao(email, plano, pl){
       total_acumulado:(tk.total_acumulado||0)+pl.tickets,
       updated_at:new Date().toISOString()
     }).eq('user_email',email);
+  } else {
+    await sb.from('tickets').insert({user_email:email,quantidade:pl.tickets,total_acumulado:pl.tickets,ultima_renovacao:new Date().toISOString()});
   }
-
-  /* Atualiza última adição semanal */
-  await sb.from('marspass_assinaturas').update({
-    tickets_semana_ultimo:new Date().toISOString().split('T')[0]
-  }).eq('user_email',email).eq('status','ativo').catch(function(){});
 }
 
 async function renovarAssinatura(id){
