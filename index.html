@@ -750,7 +750,7 @@ tr:hover td{background:rgba(255,255,255,.012)}
         <div class="stat-icon blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>
         <div class="stat-label">Clientes</div>
         <div class="stat-value" id="stat-pts">—</div>
-        <div class="stat-sub">no programa</div>
+        <div class="stat-sub">com pedido ou cadastro</div>
       </div>
     </div>
 
@@ -2008,21 +2008,30 @@ async function carregarDashboard(){
   });
 
   /* ── Queries principais em paralelo ── */
-  var[prods,peds,avals,pts,pedsPagos,mpassTotal,favsTotal]=await Promise.all([
+  var[prods,peds,avals,pedsPagos,mpassTotal]=await Promise.all([
     sb.from('produtos').select('id',{count:'exact'}).eq('ativo',true),
     sb.from('pedidos').select('id',{count:'exact'}),
     sb.from('avaliacoes').select('id',{count:'exact'}).eq('aprovado',true),
-    sb.from('marspoints').select('id',{count:'exact'}),
     sb.from('pedidos').select('valor,produto_nome,created_at').eq('status','pago'),
-    sb.from('marspass_assinaturas').select('id',{count:'exact'}).eq('status','ativo').gt('data_vencimento',new Date().toISOString()),
+    sb.from('marspass_assinaturas').select('id',{count:'exact'}).eq('status','ativo').gt('data_vencimento',new Date().toISOString())
+  ]);
+
+  /* Clientes únicos = union de emails de perfis + emails de pedidos */
+  var[perfisEmails,pedsEmails,favsTotal]=await Promise.all([
+    sb.from('perfis').select('email'),
+    sb.from('pedidos').select('cliente_email'),
     sb.from('favoritos').select('id',{count:'exact'})
   ]);
+  var emailsSet=new Set();
+  (perfisEmails.data||[]).forEach(function(r){if(r.email)emailsSet.add(r.email.toLowerCase())});
+  (pedsEmails.data||[]).forEach(function(r){if(r.cliente_email)emailsSet.add(r.cliente_email.toLowerCase())});
+  var totalClientes=emailsSet.size;
 
   /* Stats linha 1 */
   document.getElementById('stat-produtos').textContent=prods.count??0;
   document.getElementById('stat-pedidos').textContent=peds.count??0;
   document.getElementById('stat-aval').textContent=avals.count??0;
-  document.getElementById('stat-pts').textContent=pts.count??0;
+  document.getElementById('stat-pts').textContent=totalClientes;
 
   /* Stats linha 2 */
   var listaPagos=pedsPagos.data||[];
