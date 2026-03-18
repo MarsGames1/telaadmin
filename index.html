@@ -290,6 +290,48 @@ tr:hover td{background:rgba(255,255,255,.012)}
 .hist-desc strong{color:#fff}
 .hist-meta{font-size:8px;color:#8888aa;font-weight:600;margin-top:3px;letter-spacing:.3px}
 
+/* ── SEGUNDA LINHA DE STATS ── */
+.stats-grid-2{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:22px}
+@media(max-width:1100px){.stats-grid-2{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:480px){.stats-grid-2{grid-template-columns:1fr}}
+.stat-card-wide{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;position:relative;overflow:hidden;transition:border-color .2s}
+.stat-card-wide:hover{border-color:var(--border2)}
+.stat-card-wide::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.015),transparent);pointer-events:none}
+
+/* ── TOP PRODUTOS / MAIS PROCURADOS ── */
+.rank-list{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.rank-item{display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--surface);border-radius:8px;border:1px solid var(--border);transition:border-color .15s}
+.rank-item:hover{border-color:var(--border2)}
+.rank-pos{font-family:'Orbitron',sans-serif;font-size:11px;font-weight:900;width:22px;text-align:center;flex-shrink:0}
+.rank-pos.p1{color:#FFD700}
+.rank-pos.p2{color:#C0C0C0}
+.rank-pos.p3{color:#cd9f6a}
+.rank-pos.px{color:#555}
+.rank-bar-wrap{flex:1;min-width:0}
+.rank-name{font-size:10px;font-weight:700;color:#ddd;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:4px}
+.rank-bar-bg{height:4px;background:var(--border);border-radius:99px;overflow:hidden}
+.rank-bar-fill{height:100%;border-radius:99px;transition:width 1.2s cubic-bezier(.23,1,.32,1)}
+.rank-val{font-size:10px;font-weight:900;color:var(--green);white-space:nowrap;flex-shrink:0}
+
+/* ── MÉTRICAS DE RECEITA ── */
+.receita-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.receita-item{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px}
+.receita-label{font-size:8px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.receita-val{font-family:'Orbitron',sans-serif;font-size:18px;font-weight:900;line-height:1}
+.receita-delta{font-size:9px;font-weight:700;margin-top:3px}
+.receita-delta.up{color:var(--green)}
+.receita-delta.down{color:var(--red)}
+
+/* ── ALERTAS RÁPIDOS ── */
+.alerta-lista{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.alerta-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;border:1px solid;font-size:10px;font-weight:700;cursor:pointer;transition:opacity .15s}
+.alerta-item:hover{opacity:.8}
+.alerta-item.warn{background:rgba(255,184,0,.06);border-color:rgba(255,184,0,.2);color:var(--amber)}
+.alerta-item.danger{background:rgba(255,68,68,.06);border-color:rgba(255,68,68,.2);color:var(--red)}
+.alerta-item.info{background:rgba(59,130,246,.06);border-color:rgba(59,130,246,.2);color:var(--blue)}
+.alerta-item.ok{background:rgba(0,255,85,.04);border-color:rgba(0,255,85,.15);color:var(--green)}
+.alerta-icon{font-size:14px;flex-shrink:0}
+
 /* ── PICO DE VENDAS ── */
 .pico-grid{display:grid;grid-template-columns:repeat(24,1fr);gap:2px;margin:12px 0}
 .pico-bar{background:var(--border);border-radius:2px;height:40px;position:relative;transition:background .3s}
@@ -710,6 +752,69 @@ tr:hover td{background:rgba(255,255,255,.012)}
         <div class="stat-value" id="stat-pts">—</div>
         <div class="stat-sub">no programa</div>
       </div>
+    </div>
+
+    <!-- SEGUNDA LINHA DE STATS: receita, ticket médio, conversão, assinantes MarsPass -->
+    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:12px" id="stats-grid-2">
+      <div class="stat-card">
+        <div class="stat-icon green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div>
+        <div class="stat-label">Receita total</div>
+        <div class="stat-value green" id="stat-receita">—</div>
+        <div class="stat-sub" id="stat-receita-sub">pedidos pagos</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7H4a2 2 0 00-2 2v6a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/><circle cx="12" cy="12" r="2"/></svg></div>
+        <div class="stat-label">Ticket médio</div>
+        <div class="stat-value" id="stat-ticket" style="color:var(--amber)">—</div>
+        <div class="stat-sub">por pedido pago</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/><line x1="2" y1="12" x2="22" y2="12"/></svg></div>
+        <div class="stat-label">Assinantes MarsPass</div>
+        <div class="stat-value" id="stat-marspass-total" style="color:var(--blue)">—</div>
+        <div class="stat-sub">assinaturas ativas</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background:rgba(168,85,247,.1);color:var(--purple)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg></div>
+        <div class="stat-label">Total favoritos</div>
+        <div class="stat-value" id="stat-favs" style="color:var(--purple)">—</div>
+        <div class="stat-sub">itens favoritados</div>
+      </div>
+    </div>
+
+    <!-- TRÊS CARDS: TOP VENDIDOS | MAIS PROCURADOS | ALERTAS RÁPIDOS -->
+    <div class="stats-grid-2">
+
+      <!-- TOP 5 MAIS VENDIDOS -->
+      <div class="stat-card-wide">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">
+          <div class="stat-label">🏆 Mais vendidos</div>
+          <span style="font-size:8px;color:var(--muted);font-weight:600">por nº de pedidos</span>
+        </div>
+        <div class="rank-list" id="dash-top-vendidos">
+          <div class="empty-state" style="padding:12px;font-size:10px">Carregando...</div>
+        </div>
+      </div>
+
+      <!-- TOP 5 MAIS PROCURADOS (views) -->
+      <div class="stat-card-wide">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">
+          <div class="stat-label">🔍 Mais procurados</div>
+          <span style="font-size:8px;color:var(--muted);font-weight:600">por visualizações</span>
+        </div>
+        <div class="rank-list" id="dash-top-views">
+          <div class="empty-state" style="padding:12px;font-size:10px">Carregando...</div>
+        </div>
+      </div>
+
+      <!-- ALERTAS RÁPIDOS -->
+      <div class="stat-card-wide">
+        <div class="stat-label">⚡ Alertas &amp; Situação</div>
+        <div class="alerta-lista" id="dash-alertas">
+          <div class="empty-state" style="padding:12px;font-size:10px">Verificando...</div>
+        </div>
+      </div>
+
     </div>
 
     <!-- PICO DE VENDAS -->
@@ -1901,16 +2006,104 @@ async function carregarDashboard(){
     label.className='maintenance-label'+(on?' active-label':'');
     syncMobMaintPill(on);
   });
-  var[prods,peds,avals,pts]=await Promise.all([
+
+  /* ── Queries principais em paralelo ── */
+  var[prods,peds,avals,pts,pedsPagos,mpassTotal,favsTotal]=await Promise.all([
     sb.from('produtos').select('id',{count:'exact'}).eq('ativo',true),
     sb.from('pedidos').select('id',{count:'exact'}),
     sb.from('avaliacoes').select('id',{count:'exact'}).eq('aprovado',true),
-    sb.from('marspoints').select('id',{count:'exact'})
+    sb.from('marspoints').select('id',{count:'exact'}),
+    sb.from('pedidos').select('valor,produto_nome,created_at').eq('status','pago'),
+    sb.from('marspass_assinaturas').select('id',{count:'exact'}).eq('status','ativo').gt('data_vencimento',new Date().toISOString()),
+    sb.from('favoritos').select('id',{count:'exact'})
   ]);
+
+  /* Stats linha 1 */
   document.getElementById('stat-produtos').textContent=prods.count??0;
   document.getElementById('stat-pedidos').textContent=peds.count??0;
   document.getElementById('stat-aval').textContent=avals.count??0;
   document.getElementById('stat-pts').textContent=pts.count??0;
+
+  /* Stats linha 2 */
+  var listaPagos=pedsPagos.data||[];
+  var receitaTotal=listaPagos.reduce(function(s,p){return s+Number(p.valor||0)},0);
+  var ticketMedio=listaPagos.length>0?receitaTotal/listaPagos.length:0;
+  document.getElementById('stat-receita').textContent='R$ '+receitaTotal.toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+  document.getElementById('stat-receita-sub').textContent=listaPagos.length+' pedido'+(listaPagos.length!==1?'s':'')+' pagos';
+  document.getElementById('stat-ticket').textContent='R$ '+ticketMedio.toFixed(2).replace('.',',');
+  document.getElementById('stat-marspass-total').textContent=mpassTotal.count??0;
+  document.getElementById('stat-favs').textContent=favsTotal.count??0;
+
+  /* ── Top 5 mais vendidos (por contagem de pedidos pagos) ── */
+  var contagem={};
+  listaPagos.forEach(function(p){
+    var n=p.produto_nome||'Desconhecido';
+    contagem[n]=(contagem[n]||0)+1;
+  });
+  var topVendidos=Object.entries(contagem).sort(function(a,b){return b[1]-a[1]}).slice(0,5);
+  var maxVend=topVendidos[0]?topVendidos[0][1]:1;
+  var posClass=['p1','p2','p3','px','px'];
+  var barColors=['#FFD700','#C0C0C0','#cd9f6a','var(--green)','var(--green)'];
+  document.getElementById('dash-top-vendidos').innerHTML=topVendidos.length===0
+    ? '<div class="empty-state" style="padding:12px;font-size:10px">Nenhum pedido pago ainda.</div>'
+    : topVendidos.map(function(e,i){
+        var pct=Math.max(8,Math.round((e[1]/maxVend)*100));
+        return '<div class="rank-item">'+
+          '<div class="rank-pos '+posClass[i]+'">'+(i+1)+'</div>'+
+          '<div class="rank-bar-wrap">'+
+            '<div class="rank-name">'+esc(e[0])+'</div>'+
+            '<div class="rank-bar-bg"><div class="rank-bar-fill" style="width:'+pct+'%;background:'+barColors[i]+'"></div></div>'+
+          '</div>'+
+          '<div class="rank-val">'+e[1]+'x</div>'+
+        '</div>';
+      }).join('');
+
+  /* ── Top 5 mais procurados (por views) ── */
+  var{data:prdsViews}=await sb.from('produtos').select('nome,views,preco').eq('ativo',true).order('views',{ascending:false}).limit(5);
+  var topViews=prdsViews||[];
+  var maxViews=topViews[0]?(topViews[0].views||0):1;
+  document.getElementById('dash-top-views').innerHTML=topViews.length===0
+    ? '<div class="empty-state" style="padding:12px;font-size:10px">Sem dados de views ainda.</div>'
+    : topViews.map(function(p,i){
+        var v=p.views||0;
+        var pct=Math.max(8,Math.round((v/maxViews)*100));
+        return '<div class="rank-item">'+
+          '<div class="rank-pos '+posClass[i]+'">'+(i+1)+'</div>'+
+          '<div class="rank-bar-wrap">'+
+            '<div class="rank-name">'+esc(p.nome||'—')+'</div>'+
+            '<div class="rank-bar-bg"><div class="rank-bar-fill" style="width:'+pct+'%;background:var(--blue)"></div></div>'+
+          '</div>'+
+          '<div class="rank-val" style="color:var(--blue)">'+v+'</div>'+
+        '</div>';
+      }).join('');
+
+  /* ── Alertas rápidos ── */
+  var alertas=[];
+  /* Pedidos pendentes */
+  var{count:pendCount}=await sb.from('pedidos').select('id',{count:'exact'}).eq('status','pendente');
+  if(pendCount>0) alertas.push({tipo:'warn',icon:'⏳',msg:pendCount+' pedido'+(pendCount>1?'s':'')+' pendente'+(pendCount>1?'s':'')+' aguardando pagamento',nav:'pedidos'});
+  /* Produtos sem estoque */
+  var{data:semEst}=await sb.from('produtos').select('nome').eq('ativo',true).eq('estoque',0);
+  if(semEst&&semEst.length>0) alertas.push({tipo:'danger',icon:'📦',msg:semEst.length+' produto'+(semEst.length>1?'s':'')+' ativo'+(semEst.length>1?'s':'')+' sem estoque',nav:'estoque'});
+  /* Chargebacks abertos */
+  var{count:cbCount}=await sb.from('chargebacks').select('id',{count:'exact'}).eq('status','aberto');
+  if(cbCount>0) alertas.push({tipo:'danger',icon:'⚠️',msg:cbCount+' chargeback'+(cbCount>1?'s':'')+' em aberto',nav:'chargeback'});
+  /* Avaliações pendentes de aprovação */
+  var{count:avalPend}=await sb.from('avaliacoes').select('id',{count:'exact'}).eq('aprovado',false);
+  if(avalPend>0) alertas.push({tipo:'info',icon:'⭐',msg:avalPend+' avaliação'+(avalPend>1?'s':'')+' aguardando aprovação',nav:'avaliacoes'});
+  /* MarsPass a vencer em 3 dias */
+  var em3dias=new Date();em3dias.setDate(em3dias.getDate()+3);
+  var{count:mpVenc}=await sb.from('marspass_assinaturas').select('id',{count:'exact'}).eq('status','ativo').lte('data_vencimento',em3dias.toISOString()).gt('data_vencimento',new Date().toISOString());
+  if(mpVenc>0) alertas.push({tipo:'warn',icon:'🌌',msg:mpVenc+' MarsPass vencem em até 3 dias',nav:'marspass'});
+  /* Tudo ok */
+  if(alertas.length===0) alertas.push({tipo:'ok',icon:'✅',msg:'Tudo em ordem — nenhum alerta no momento',nav:null});
+  document.getElementById('dash-alertas').innerHTML=alertas.map(function(a){
+    return '<div class="alerta-item '+a.tipo+'"'+(a.nav?' onclick="showPage(\''+a.nav+'\',document.querySelector(\'[onclick*='+a.nav+']\'))"':'')+'>'+
+      '<span class="alerta-icon">'+a.icon+'</span>'+esc(a.msg)+
+    '</div>';
+  }).join('');
+
+  /* ── Pedidos recentes ── */
   var{data:rec}=await sb.from('pedidos').select('*').order('created_at',{ascending:false}).limit(5);
   var tbody=document.getElementById('dash-tbody');
   if(!rec||rec.length===0){tbody.innerHTML='<tr><td colspan="5" class="empty-state">Nenhum pedido ainda.</td></tr>';return}
