@@ -643,6 +643,10 @@ tr:hover td{background:rgba(255,255,255,.012)}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
       Clientes
     </div>
+    <div class="sb-item" onclick="showPage('dna-clientes',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42"/></svg>
+      🧬 DNA Clientes
+    </div>
     <div class="sb-item" onclick="showPage('avaliacoes',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
       Avaliações
@@ -1520,11 +1524,14 @@ tr:hover td{background:rgba(255,255,255,.012)}
           <!-- Config de pagamento -->
           <div style="margin-top:8px;padding:12px;background:rgba(0,0,0,.2);border:1px solid var(--border);border-radius:8px">
             <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">⚡ Status pagamento PIX</div>
-            <div id="pvp-pix-status" style="font-size:11px;color:var(--amber);font-weight:700">
-              ⚠ Modo demo — PIX não integrado. Duelos não cobram entrada real.
+            <div id="pvp-pix-status" style="font-size:11px;color:var(--green);font-weight:700">
+              ✅ PIX integrado via Mercado Pago — pagamentos automáticos ativos.
             </div>
             <div style="margin-top:8px;font-size:10px;color:var(--muted);line-height:1.6">
-              Para ativar cobrança real via PIX, integre um webhook de pagamento (Mercado Pago, Asaas, etc.) e registre os pedidos na tabela <code style="color:var(--green)">pvp_pedidos</code>.
+              QR Code gerado pela edge function <code style="color:var(--green)">mp-criar-pix</code>. Confirmação automática via polling <code style="color:var(--green)">mp-confirmar-pagamento</code>. Pagamentos registrados em <code style="color:var(--green)">pvp_pagamentos</code>.
+            </div>
+            <div style="margin-top:8px">
+              <button class="btn btn-outline btn-sm" onclick="carregarPagamentosPvp()">↻ Ver pagamentos PvP</button>
             </div>
           </div>
         </div>
@@ -1532,7 +1539,20 @@ tr:hover td{background:rgba(255,255,255,.012)}
     </div>
 
     <!-- Histórico de duelos -->
-    <div class="table-wrap">
+    <div class="table-wrap" id="pvp-pagamentos-wrap" style="margin-bottom:16px;display:none">
+      <div class="table-head">
+        <div class="table-title">💳 Pagamentos PvP — Últimos 50</div>
+        <button class="btn btn-outline btn-sm" onclick="carregarPagamentosPvp()">↻ Atualizar</button>
+      </div>
+      <table>
+        <thead><tr><th>Jogador</th><th>Sala</th><th>Valor</th><th>Status</th><th>Payment ID</th><th>Data</th></tr></thead>
+        <tbody id="pvp-pagamentos-tbody">
+          <tr><td colspan="6" class="empty-state"><span class="loader-inline"></span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Histórico de duelos -->
       <div class="table-head">
         <div class="table-title">Histórico de duelos</div>
         <div style="display:flex;gap:8px;align-items:center">
@@ -1577,8 +1597,103 @@ tr:hover td{background:rgba(255,255,255,.012)}
     </div>
   </div>
 
-  <!-- ══ RODA DA FORTUNA ══ -->
-  <div class="page" id="page-roda-fortuna">
+  <!-- ══ DNA CLIENTES ══ -->
+  <div class="page" id="page-dna-clientes">
+    <div class="page-head">
+      <div><div class="page-eyebrow">Comunidade</div><div class="page-title">🧬 DNA dos Clientes</div></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-outline btn-sm" onclick="carregarDnaClientes()">↻ Atualizar</button>
+      </div>
+    </div>
+
+    <!-- Busca por email -->
+    <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap">
+      <input class="t-search" id="dna-busca-email" placeholder="Buscar cliente por email..." style="flex:1;min-width:200px" oninput="dnaFiltrarTabela(this.value)">
+      <select class="t-search" id="dna-filtro-especie" style="width:200px;background:var(--bg)" onchange="dnaFiltrarTabela(document.getElementById('dna-busca-email').value)">
+        <option value="">Todas as espécies</option>
+        <option value="terricola">🌍 Terrícola Perdido</option>
+        <option value="marciano">🚀 Marciano Nômade</option>
+        <option value="berserker">⚡ Berserker Kragoth</option>
+        <option value="sage">🔮 Phantom Sage</option>
+        <option value="tactician">♟️ Iron Tactician</option>
+        <option value="speedrunner">💨 Speed Daemon</option>
+        <option value="horror">👻 Void Lurker</option>
+        <option value="puzzle">🧩 Logic Daemon</option>
+        <option value="athlete">🏆 Astro Athlete</option>
+        <option value="void_architect">🌌 Void Architect</option>
+        <option value="nebula_sovereign">🌟 Nebula Sovereign</option>
+      </select>
+    </div>
+
+    <!-- Stats rápidas DNA -->
+    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px" id="dna-stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Clientes analisados</div>
+        <div class="stat-value green" id="dna-stat-total">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Espécie + comum</div>
+        <div class="stat-value" style="color:#00ffe7;font-size:13px" id="dna-stat-top-especie">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Gênero dominante</div>
+        <div class="stat-value amber" id="dna-stat-top-genero">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">MarsPass c/ DNA exclusivo</div>
+        <div class="stat-value" style="color:#7c6af7" id="dna-stat-exclusivos">—</div>
+      </div>
+    </div>
+
+    <!-- Distribuição de espécies -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+      <div class="table-wrap" style="margin-bottom:0">
+        <div class="table-head"><div class="table-title">🌌 Distribuição de Espécies</div></div>
+        <div style="padding:16px;display:flex;flex-direction:column;gap:10px" id="dna-dist-especies"></div>
+      </div>
+      <div class="table-wrap" style="margin-bottom:0">
+        <div class="table-head"><div class="table-title">🎮 Gêneros mais comprados</div></div>
+        <div style="padding:16px;display:flex;flex-direction:column;gap:10px" id="dna-dist-generos"></div>
+      </div>
+    </div>
+
+    <!-- Tabela de clientes com DNA -->
+    <div class="table-wrap">
+      <div class="table-head">
+        <div class="table-title">Clientes × DNA Alienígena</div>
+        <span style="font-size:9px;color:var(--muted)" id="dna-tabela-count"></span>
+      </div>
+      <table>
+        <thead><tr>
+          <th>Cliente</th>
+          <th>Espécie DNA</th>
+          <th>Gênero dominante</th>
+          <th>Compras</th>
+          <th>MarsPass</th>
+          <th>Evolução</th>
+          <th>Ação</th>
+        </tr></thead>
+        <tbody id="dna-tbody">
+          <tr><td colspan="7" class="empty-state"><span class="loader-inline"></span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Modal detalhe DNA -->
+    <div id="dna-modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:600;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)fecharDnaModal()">
+      <div style="background:var(--card);border:1px solid rgba(0,255,231,.2);border-radius:18px;width:100%;max-width:600px;max-height:90vh;overflow-y:auto;position:relative">
+        <div style="position:sticky;top:0;background:var(--card);padding:20px 24px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;z-index:2">
+          <div style="font-family:'Orbitron',sans-serif;font-size:14px;font-weight:900;color:#fff" id="dna-modal-titulo">DNA do Cliente</div>
+          <button onclick="fecharDnaModal()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;padding:4px">✕</button>
+        </div>
+        <div style="padding:24px" id="dna-modal-body">
+          <div class="empty-state">Carregando...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
     <div class="page-head">
       <div><div class="page-eyebrow">Jogos</div><div class="page-title">🎡 Roda da Fortuna</div></div>
       <button class="btn btn-outline btn-sm" onclick="carregarRodaFortuna()">↻ Atualizar</button>
@@ -2322,7 +2437,8 @@ function showPage(id,el){
     historico:carregarHistorico,logs:carregarLogs,cupons:carregarCupons,
     sorteios:carregarSorteios,favoritos:carregarFavoritos,marspass:carregarMarsPass,
   'arena-pvp':carregarArenaPvp,'roda-fortuna':carregarRodaFortuna,
-    chargeback:carregarChargeback
+    chargeback:carregarChargeback,
+  'dna-clientes':carregarDnaClientes
   };
   if(map[id])map[id]();
 }
@@ -5019,6 +5135,511 @@ function iniciarRealtimeNotifs(){
       }
     ).subscribe();
 }
+
+/* ═══════════════════════════════════════════════════════
+   DNA CLIENTES — painel admin
+   Lê pedidos reais do Supabase, mapeia gêneros e detecta espécie
+═══════════════════════════════════════════════════════ */
+var _dnaClientesData = [];
+var _dnaClientesFiltrado = [];
+
+/* Mapa de palavras-chave de títulos → gênero */
+var DNA_KEYWORDS = {
+  RPG:    ['witcher','elden','dark souls','sekiro','hades','disco elysium','stardew','final fantasy','dragon','rpg','fallout','skyrim'],
+  ACAO:   ['doom','hades','batman','devil may','sekiro','gears','battlefield','call of duty','cod','apex','fortnite','street fighter','mortal','acao','action'],
+  TERROR: ['resident evil','dead space','phasmophobia','silent hill','outlast','horror','terror','amnesia','evil within'],
+  ESTRAT: ['civilization','age of empires','starcraft','xcom','total war','command','strategy','estrategia','stellaris'],
+  SPORT:  ['fifa','pes','nba','nhl','mlb','efootball','tennis','golf','esporte','sport','madden','f1 '],
+  CORRIDA:['mario kart','gran turismo','forza','need for speed','racing','corrida','rally','wrc'],
+  PLAT:   ['mario','hollow knight','celeste','crash','sonic','ori','platformer','plataforma','yoshi','kirby'],
+  PUZZLE: ['portal','terraria','tetris','baba is you','puzzle','quebra','enigma','monument','the witness'],
+};
+
+var DNA_SPECIES = [
+  {id:'nebula_sovereign', name:'NEBULA SOVEREIGN', color:'#ff3c6e', marspass:['centaurus','sombrero'], icon:'🌟'},
+  {id:'void_architect',   name:'VOID ARCHITECT',   color:'#7c6af7', marspass:['andromeda','triangulo','centaurus','sombrero'], icon:'🌌'},
+  {id:'berserker', name:'BERSERKER',  color:'#ff1f30', requires:{ACAO:40},    icon:'⚡'},
+  {id:'sage',      name:'PHANTOM SAGE',color:'#9f3fff', requires:{RPG:40},    icon:'🔮'},
+  {id:'tactician', name:'IRON TACTICIAN',color:'#00b8e6',requires:{ESTRAT:40},icon:'♟️'},
+  {id:'speedrunner',name:'SPEED DAEMON',color:'#ffc200', requires:{CORRIDA:30},icon:'💨'},
+  {id:'horror',    name:'VOID LURKER', color:'#7030a0', requires:{TERROR:40}, icon:'👻'},
+  {id:'puzzle',    name:'LOGIC DAEMON',color:'#00ffe7', requires:{PUZZLE:35}, icon:'🧩'},
+  {id:'athlete',   name:'ASTRO ATHLETE',color:'#00e87a',requires:{SPORT:40}, icon:'🏆'},
+  {id:'marciano',  name:'MARCIANO NÔMADE',color:'#e8421a',requires:{},       icon:'🚀'},
+  {id:'terricola', name:'TERRÍCOLA',   color:'#4a8fff', requires:{},          icon:'🌍'},
+];
+
+var DNA_GENERO_LABELS = {
+  RPG:'RPG',ACAO:'Ação',TERROR:'Terror',ESTRAT:'Estratégia',
+  SPORT:'Esporte',CORRIDA:'Corrida',PLAT:'Plataforma',PUZZLE:'Puzzle'
+};
+var DNA_GENERO_COLORS = {
+  RPG:'#9f3fff',ACAO:'#ff1f30',TERROR:'#7030a0',ESTRAT:'#00b8e6',
+  SPORT:'#00e87a',CORRIDA:'#ffc200',PLAT:'#ff5e00',PUZZLE:'#00ffe7'
+};
+
+function dnaDetectarGeneros(nomeJogo) {
+  var nome = (nomeJogo||'').toLowerCase();
+  var generos = [];
+  Object.entries(DNA_KEYWORDS).forEach(function(pair){
+    var g = pair[0], kws = pair[1];
+    if(kws.some(function(kw){ return nome.includes(kw); })) generos.push(g);
+  });
+  return generos.length ? generos : ['ACAO']; /* fallback Ação */
+}
+
+function dnaComputarScores(itensCompras) {
+  var scores = {RPG:0,ACAO:0,TERROR:0,ESTRAT:0,SPORT:0,CORRIDA:0,PLAT:0,PUZZLE:0};
+  var total = 0;
+  itensCompras.forEach(function(nome){
+    var gs = dnaDetectarGeneros(nome);
+    gs.forEach(function(g){ scores[g]++; total++; });
+  });
+  if(total > 0) Object.keys(scores).forEach(function(g){ scores[g] = Math.round(scores[g]/total*100); });
+  return scores;
+}
+
+function dnaPickEspecie(scores, planoMarspass, numJogos) {
+  if(numJogos === 0) return DNA_SPECIES.find(function(s){ return s.id==='terricola'; });
+  /* MarsPass premium */
+  if(planoMarspass === 'centaurus' || planoMarspass === 'sombrero')
+    return DNA_SPECIES.find(function(s){ return s.id==='nebula_sovereign'; });
+  /* Void Architect */
+  if(planoMarspass)
+    return DNA_SPECIES.find(function(s){ return s.id==='void_architect'; });
+  /* Por gênero dominante */
+  var candidatos = DNA_SPECIES.filter(function(s){ return s.requires && Object.keys(s.requires).length > 0; });
+  var best = null, bestScore = -1;
+  candidatos.forEach(function(s){
+    var match = 0;
+    Object.keys(s.requires).forEach(function(g){ match += (scores[g]||0); });
+    if(match > bestScore){ bestScore = match; best = s; }
+  });
+  if(best && bestScore >= 20) return best;
+  return DNA_SPECIES.find(function(s){ return s.id==='marciano'; });
+}
+
+async function carregarDnaClientes(){
+  var tbody = document.getElementById('dna-tbody');
+  if(tbody) tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><span class="loader-inline"></span></td></tr>';
+
+  try {
+    /* Busca pedidos, perfis e assinaturas em paralelo */
+    var [pedsRes, perfisRes, mpRes] = await Promise.all([
+      sb.from('pedidos').select('cliente_email,itens,produto_nome,status,valor,created_at')
+        .in('status',['pago','entregue','aprovado']).order('created_at',{ascending:false}),
+      sb.from('perfis').select('email,nome,avatar_url'),
+      sb.from('marspass_assinaturas').select('user_email,plano,status')
+        .eq('status','ativo').gt('data_vencimento', new Date().toISOString())
+    ]);
+
+    var peds = pedsRes.data || [];
+    var perfis = perfisRes.data || [];
+    var mps = mpRes.data || [];
+
+    /* Mapa de assinaturas por email */
+    var mpMap = {};
+    mps.forEach(function(m){ mpMap[m.user_email] = m.plano; });
+
+    /* Mapa de perfis */
+    var perfMap = {};
+    perfis.forEach(function(p){ perfMap[p.email] = p; });
+
+    /* Agrupa itens de compra por email */
+    var clienteMap = {};
+    peds.forEach(function(p){
+      var email = p.cliente_email;
+      if(!email) return;
+      if(!clienteMap[email]) clienteMap[email] = {email:email, itens:[], totalGasto:0, numPedidos:0};
+      clienteMap[email].totalGasto += Number(p.valor||0);
+      clienteMap[email].numPedidos++;
+      /* Extrai nomes de itens */
+      var itens = p.itens;
+      if(typeof itens === 'string') try { itens = JSON.parse(itens); } catch(e){ itens = []; }
+      if(Array.isArray(itens)){
+        itens.forEach(function(it){ clienteMap[email].itens.push(it.nome||it.title||it.name||p.produto_nome||''); });
+      } else if(p.produto_nome) {
+        clienteMap[email].itens.push(p.produto_nome);
+      }
+    });
+
+    /* Computa DNA de cada cliente */
+    _dnaClientesData = Object.values(clienteMap).map(function(c){
+      var scores = dnaComputarScores(c.itens);
+      var plano = mpMap[c.email] || null;
+      var especie = dnaPickEspecie(scores, plano, c.itens.length);
+      var genDom = Object.entries(scores).sort(function(a,b){return b[1]-a[1];})[0];
+      var perfil = perfMap[c.email] || {};
+      return {
+        email: c.email,
+        nome: perfil.nome || c.email,
+        avatar: perfil.avatar_url || '',
+        scores: scores,
+        especie: especie,
+        genDom: genDom ? genDom[0] : '—',
+        genDomPct: genDom ? genDom[1] : 0,
+        planoMarspass: plano,
+        totalGasto: c.totalGasto,
+        numPedidos: c.numPedidos,
+        numItens: c.itens.length,
+      };
+    }).sort(function(a,b){ return b.totalGasto - a.totalGasto; });
+
+    /* Stats gerais */
+    document.getElementById('dna-stat-total').textContent = _dnaClientesData.length;
+
+    /* Espécie dominante */
+    var specieCount = {};
+    _dnaClientesData.forEach(function(c){ specieCount[c.especie.id] = (specieCount[c.especie.id]||0)+1; });
+    var topEspecie = Object.entries(specieCount).sort(function(a,b){return b[1]-a[1];})[0];
+    if(topEspecie){
+      var sp = DNA_SPECIES.find(function(s){return s.id===topEspecie[0];});
+      document.getElementById('dna-stat-especie').textContent = (sp?sp.icon+' ':'')+topEspecie[0].replace('_',' ');
+    }
+
+    /* Gênero mais comprado */
+    var genCount = {};
+    _dnaClientesData.forEach(function(c){
+      Object.entries(c.scores).forEach(function(pair){
+        if(pair[1]>0) genCount[pair[0]] = (genCount[pair[0]]||0) + pair[1];
+      });
+    });
+    var topGen = Object.entries(genCount).sort(function(a,b){return b[1]-a[1];})[0];
+    if(topGen) document.getElementById('dna-stat-genero').textContent = DNA_GENERO_LABELS[topGen[0]]||topGen[0];
+
+    /* MarsPass exclusivos */
+    var mpExcl = _dnaClientesData.filter(function(c){ return c.especie.id==='nebula_sovereign'||c.especie.id==='void_architect'; }).length;
+    document.getElementById('dna-stat-marspass').textContent = mpExcl;
+
+    /* Evoluindo (2+ gêneros com >10%) */
+    var evol = _dnaClientesData.filter(function(c){
+      return Object.values(c.scores).filter(function(v){return v>10;}).length >= 2;
+    }).length;
+    document.getElementById('dna-stat-evol').textContent = evol;
+
+    /* Distribuição por espécie */
+    var total = _dnaClientesData.length || 1;
+    var distEsp = Object.entries(specieCount).sort(function(a,b){return b[1]-a[1];}).slice(0,6);
+    document.getElementById('dna-dist-especies').innerHTML = distEsp.map(function(pair){
+      var sp = DNA_SPECIES.find(function(s){return s.id===pair[0];}) || {name:pair[0],color:'#888',icon:''};
+      var pct = Math.round(pair[1]/total*100);
+      return '<div style="display:flex;align-items:center;gap:10px">'+
+        '<span style="font-size:14px;flex-shrink:0">'+sp.icon+'</span>'+
+        '<div style="flex:1">'+
+          '<div style="display:flex;justify-content:space-between;font-size:11px;font-weight:700;margin-bottom:4px">'+
+            '<span style="color:#ccc">'+sp.name+'</span>'+
+            '<span style="color:'+sp.color+'">'+pair[1]+' ('+pct+'%)</span>'+
+          '</div>'+
+          '<div style="height:5px;background:rgba(255,255,255,.05);border-radius:3px;overflow:hidden">'+
+            '<div style="height:100%;width:'+pct+'%;background:'+sp.color+';border-radius:3px;transition:width .6s ease"></div>'+
+          '</div>'+
+        '</div>'+
+      '</div>';
+    }).join('');
+
+    /* Distribuição por gênero */
+    var distGen = Object.entries(genCount).sort(function(a,b){return b[1]-a[1];});
+    var totalGen = distGen.reduce(function(s,p){return s+p[1];},0)||1;
+    document.getElementById('dna-dist-generos').innerHTML = distGen.map(function(pair){
+      var col = DNA_GENERO_COLORS[pair[0]]||'#888';
+      var lbl = DNA_GENERO_LABELS[pair[0]]||pair[0];
+      var pct = Math.round(pair[1]/totalGen*100);
+      return '<div style="display:flex;align-items:center;gap:10px">'+
+        '<div style="width:80px;font-size:11px;font-weight:700;color:'+col+'">'+lbl+'</div>'+
+        '<div style="flex:1;height:5px;background:rgba(255,255,255,.05);border-radius:3px;overflow:hidden">'+
+          '<div style="height:100%;width:'+pct+'%;background:'+col+';border-radius:3px"></div>'+
+        '</div>'+
+        '<div style="font-size:11px;font-weight:700;color:'+col+';width:32px;text-align:right">'+pct+'%</div>'+
+      '</div>';
+    }).join('');
+
+    _dnaClientesFiltrado = _dnaClientesData.slice();
+    dnaRenderTabela(_dnaClientesFiltrado);
+
+  } catch(e) {
+    console.error('[DNA Clientes]', e);
+    if(tbody) tbody.innerHTML = '<tr><td colspan="7" class="empty-state">Erro ao carregar dados DNA: '+esc(e.message)+'</td></tr>';
+  }
+}
+
+function dnaRenderTabela(lista){
+  var tbody = document.getElementById('dna-tbody');
+  if(!tbody) return;
+  if(!lista.length){ tbody.innerHTML='<tr><td colspan="7" class="empty-state">Nenhum cliente encontrado com esse filtro.</td></tr>'; return; }
+
+  tbody.innerHTML = lista.slice(0,100).map(function(c){
+    var sp = c.especie;
+    var genCol = DNA_GENERO_COLORS[c.genDom]||'#888';
+    var genLbl = DNA_GENERO_LABELS[c.genDom]||c.genDom;
+    var ini = (c.nome||c.email||'?')[0].toUpperCase();
+    var mpBadge = c.planoMarspass
+      ? '<span style="font-size:9px;padding:1px 6px;border-radius:4px;background:rgba(124,106,247,.2);border:1px solid rgba(124,106,247,.4);color:#c4b8ff;font-weight:700">'+c.planoMarspass+'</span>'
+      : '<span style="color:var(--muted);font-size:10px">—</span>';
+
+    /* Barra de evolução compacta: top 2 gêneros */
+    var topGens = Object.entries(c.scores).filter(function(p){return p[1]>0;}).sort(function(a,b){return b[1]-a[1];}).slice(0,3);
+    var evoBar = topGens.map(function(pair){
+      return '<div title="'+DNA_GENERO_LABELS[pair[0]]+': '+pair[1]+'%" style="height:4px;width:'+pair[1]+'%;background:'+(DNA_GENERO_COLORS[pair[0]]||'#888')+';border-radius:2px;flex-shrink:0;min-width:4px"></div>';
+    }).join('');
+
+    return '<tr>'+
+      '<td>'+
+        '<div style="display:flex;align-items:center;gap:8px">'+
+          (c.avatar
+            ? '<img src="'+esc(c.avatar)+'" style="width:26px;height:26px;border-radius:50%;object-fit:cover">'
+            : '<div style="width:26px;height:26px;border-radius:50%;background:rgba(0,255,231,.1);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;color:#00ffe7;flex-shrink:0">'+ini+'</div>'
+          )+
+          '<div>'+
+            '<div style="font-weight:700;color:#fff;font-size:11px">'+esc(c.nome||c.email)+'</div>'+
+            '<div style="font-size:9px;color:var(--muted)">'+esc(c.email)+'</div>'+
+          '</div>'+
+        '</div>'+
+      '</td>'+
+      '<td>'+
+        '<div style="display:flex;align-items:center;gap:6px">'+
+          '<span style="font-size:14px">'+sp.icon+'</span>'+
+          '<span style="font-size:10px;font-weight:700;color:'+sp.color+'">'+sp.name+'</span>'+
+        '</div>'+
+      '</td>'+
+      '<td>'+
+        '<span style="display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:4px;background:'+genCol+'22;border:1px solid '+genCol+'44;color:'+genCol+';font-size:10px;font-weight:700">'+
+          genLbl+' '+c.genDomPct+'%'+
+        '</span>'+
+      '</td>'+
+      '<td style="text-align:center">'+
+        '<div style="font-weight:900;color:var(--green)">'+c.numPedidos+'</div>'+
+        '<div style="font-size:9px;color:var(--muted)">R$ '+c.totalGasto.toFixed(2).replace('.',',')+'</div>'+
+      '</td>'+
+      '<td>'+mpBadge+'</td>'+
+      '<td>'+
+        '<div style="display:flex;gap:2px;align-items:center;min-width:80px;max-width:100px">'+evoBar+'</div>'+
+        '<div style="font-size:9px;color:var(--muted);margin-top:2px">'+c.numItens+' títulos</div>'+
+      '</td>'+
+      '<td>'+
+        '<button class="btn btn-outline btn-sm" onclick="dnaAnalisarEmailDireto(\'+esc(c.email)+\')">🔬 Ver DNA</button>'+
+      '</td>'+
+    '</tr>';
+  }).join('');
+}
+
+function dnaFiltrarTabela(){
+  var filtroEsp = document.getElementById('dna-filtro-especie') ? document.getElementById('dna-filtro-especie').value : '';
+  var busca = document.getElementById('dna-busca-email') ? document.getElementById('dna-busca-email').value.toLowerCase() : '';
+  var result = _dnaClientesData.slice();
+  if(filtroEsp) result = result.filter(function(c){ return c.especie.id === filtroEsp; });
+  if(busca) result = result.filter(function(c){ return c.email.toLowerCase().includes(busca); });
+  _dnaClientesFiltrado = result;
+  dnaRenderTabela(result);
+}
+
+function dnaAnalisarEmailDireto(email){
+  var input = document.getElementById('dna-email-input');
+  if(input) input.value = email;
+  dnaAnalisarEmail();
+}
+
+async function dnaAnalisarEmail(){
+  var email = (document.getElementById('dna-email-input')||{}).value.trim();
+  if(!email){ showToast('Insira um email para analisar', true); return; }
+  var res = document.getElementById('dna-resultado-individual');
+  if(res) res.style.display = 'block';
+
+  document.getElementById('dna-ind-nome').textContent = 'Analisando...';
+  document.getElementById('dna-ind-sub').textContent = '';
+  document.getElementById('dna-ind-desc').textContent = '';
+  document.getElementById('dna-ind-strands').innerHTML = '';
+  document.getElementById('dna-ind-traits').innerHTML = '';
+  document.getElementById('dna-ind-stats').innerHTML = '<span class="loader-inline"></span>';
+  document.getElementById('dna-ind-evo').innerHTML = '';
+
+  try {
+    /* Busca dados em paralelo */
+    var [pedsRes, mpRes, mptsRes] = await Promise.all([
+      sb.from('pedidos').select('itens,produto_nome,valor,status,created_at')
+        .eq('cliente_email', email).in('status',['pago','entregue','aprovado'])
+        .order('created_at',{ascending:false}),
+      sb.from('marspass_assinaturas').select('plano,status,data_vencimento')
+        .eq('user_email', email).eq('status','ativo')
+        .gt('data_vencimento', new Date().toISOString()).maybeSingle(),
+      sb.from('marspoints').select('pontos').eq('user_email', email).maybeSingle()
+    ]);
+
+    var peds = pedsRes.data || [];
+    var plano = mpRes.data ? mpRes.data.plano : null;
+    var pts = mptsRes.data ? mptsRes.data.pontos : 0;
+
+    /* Extrai itens */
+    var itens = [];
+    peds.forEach(function(p){
+      var its = p.itens;
+      if(typeof its==='string') try{its=JSON.parse(its);}catch(e){its=[];}
+      if(Array.isArray(its)) its.forEach(function(i){ itens.push(i.nome||i.title||i.name||p.produto_nome||''); });
+      else if(p.produto_nome) itens.push(p.produto_nome);
+    });
+
+    var scores = dnaComputarScores(itens);
+    var especie = dnaPickEspecie(scores, plano, itens.length);
+    var totalGasto = peds.reduce(function(s,p){return s+Number(p.valor||0);},0);
+
+    /* Preenche card */
+    var excl = document.getElementById('dna-ind-excl');
+    if(excl) excl.style.display = especie.marspass ? 'inline-flex' : 'none';
+
+    var nomeEl = document.getElementById('dna-ind-nome');
+    nomeEl.textContent = especie.icon+' '+especie.name;
+    nomeEl.style.background = 'linear-gradient(135deg,'+especie.color+','+especie.color+'99)';
+    nomeEl.style.webkitBackgroundClip = 'text';
+    nomeEl.style.webkitTextFillColor = 'transparent';
+    nomeEl.style.backgroundClip = 'text';
+
+    document.getElementById('dna-ind-sub').textContent = itens.length + ' títulos comprados · ' + (plano ? 'MarsPass '+plano : 'Sem MarsPass');
+    document.getElementById('dna-ind-desc').textContent = itens.length === 0
+      ? 'Nenhuma compra registrada para este email ainda.'
+      : 'Com base em '+itens.length+' jogo'+(itens.length>1?'s':'')+' comprado'+(itens.length>1?'s':'')+', este cliente é classificado como '+especie.name+'. Gênero dominante: '+(DNA_GENERO_LABELS[Object.entries(scores).sort(function(a,b){return b[1]-a[1];})[0][0]]||'—')+'.';
+
+    /* Strands */
+    var strandsEl = document.getElementById('dna-ind-strands');
+    var genEntries = Object.entries(scores).filter(function(p){return p[1]>0;}).sort(function(a,b){return b[1]-a[1];});
+    strandsEl.innerHTML = genEntries.map(function(pair,i){
+      var col = DNA_GENERO_COLORS[pair[0]]||'#888';
+      return '<div style="display:flex;align-items:center;gap:8px">'+
+        '<div style="font-size:9px;font-weight:700;width:70px;color:'+col+'">'+DNA_GENERO_LABELS[pair[0]]+'</div>'+
+        '<div style="flex:1;height:5px;background:rgba(255,255,255,.05);border-radius:3px;overflow:hidden">'+
+          '<div style="height:100%;width:'+pair[1]+'%;background:'+col+';border-radius:3px;animation:progressFill .6s ease '+(i*.08)+'s both;--w:'+pair[1]+'%"></div>'+
+        '</div>'+
+        '<div style="font-size:10px;font-weight:700;color:'+col+';width:30px;text-align:right">'+pair[1]+'%</div>'+
+      '</div>';
+    }).join('') || '<div style="font-size:11px;color:var(--muted)">Sem dados de gênero</div>';
+
+    /* Traits dinâmicos baseados no top gênero */
+    var TRAITS_MAP = {
+      RPG:[{i:'📖',n:'Lore',v:'Infinito'},{i:'🧠',n:'Imersão',v:'Total'},{i:'🗺️',n:'Exploração',v:'Alta'},{i:'✨',n:'Paciência',v:'Sobrehumana'}],
+      ACAO:[{i:'⚡',n:'Reflexo',v:'Rápido'},{i:'💢',n:'Agressividade',v:'Alta'},{i:'🎯',n:'Precisão',v:'Boa'},{i:'🔥',n:'Intensidade',v:'Elevada'}],
+      ESTRAT:[{i:'♟️',n:'Planejamento',v:'Calculado'},{i:'📊',n:'Análise',v:'Clínica'},{i:'🏗️',n:'Construção',v:'Sistemática'},{i:'🧮',n:'Eficiência',v:'Alta'}],
+      PUZZLE:[{i:'🧩',n:'Lógica',v:'Impecável'},{i:'🔍',n:'Observação',v:'Detalhista'},{i:'💡',n:'Insight',v:'Frequente'},{i:'⏳',n:'Paciência',v:'Infinita'}],
+      CORRIDA:[{i:'💨',n:'Velocidade',v:'Máxima'},{i:'🎮',n:'Precisão',v:'Pixel'},{i:'⏱️',n:'Timing',v:'Sagrado'},{i:'🔄',n:'Repetição',v:'Infinita'}],
+      TERROR:[{i:'😱',n:'Coragem',v:'Variável'},{i:'🌑',n:'Ambientação',v:'Dark'},{i:'🔦',n:'Sobrevivência',v:'Instintiva'},{i:'💜',n:'Adrenalina',v:'Alta'}],
+      SPORT:[{i:'🏆',n:'Competição',v:'Feroz'},{i:'📈',n:'Ranking',v:'Obsessão'},{i:'💪',n:'Perseverança',v:'Alta'},{i:'🤝',n:'Fair Play',v:'Variável'}],
+      PLAT:[{i:'🦘',n:'Agilidade',v:'Alta'},{i:'❤️',n:'Vidas',v:'Gastas'},{i:'🎯',n:'Saltos',v:'Precisos'},{i:'🔄',n:'Tentativas',v:'Muitas'}],
+    };
+    var domGen = genEntries.length ? genEntries[0][0] : 'ACAO';
+    var traits = TRAITS_MAP[domGen] || TRAITS_MAP.ACAO;
+    document.getElementById('dna-ind-traits').innerHTML = traits.map(function(t){
+      return '<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:8px;padding:10px;text-align:center">'+
+        '<div style="font-size:16px;margin-bottom:4px">'+t.i+'</div>'+
+        '<div style="font-size:8px;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;margin-bottom:2px">'+t.n+'</div>'+
+        '<div style="font-size:12px;font-weight:700;color:#dde2f5">'+t.v+'</div>'+
+      '</div>';
+    }).join('');
+
+    /* Stats laterais */
+    var NIVEL_NOMES = {terricola:'Terrícola',marciano:'Marciano',bronze:'Bronze',prata:'Prata',ouro:'Ouro',esmeralda:'Esmeralda',diamante:'Diamante'};
+    function getNivelPts(p){ if(p>=5000)return'Diamante'; if(p>=1000)return'Esmeralda'; if(p>=500)return'Ouro'; if(p>=100)return'Prata'; return'Bronze'; }
+    var nivel = getNivelPts(pts||0);
+    document.getElementById('dna-ind-stats').innerHTML = [
+      {lbl:'MarsPoints',val:(pts||0).toLocaleString('pt-BR')+' pts',col:'var(--green)'},
+      {lbl:'Nível',val:nivel,col:'var(--amber)'},
+      {lbl:'Compras',val:peds.length,col:'#fff'},
+      {lbl:'Total gasto',val:'R$ '+totalGasto.toFixed(2).replace('.',','),col:'var(--green)'},
+      {lbl:'Títulos',val:itens.length,col:'#fff'},
+      {lbl:'MarsPass',val:plano||'Sem plano',col:plano?'#7c6af7':'var(--muted)'},
+    ].map(function(s){
+      return '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04)">'+
+        '<span style="color:var(--muted);font-size:10px">'+s.lbl+'</span>'+
+        '<span style="font-weight:700;font-size:11px;color:'+s.col+'">'+s.val+'</span>'+
+      '</div>';
+    }).join('');
+
+    /* Evolução inline compacta */
+    var evoSteps = [
+      {id:'terricola',name:'Terrícola',col:'#4a8fff'},
+      {id:'marciano',name:'Marciano',col:'#e8421a'},
+      {id:especie.id==='nebula_sovereign'||especie.id==='void_architect'?especie.id:'genero',
+       name:especie.id==='terricola'||especie.id==='marciano'?'Especialista':especie.name,
+       col:especie.color},
+    ];
+    if(especie.id!=='nebula_sovereign' && plano){
+      evoSteps.push({id:'marspass',name:'MarsPass',col:'#7c6af7'});
+    }
+    var curIdx = especie.id==='terricola'?0:especie.id==='marciano'?1:2;
+    document.getElementById('dna-ind-evo').innerHTML = evoSteps.map(function(s,i){
+      var isCur = i === curIdx;
+      return '<div style="display:flex;align-items:center;gap:0">'+
+        '<div style="display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:6px;border:1px solid '+(isCur?s.col:s.col+'44')+';background:'+(isCur?s.col+'22':'transparent')+';">'+
+          '<div style="width:8px;height:8px;border-radius:50%;background:'+s.col+';'+(isCur?'box-shadow:0 0 8px '+s.col:'')+'"></div>'+
+          '<span style="font-size:10px;font-weight:'+(isCur?'900':'600')+';color:'+(isCur?s.col:'#555')+'">'+s.name+'</span>'+
+          (isCur?'<span style="font-size:9px;color:'+s.col+'">◀</span>':'')+
+        '</div>'+
+        (i<evoSteps.length-1?'<div style="width:16px;height:1px;background:rgba(255,255,255,.1)"></div>':'')+
+      '</div>';
+    }).join('');
+
+    /* Scroll para o resultado */
+    setTimeout(function(){ res.scrollIntoView({behavior:'smooth',block:'nearest'}); }, 100);
+
+  } catch(e) {
+    document.getElementById('dna-ind-nome').textContent = 'Erro ao analisar';
+    document.getElementById('dna-ind-sub').textContent = e.message;
+    document.getElementById('dna-ind-stats').innerHTML = '';
+  }
+}
+
+function dnaExportarCsv(){
+  if(!_dnaClientesData.length){ showToast('Carregue os dados primeiro', true); return; }
+  var header = ['Email','Especie','Genero_Dominante','Pct_Dom','MarsPass','Num_Pedidos','Total_Gasto','RPG','Acao','Terror','Estrat','Sport','Corrida','Plat','Puzzle'];
+  var rows = _dnaClientesData.map(function(c){
+    return [
+      c.email, c.especie.name, DNA_GENERO_LABELS[c.genDom]||c.genDom, c.genDomPct,
+      c.planoMarspass||'', c.numPedidos, c.totalGasto.toFixed(2),
+      c.scores.RPG, c.scores.ACAO, c.scores.TERROR, c.scores.ESTRAT,
+      c.scores.SPORT, c.scores.CORRIDA, c.scores.PLAT, c.scores.PUZZLE
+    ].join(',');
+  });
+  var csv = [header.join(',')].concat(rows).join('\n');
+  var blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a'); a.href=url; a.download='marsgames_dna_clientes.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+  showToast('CSV exportado com '+_dnaClientesData.length+' clientes!');
+}
+
+/* Carrega pagamentos PvP reais para o mini-painel */
+async function carregarPvpPagamentosMini(){
+  var el = document.getElementById('pvp-pag-mini-list');
+  if(!el) return;
+  try {
+    var {data} = await sb.from('pvp_pagamentos')
+      .select('user_email,sala,valor,status,created_at')
+      .order('created_at',{ascending:false}).limit(5);
+    if(!data||!data.length){ el.innerHTML='<span style="color:var(--muted)">Nenhum pagamento PvP ainda</span>'; return; }
+    var STATUS_COL = {aprovado:'var(--green)',pendente:'var(--amber)',rejeitado:'var(--red)'};
+    el.innerHTML = data.map(function(p){
+      var dt = new Date(p.created_at);
+      var dtStr = dt.toLocaleDateString('pt-BR')+' '+dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+      var col = STATUS_COL[p.status]||'var(--muted)';
+      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:10px">'+
+        '<div>'+
+          '<div style="font-weight:700;color:#ccc">'+esc(p.user_email)+'</div>'+
+          '<div style="color:var(--muted)">'+esc(p.sala||'—')+' · '+dtStr+'</div>'+
+        '</div>'+
+        '<div style="text-align:right">'+
+          '<div style="font-weight:700;color:var(--green)">'+esc(p.valor||'—')+'</div>'+
+          '<div style="font-weight:700;color:'+col+'">'+esc(p.status||'—')+'</div>'+
+        '</div>'+
+      '</div>';
+    }).join('');
+  } catch(e) {
+    el.innerHTML = '<span style="color:var(--muted);font-size:10px">Tabela pvp_pagamentos não encontrada ainda</span>';
+  }
+}
+
+/* Hook: chama mini-pagamentos quando Arena PvP abre */
+var _origShowPageAdmin = window.showPage;
+window.showPage = function(id, el){
+  _origShowPageAdmin(id, el);
+  if(id === 'arena-pvp') setTimeout(carregarPvpPagamentosMini, 300);
+};
 
 
 </script>
