@@ -625,6 +625,15 @@ tr:hover td{background:rgba(255,255,255,.012)}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
       Sorteios
     </div>
+    <div class="sb-item" onclick="showPage('arena-pvp',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 10c-.83 0-1.5-.67-1.5-1.5v-5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5z"/><path d="M20.5 10H19V8.5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/><path d="M9.5 14c.83 0 1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5S8 21.33 8 20.5v-5c0-.83.67-1.5 1.5-1.5z"/><path d="M3.5 14H5v1.5c0 .83-.67 1.5-1.5 1.5S2 16.33 2 15.5 2.67 14 3.5 14z"/><path d="M14 14.5c0-.83.67-1.5 1.5-1.5h5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5h-5c-.83 0-1.5-.67-1.5-1.5z"/><path d="M15.5 19H14v1.5c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5-.67-1.5-1.5-1.5z"/><path d="M10 9.5C10 8.67 9.33 8 8.5 8h-5C2.67 8 2 8.67 2 9.5S2.67 11 3.5 11h5c.83 0 1.5-.67 1.5-1.5z"/><path d="M8.5 5H10V3.5C10 2.67 9.33 2 8.5 2S7 2.67 7 3.5 7.67 5 8.5 5z"/></svg>
+      Arena PvP
+      <span class="sb-badge" id="pvp-badge" style="display:none;background:rgba(255,34,51,.15);color:#ff5555;border-color:rgba(255,34,51,.3)">!</span>
+    </div>
+    <div class="sb-item" onclick="showPage('roda-fortuna',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+      Roda da Fortuna
+    </div>
     <div class="sb-item" onclick="showPage('cupons',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
       Cupons
@@ -1416,9 +1425,270 @@ tr:hover td{background:rgba(255,255,255,.012)}
     </div>
   </div>
 
+  <!-- ══ ARENA PVP ══ -->
+  <div class="page" id="page-arena-pvp">
+    <div class="page-head">
+      <div><div class="page-eyebrow">Jogos</div><div class="page-title">⚔️ Arena PvP</div></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-outline btn-sm" onclick="carregarArenaPvp()">↻ Atualizar</button>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:20px">
+      <div class="stat-card">
+        <div class="stat-icon" style="background:rgba(255,34,51,.1);color:#ff5555"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+        <div class="stat-label">Duelos hoje</div>
+        <div class="stat-value" id="pvp-stat-hoje" style="color:#ff5555">—</div>
+        <div class="stat-sub">partidas realizadas</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+        <div class="stat-label">Total de duelos</div>
+        <div class="stat-value green" id="pvp-stat-total">—</div>
+        <div class="stat-sub">histórico completo</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7H4a2 2 0 00-2 2v6a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/><circle cx="12" cy="12" r="2"/></svg></div>
+        <div class="stat-label">Receita bruta</div>
+        <div class="stat-value" style="color:var(--amber)" id="pvp-stat-receita">R$ 0</div>
+        <div class="stat-sub">entradas cobradas (pix)</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+        <div class="stat-label">Na fila agora</div>
+        <div class="stat-value" style="color:var(--blue)" id="pvp-stat-fila">—</div>
+        <div class="stat-sub">aguardando oponente</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background:rgba(168,85,247,.1);color:var(--purple)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>
+        <div class="stat-label">MP distribuídos</div>
+        <div class="stat-value" style="color:var(--purple)" id="pvp-stat-mp">—</div>
+        <div class="stat-sub">em prêmios PvP</div>
+      </div>
+    </div>
+
+    <!-- Fila em tempo real -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+      <div class="table-wrap" style="margin-bottom:0">
+        <div class="table-head">
+          <div class="table-title">🕐 Fila em tempo real</div>
+          <button class="btn btn-outline btn-sm" onclick="carregarFilaPvp()">↻</button>
+        </div>
+        <table>
+          <thead><tr><th>Jogador</th><th>Sala</th><th>Entrada</th><th>Na fila há</th><th>Ação</th></tr></thead>
+          <tbody id="pvp-fila-tbody">
+            <tr><td colspan="5" class="empty-state">Fila vazia</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="table-wrap" style="margin-bottom:0">
+        <div class="table-title" style="padding:14px 18px;border-bottom:1px solid var(--border);background:var(--surface)">📊 Duelos por sala (hoje)</div>
+        <div style="padding:18px;display:flex;flex-direction:column;gap:12px" id="pvp-salas-stats">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="width:10px;height:10px;border-radius:2px;background:#cd7f32"></div>
+              <span style="font-size:12px;font-weight:700;color:#ccc">Sala Bronze</span>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:13px;font-weight:900;color:#cd7f32" id="pvp-bronze-count">—</div>
+              <div style="font-size:9px;color:var(--muted)">duelos • <span id="pvp-bronze-rec">R$ 0</span></div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="width:10px;height:10px;border-radius:2px;background:#7077ff"></div>
+              <span style="font-size:12px;font-weight:700;color:#ccc">Sala Prata</span>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:13px;font-weight:900;color:#7077ff" id="pvp-silver-count">—</div>
+              <div style="font-size:9px;color:var(--muted)">duelos • <span id="pvp-silver-rec">R$ 0</span></div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="width:10px;height:10px;border-radius:2px;background:#ffd000"></div>
+              <span style="font-size:12px;font-weight:700;color:#ccc">Sala Ouro</span>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:13px;font-weight:900;color:#ffd000" id="pvp-gold-count">—</div>
+              <div style="font-size:9px;color:var(--muted)">duelos • <span id="pvp-gold-rec">R$ 0</span></div>
+            </div>
+          </div>
+
+          <!-- Config de pagamento -->
+          <div style="margin-top:8px;padding:12px;background:rgba(0,0,0,.2);border:1px solid var(--border);border-radius:8px">
+            <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">⚡ Status pagamento PIX</div>
+            <div id="pvp-pix-status" style="font-size:11px;color:var(--amber);font-weight:700">
+              ⚠ Modo demo — PIX não integrado. Duelos não cobram entrada real.
+            </div>
+            <div style="margin-top:8px;font-size:10px;color:var(--muted);line-height:1.6">
+              Para ativar cobrança real via PIX, integre um webhook de pagamento (Mercado Pago, Asaas, etc.) e registre os pedidos na tabela <code style="color:var(--green)">pvp_pedidos</code>.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Histórico de duelos -->
+    <div class="table-wrap">
+      <div class="table-head">
+        <div class="table-title">Histórico de duelos</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select class="t-search" id="pvp-filtro-sala" onchange="carregarDuelosHistorico()" style="width:140px;background:var(--bg)">
+            <option value="">Todas as salas</option>
+            <option value="bronze">Bronze</option>
+            <option value="silver">Prata</option>
+            <option value="gold">Ouro</option>
+          </select>
+          <select class="t-search" id="pvp-filtro-resultado" onchange="carregarDuelosHistorico()" style="width:140px;background:var(--bg)">
+            <option value="">Todos resultados</option>
+            <option value="vitoria">Vitória</option>
+            <option value="derrota">Derrota</option>
+            <option value="empate">Empate</option>
+          </select>
+          <input class="t-search" id="pvp-busca-email" placeholder="Buscar por email..." oninput="carregarDuelosHistorico()" style="width:200px">
+        </div>
+      </div>
+      <table>
+        <thead><tr>
+          <th>Jogador</th><th>Sala</th><th>Resultado</th>
+          <th>Placar</th><th>MP creditado</th><th>Data</th>
+        </tr></thead>
+        <tbody id="pvp-hist-tbody">
+          <tr><td colspan="6" class="empty-state"><span class="loader-inline"></span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Ranking PvP -->
+    <div class="table-wrap">
+      <div class="table-head">
+        <div class="table-title">🏆 Ranking dos Duelistas — Top 20</div>
+        <span style="font-size:9px;color:var(--muted);font-weight:700">Este mês</span>
+      </div>
+      <table>
+        <thead><tr><th>#</th><th>Jogador</th><th>Vitórias</th><th>Derrotas</th><th>Empates</th><th>Win Rate</th><th>MP Ganhos</th></tr></thead>
+        <tbody id="pvp-rank-tbody">
+          <tr><td colspan="7" class="empty-state"><span class="loader-inline"></span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ══ RODA DA FORTUNA ══ -->
+  <div class="page" id="page-roda-fortuna">
+    <div class="page-head">
+      <div><div class="page-eyebrow">Jogos</div><div class="page-title">🎡 Roda da Fortuna</div></div>
+      <button class="btn btn-outline btn-sm" onclick="carregarRodaFortuna()">↻ Atualizar</button>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:20px">
+      <div class="stat-card">
+        <div class="stat-icon amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/><line x1="2" y1="12" x2="22" y2="12"/></svg></div>
+        <div class="stat-label">Giros hoje</div>
+        <div class="stat-value" style="color:var(--amber)" id="rd-stat-hoje">—</div>
+        <div class="stat-sub">rodadas realizadas</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+        <div class="stat-label">Total de giros</div>
+        <div class="stat-value green" id="rd-stat-total">—</div>
+        <div class="stat-sub">histórico completo</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon mars"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div>
+        <div class="stat-label">MP consumidos</div>
+        <div class="stat-value mars" id="rd-stat-mp-consumidos">—</div>
+        <div class="stat-sub">25 MP por giro</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background:rgba(0,217,110,.1);color:#00d96e"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+        <div class="stat-label">Prêmios bons</div>
+        <div class="stat-value" style="color:#00d96e" id="rd-stat-bons">—</div>
+        <div class="stat-sub">good + coupon</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background:rgba(255,31,48,.1);color:#ff1f30"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div>
+        <div class="stat-label">Negativos</div>
+        <div class="stat-value" style="color:#ff1f30" id="rd-stat-ruins">—</div>
+        <div class="stat-sub">bad + neutral</div>
+      </div>
+    </div>
+
+    <!-- Dois painéis laterais -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+
+      <!-- Distribuição de resultados -->
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:14px">📊 Distribuição de prêmios</div>
+        <div id="rd-distribuicao" style="display:flex;flex-direction:column;gap:8px">
+          <div class="empty-state" style="padding:16px">Carregando...</div>
+        </div>
+      </div>
+
+      <!-- Configuração dos fatias -->
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:14px">⚙️ Configuração das fatias</div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.7;margin-bottom:12px">
+          As probabilidades das fatias são definidas no código (<code style="color:var(--green)">pct</code> em <code style="color:var(--green)">RD_SLICES</code>). Total = 100%.
+        </div>
+        <div id="rd-config-fatias" style="display:flex;flex-direction:column;gap:6px"></div>
+        <div style="margin-top:12px;padding:10px 12px;background:rgba(255,183,0,.05);border:1px solid rgba(255,183,0,.15);border-radius:8px;font-size:10px;color:#888;line-height:1.6">
+          ⚡ Para alterar as probabilidades ou prêmios, edite o array <strong style="color:var(--amber)">RD_SLICES</strong> no arquivo <code>sorteio.html</code>.
+        </div>
+      </div>
+    </div>
+
+    <!-- Jogadores com mais giros -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+      <div class="table-wrap" style="margin-bottom:0">
+        <div class="table-head"><div class="table-title">🔝 Top jogadores por giros</div></div>
+        <table>
+          <thead><tr><th>#</th><th>Jogador</th><th>Giros</th><th>MP gastos</th><th>Melhor prêmio</th></tr></thead>
+          <tbody id="rd-top-tbody">
+            <tr><td colspan="5" class="empty-state"><span class="loader-inline"></span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="table-wrap" style="margin-bottom:0">
+        <div class="table-head"><div class="table-title">🎰 Últimos jackpots (Jogo Grátis)</div></div>
+        <table>
+          <thead><tr><th>Jogador</th><th>Data</th><th>MP tinham</th></tr></thead>
+          <tbody id="rd-jackpot-tbody">
+            <tr><td colspan="3" class="empty-state">Sem jackpots ainda</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Histórico completo de giros -->
+    <div class="table-wrap">
+      <div class="table-head">
+        <div class="table-title">Histórico completo de giros</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select class="t-search" id="rd-filtro-tipo" onchange="carregarGirosHistorico()" style="width:140px;background:var(--bg)">
+            <option value="">Todos tipos</option>
+            <option value="good">Bons</option>
+            <option value="bad">Ruins</option>
+            <option value="coupon">Cupons</option>
+            <option value="neutral">Neutros</option>
+          </select>
+          <input class="t-search" id="rd-busca-email" placeholder="Buscar por email..." oninput="carregarGirosHistorico()" style="width:200px">
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>Jogador</th><th>Resultado</th><th>Prêmio</th><th>Tipo</th><th>Data</th></tr></thead>
+        <tbody id="rd-hist-tbody">
+          <tr><td colspan="5" class="empty-state"><span class="loader-inline"></span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
 </main>
-</div>
-</div>
 
 <!-- ══ MODAL NOVA ASSINATURA ══ -->
 <div class="modal-overlay" id="modal-nova-assinatura">
@@ -1900,6 +2170,15 @@ function entrarNoPainel(session){
   registrarLog(nome,email);
   iniciarPresenca();
   iniciarRealtimeNotifs();
+  /* Inicia realtimes PvP para badge na sidebar */
+  setTimeout(function(){
+    if(!_realtimesPvpIniciados){
+      _realtimesPvpIniciados=true;
+      iniciarRealtimePvp();
+    }
+    /* Atualiza dashboard com stats do PvP */
+    carregarStatsPvp();
+  },1200);
   carregarNotifs();
   carregarDashboard();
   carregarFavoritos();
@@ -2042,6 +2321,7 @@ function showPage(id,el){
     avaliacoes:carregarAvaliacoes,marspoints:carregarMarsPoints,marstickets:carregarMarsTickets,clientes:carregarClientes,
     historico:carregarHistorico,logs:carregarLogs,cupons:carregarCupons,
     sorteios:carregarSorteios,favoritos:carregarFavoritos,marspass:carregarMarsPass,
+  'arena-pvp':carregarArenaPvp,'roda-fortuna':carregarRodaFortuna,
     chargeback:carregarChargeback
   };
   if(map[id])map[id]();
@@ -4233,6 +4513,383 @@ document.querySelectorAll('.modal-overlay').forEach(function(el){
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function escJson(p){return JSON.stringify(p).replace(/"/g,'&quot;')}
 function fmtDate(d){if(!d)return'—';return new Date(d).toLocaleDateString('pt-BR')}
+
+/* ══════════════════════════════════════════════════════
+   ARENA PVP — painel admin
+══════════════════════════════════════════════════════ */
+var _pvpData=[], _pvpFilaData=[];
+
+var PVP_ENTRADA={bronze:2,silver:5,gold:10};
+var PVP_NOMES={bronze:'Bronze',silver:'Prata',gold:'Ouro'};
+
+async function carregarArenaPvp(){
+  carregarFilaPvp();
+  carregarDuelosHistorico();
+  carregarRankingPvp();
+  carregarStatsPvp();
+}
+
+async function carregarStatsPvp(){
+  try{
+    var hoje=new Date();hoje.setHours(0,0,0,0);
+    var[todosRes,hojeRes,filaRes]=await Promise.all([
+      sb.from('pvp_duelos').select('sala,resultado,pontuacao_jogador,pontuacao_oponente,created_at'),
+      sb.from('pvp_duelos').select('sala,resultado').gte('created_at',hoje.toISOString()),
+      sb.from('pvp_fila').select('sala').eq('status','aguardando')
+    ]);
+    var todos=todosRes.data||[];
+    var hj=hojeRes.data||[];
+    var fila=filaRes.data||[];
+
+    /* Stats gerais */
+    document.getElementById('pvp-stat-hoje').textContent=hj.length;
+    document.getElementById('pvp-stat-total').textContent=todos.length;
+    document.getElementById('pvp-stat-fila').textContent=fila.length;
+
+    /* Badge na sidebar */
+    var badge=document.getElementById('pvp-badge');
+    if(fila.length>0){badge.textContent=fila.length;badge.style.display='flex';}
+    else badge.style.display='none';
+
+    /* Receita (modo demo = R$ 0, mas calcula o que DEVERIA ser) */
+    var receita=hj.reduce(function(s,d){return s+(PVP_ENTRADA[d.sala]||0);},0);
+    document.getElementById('pvp-stat-receita').textContent='R$ '+receita.toFixed(2).replace('.',',');
+
+    /* MP distribuídos (vitórias) */
+    var mpMap={bronze:100,silver:250,gold:500};
+    var mpTotal=todos.filter(function(d){return d.resultado==='vitoria';})
+      .reduce(function(s,d){return s+(mpMap[d.sala]||0);},0);
+    document.getElementById('pvp-stat-mp').textContent=mpTotal.toLocaleString('pt-BR')+' MP';
+
+    /* Por sala - hoje */
+    ['bronze','silver','gold'].forEach(function(sala){
+      var qtd=hj.filter(function(d){return d.sala===sala;}).length;
+      var rec=(qtd*(PVP_ENTRADA[sala]||0)).toFixed(2).replace('.',',');
+      var el=document.getElementById('pvp-'+sala+'-count');
+      var rel=document.getElementById('pvp-'+sala+'-rec');
+      if(el) el.textContent=qtd;
+      if(rel) rel.textContent='R$ '+rec;
+    });
+  }catch(e){console.log('PvP stats:',e.message);}
+}
+
+async function carregarFilaPvp(){
+  var tbody=document.getElementById('pvp-fila-tbody');
+  try{
+    var{data}=await sb.from('pvp_fila')
+      .select('*').eq('status','aguardando')
+      .order('created_at',{ascending:true});
+    _pvpFilaData=data||[];
+    if(!_pvpFilaData.length){
+      tbody.innerHTML='<tr><td colspan="5" class="empty-state">Fila vazia — nenhum jogador aguardando</td></tr>';
+      return;
+    }
+    tbody.innerHTML=_pvpFilaData.map(function(f){
+      var diff=Math.floor((Date.now()-new Date(f.created_at))/1000);
+      var tempo=diff<60?diff+'s':Math.floor(diff/60)+'m '+diff%60+'s';
+      return '<tr>'+
+        '<td style="font-weight:700;color:#ddd">'+esc(f.user_email||'—')+'</td>'+
+        '<td><span class="badge badge-'+(f.sala==='bronze'?'amber':f.sala==='silver'?'blue':'amber')+'">'+
+          (PVP_NOMES[f.sala]||f.sala)+'</span></td>'+
+        '<td style="color:var(--green);font-weight:700">R$ '+(PVP_ENTRADA[f.sala]||0).toFixed(2).replace('.',',')+'</td>'+
+        '<td style="color:var(--amber);font-weight:700">'+tempo+'</td>'+
+        '<td><button class="btn btn-red btn-sm" onclick="removerDaFila(\''+esc(f.id)+'\')">✕ Remover</button></td>'+
+      '</tr>';
+    }).join('');
+  }catch(e){tbody.innerHTML='<tr><td colspan="5" class="empty-state">Tabela pvp_fila não encontrada — crie no Supabase</td></tr>';}
+}
+
+async function removerDaFila(id){
+  if(!confirm('Remover este jogador da fila?')) return;
+  try{
+    await sb.from('pvp_fila').delete().eq('id',id);
+    showToast('Jogador removido da fila');
+    carregarFilaPvp();
+    carregarStatsPvp();
+  }catch(e){showToast('Erro ao remover',true);}
+}
+
+async function carregarDuelosHistorico(){
+  var tbody=document.getElementById('pvp-hist-tbody');
+  tbody.innerHTML='<tr><td colspan="6" class="empty-state"><span class="loader-inline"></span></td></tr>';
+  try{
+    var sala=document.getElementById('pvp-filtro-sala')?document.getElementById('pvp-filtro-sala').value:'';
+    var resultado=document.getElementById('pvp-filtro-resultado')?document.getElementById('pvp-filtro-resultado').value:'';
+    var busca=document.getElementById('pvp-busca-email')?document.getElementById('pvp-busca-email').value.toLowerCase():'';
+
+    var q=sb.from('pvp_duelos').select('*').order('created_at',{ascending:false}).limit(100);
+    if(sala) q=q.eq('sala',sala);
+    if(resultado) q=q.eq('resultado',resultado);
+
+    var{data}=await q;
+    _pvpData=data||[];
+
+    var filtrado=_pvpData;
+    if(busca) filtrado=filtrado.filter(function(d){return (d.user_email||'').toLowerCase().includes(busca);});
+
+    if(!filtrado.length){tbody.innerHTML='<tr><td colspan="6" class="empty-state">Nenhum duelo encontrado</td></tr>';return;}
+
+    var mpMap={bronze:100,silver:250,gold:500};
+    var rCls={vitoria:'badge-green',derrota:'badge-red',empate:'badge-blue'};
+    var rLabel={vitoria:'Vitória',derrota:'Derrota',empate:'Empate'};
+
+    tbody.innerHTML=filtrado.slice(0,80).map(function(d){
+      var mpC=d.resultado==='vitoria'?(mpMap[d.sala]||0):d.resultado==='empate'?10:0;
+      return '<tr>'+
+        '<td style="font-weight:700;color:#ddd;font-size:11px">'+esc(d.user_email||'—')+'</td>'+
+        '<td><span class="badge badge-'+(d.sala==='bronze'?'amber':d.sala==='silver'?'blue':'amber')+'">'+
+          (PVP_NOMES[d.sala]||d.sala)+'</span></td>'+
+        '<td><span class="badge '+(rCls[d.resultado]||'badge-gray')+'">'+(rLabel[d.resultado]||d.resultado||'—')+'</span></td>'+
+        '<td style="font-size:12px;font-weight:700;color:#aaa">'+
+          '<span style="color:var(--green)">'+(d.pontuacao_jogador||0)+'</span>'+
+          ' × '+
+          '<span style="color:#ff5555">'+(d.pontuacao_oponente||0)+'</span>'+
+        '</td>'+
+        '<td style="color:'+(mpC>0?'var(--green)':'var(--muted)')+';font-weight:700">'+
+          (mpC>0?'+'+mpC+' MP':'—')+'</td>'+
+        '<td style="font-size:10px;color:var(--muted)">'+fmtDateTime(d.created_at)+'</td>'+
+      '</tr>';
+    }).join('');
+  }catch(e){tbody.innerHTML='<tr><td colspan="6" class="empty-state">Tabela pvp_duelos não encontrada — será criada automaticamente ao primeiro duelo</td></tr>';}
+}
+
+async function carregarRankingPvp(){
+  var tbody=document.getElementById('pvp-rank-tbody');
+  try{
+    var ini=new Date();ini.setDate(1);ini.setHours(0,0,0,0);
+    var{data}=await sb.from('pvp_duelos')
+      .select('user_email,resultado,sala')
+      .gte('created_at',ini.toISOString());
+
+    if(!data||!data.length){tbody.innerHTML='<tr><td colspan="7" class="empty-state">Sem duelos este mês ainda</td></tr>';return;}
+
+    var mpMap={bronze:100,silver:250,gold:500};
+    var agg={};
+    data.forEach(function(d){
+      if(!agg[d.user_email])agg[d.user_email]={w:0,l:0,e:0,mp:0};
+      if(d.resultado==='vitoria'){agg[d.user_email].w++;agg[d.user_email].mp+=(mpMap[d.sala]||0);}
+      else if(d.resultado==='derrota')agg[d.user_email].l++;
+      else if(d.resultado==='empate'){agg[d.user_email].e++;agg[d.user_email].mp+=10;}
+    });
+
+    var lista=Object.keys(agg).map(function(e){
+      var a=agg[e],tot=a.w+a.l+a.e;
+      return{email:e,w:a.w,l:a.l,e:a.e,mp:a.mp,wr:tot>0?Math.round(a.w/tot*100):0};
+    }).sort(function(a,b){return b.w-a.w||b.wr-a.wr;}).slice(0,20);
+
+    var medals=['🥇','🥈','🥉'];
+    tbody.innerHTML=lista.map(function(p,i){
+      return '<tr>'+
+        '<td style="font-weight:900;color:#888">'+(medals[i]||('#'+(i+1)))+'</td>'+
+        '<td style="font-weight:700;color:#ddd;font-size:11px">'+esc(p.email)+'</td>'+
+        '<td style="color:var(--green);font-weight:900">'+p.w+'</td>'+
+        '<td style="color:var(--red);font-weight:700">'+p.l+'</td>'+
+        '<td style="color:var(--blue);font-weight:700">'+p.e+'</td>'+
+        '<td><span style="font-family:Orbitron,sans-serif;font-size:12px;font-weight:900;color:'+(p.wr>=60?'var(--green)':p.wr>=40?'var(--amber)':'var(--red)')+'">'+p.wr+'%</span></td>'+
+        '<td style="color:var(--amber);font-weight:700">'+p.mp.toLocaleString('pt-BR')+' MP</td>'+
+      '</tr>';
+    }).join('');
+  }catch(e){tbody.innerHTML='<tr><td colspan="7" class="empty-state">Sem dados de ranking ainda</td></tr>';}
+}
+
+/* Realtime da fila PvP */
+function iniciarRealtimePvp(){
+  sb.channel('pvp_admin_fila')
+    .on('postgres_changes',{event:'*',schema:'public',table:'pvp_fila'},function(){
+      carregarFilaPvp();
+      carregarStatsPvp();
+    }).subscribe();
+  sb.channel('pvp_admin_duelos')
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'pvp_duelos'},function(){
+      carregarStatsPvp();
+    }).subscribe();
+}
+
+/* ══════════════════════════════════════════════════════
+   RODA DA FORTUNA — painel admin
+══════════════════════════════════════════════════════ */
+var _rdData=[];
+
+/* Espelha as fatias do sorteio.html para exibir config */
+var RD_SLICES_ADMIN=[
+  {name:'+100 Marspoints',pct:5,type:'good',color:'#ffd84d'},
+  {name:'+5 Marstickets',pct:8,type:'good',color:'#00e87a'},
+  {name:'Jogo Grátis',pct:2,type:'good',color:'#c87fff'},
+  {name:'Asteroide! (−3 Tickets)',pct:12,type:'bad',color:'#ff7a30'},
+  {name:'Cupom 5% OFF',pct:15,type:'coupon',color:'#00d4f5'},
+  {name:'Polícia! (−50 MP)',pct:20,type:'bad',color:'#ff1f30'},
+  {name:'Cupom 10% OFF',pct:10,type:'coupon',color:'#38c4f8'},
+  {name:'Buraco Negro',pct:28,type:'neutral',color:'#1e1e30'},
+];
+
+async function carregarRodaFortuna(){
+  carregarStatsRoda();
+  carregarDistribuicao();
+  carregarTopJogadoresRoda();
+  carregarJackpotsRoda();
+  carregarGirosHistorico();
+  renderConfigFatias();
+}
+
+function renderConfigFatias(){
+  var el=document.getElementById('rd-config-fatias');
+  if(!el) return;
+  el.innerHTML=RD_SLICES_ADMIN.map(function(s){
+    var w=s.pct+'%';
+    var barColor=s.type==='good'?'var(--green)':s.type==='bad'?'var(--red)':s.type==='coupon'?'#00d4f5':'#333';
+    return '<div>'+
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px">'+
+        '<div style="display:flex;align-items:center;gap:7px">'+
+          '<div style="width:8px;height:8px;border-radius:2px;background:'+s.color+'"></div>'+
+          '<span style="font-size:10px;font-weight:700;color:#bbb">'+s.name+'</span>'+
+        '</div>'+
+        '<span style="font-family:Orbitron,sans-serif;font-size:11px;font-weight:900;color:'+barColor+'">'+s.pct+'%</span>'+
+      '</div>'+
+      '<div style="height:4px;background:rgba(255,255,255,.05);border-radius:2px;overflow:hidden">'+
+        '<div style="width:'+w+';height:100%;background:'+s.color+';border-radius:2px;opacity:.7"></div>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+
+async function carregarStatsRoda(){
+  try{
+    var hoje=new Date();hoje.setHours(0,0,0,0);
+    var[todosRes,hojeRes]=await Promise.all([
+      sb.from('roda_giros').select('tipo,resultado'),
+      sb.from('roda_giros').select('tipo,resultado').gte('created_at',hoje.toISOString())
+    ]);
+    var todos=todosRes.data||[];
+    var hj=hojeRes.data||[];
+
+    document.getElementById('rd-stat-hoje').textContent=hj.length;
+    document.getElementById('rd-stat-total').textContent=todos.length;
+    document.getElementById('rd-stat-mp-consumidos').textContent=(todos.length*25).toLocaleString('pt-BR')+' MP';
+
+    var bons=todos.filter(function(g){return g.tipo==='good'||g.tipo==='coupon';}).length;
+    var ruins=todos.filter(function(g){return g.tipo==='bad'||g.tipo==='neutral';}).length;
+    document.getElementById('rd-stat-bons').textContent=bons;
+    document.getElementById('rd-stat-ruins').textContent=ruins;
+  }catch(e){console.log('Roda stats:',e.message);}
+}
+
+async function carregarDistribuicao(){
+  var el=document.getElementById('rd-distribuicao');
+  if(!el) return;
+  try{
+    var{data}=await sb.from('roda_giros').select('resultado,tipo');
+    if(!data||!data.length){el.innerHTML='<div class="empty-state" style="padding:12px">Nenhum giro ainda</div>';return;}
+
+    var contagem={};
+    data.forEach(function(g){
+      var k=g.resultado||'—';
+      contagem[k]=(contagem[k]||0)+1;
+    });
+
+    var total=data.length;
+    var sorted=Object.keys(contagem).sort(function(a,b){return contagem[b]-contagem[a];});
+    el.innerHTML=sorted.map(function(k){
+      var n=contagem[k], pct=Math.round(n/total*100);
+      var slice=RD_SLICES_ADMIN.find(function(s){return s.name===k;})||{color:'#555',type:'neutral'};
+      var barColor=slice.type==='good'?'var(--green)':slice.type==='bad'?'var(--red)':slice.type==='coupon'?'#00d4f5':'#444';
+      return '<div>'+
+        '<div style="display:flex;justify-content:space-between;margin-bottom:3px">'+
+          '<span style="font-size:10px;font-weight:700;color:#bbb">'+esc(k)+'</span>'+
+          '<span style="font-size:10px;font-weight:900;color:'+barColor+'">'+n+'x ('+pct+'%)</span>'+
+        '</div>'+
+        '<div style="height:5px;background:rgba(255,255,255,.05);border-radius:3px;overflow:hidden">'+
+          '<div style="width:'+pct+'%;height:100%;background:'+barColor+';border-radius:3px"></div>'+
+        '</div>'+
+      '</div>';
+    }).join('');
+  }catch(e){el.innerHTML='<div class="empty-state" style="padding:12px">Tabela roda_giros não encontrada</div>';}
+}
+
+async function carregarTopJogadoresRoda(){
+  var tbody=document.getElementById('rd-top-tbody');
+  try{
+    var{data}=await sb.from('roda_giros').select('user_email,resultado,tipo');
+    if(!data||!data.length){tbody.innerHTML='<tr><td colspan="5" class="empty-state">Sem giros ainda</td></tr>';return;}
+
+    var agg={};
+    data.forEach(function(g){
+      if(!agg[g.user_email])agg[g.user_email]={giros:0,mp:0,melhor:null};
+      agg[g.user_email].giros++;
+      agg[g.user_email].mp+=25;
+      if(g.tipo==='good'&&!agg[g.user_email].melhor) agg[g.user_email].melhor=g.resultado;
+    });
+
+    var lista=Object.keys(agg).map(function(e){
+      return{email:e,giros:agg[e].giros,mp:agg[e].mp,melhor:agg[e].melhor};
+    }).sort(function(a,b){return b.giros-a.giros;}).slice(0,10);
+
+    var medals=['🥇','🥈','🥉'];
+    tbody.innerHTML=lista.map(function(p,i){
+      return '<tr>'+
+        '<td>'+(medals[i]||i+1)+'</td>'+
+        '<td style="font-weight:700;color:#ddd;font-size:10px">'+esc(p.email)+'</td>'+
+        '<td style="font-weight:900;color:var(--amber)">'+p.giros+'</td>'+
+        '<td style="color:var(--red);font-weight:700">'+p.mp.toLocaleString('pt-BR')+' MP</td>'+
+        '<td style="font-size:10px;color:var(--green)">'+esc(p.melhor||'Nenhum')+'</td>'+
+      '</tr>';
+    }).join('');
+  }catch(e){tbody.innerHTML='<tr><td colspan="5" class="empty-state">Sem dados</td></tr>';}
+}
+
+async function carregarJackpotsRoda(){
+  var tbody=document.getElementById('rd-jackpot-tbody');
+  try{
+    var{data}=await sb.from('roda_giros').select('user_email,created_at')
+      .eq('resultado','Jogo Grátis')
+      .order('created_at',{ascending:false}).limit(10);
+    if(!data||!data.length){tbody.innerHTML='<tr><td colspan="3" class="empty-state">Sem jackpots ainda 🍀</td></tr>';return;}
+    tbody.innerHTML=data.map(function(g){
+      return '<tr>'+
+        '<td style="font-weight:700;color:#c87fff;font-size:10px">'+esc(g.user_email||'—')+'</td>'+
+        '<td style="font-size:10px;color:var(--muted)">'+fmtDateTime(g.created_at)+'</td>'+
+        '<td style="color:var(--muted);font-size:10px">—</td>'+
+      '</tr>';
+    }).join('');
+  }catch(e){tbody.innerHTML='<tr><td colspan="3" class="empty-state">Tabela roda_giros não encontrada</td></tr>';}
+}
+
+async function carregarGirosHistorico(){
+  var tbody=document.getElementById('rd-hist-tbody');
+  tbody.innerHTML='<tr><td colspan="5" class="empty-state"><span class="loader-inline"></span></td></tr>';
+  try{
+    var tipo=document.getElementById('rd-filtro-tipo')?document.getElementById('rd-filtro-tipo').value:'';
+    var busca=document.getElementById('rd-busca-email')?document.getElementById('rd-busca-email').value.toLowerCase():'';
+
+    var q=sb.from('roda_giros').select('*').order('created_at',{ascending:false}).limit(100);
+    if(tipo) q=q.eq('tipo',tipo);
+
+    var{data}=await q;
+    _rdData=data||[];
+
+    var filtrado=_rdData;
+    if(busca) filtrado=filtrado.filter(function(g){return (g.user_email||'').toLowerCase().includes(busca);});
+
+    if(!filtrado.length){tbody.innerHTML='<tr><td colspan="5" class="empty-state">Nenhum giro encontrado</td></tr>';return;}
+
+    var tipoCls={good:'badge-green',bad:'badge-red',coupon:'badge-blue',neutral:'badge-gray'};
+    var tipoLabel={good:'Bom',bad:'Ruim',coupon:'Cupom',neutral:'Neutro'};
+
+    tbody.innerHTML=filtrado.slice(0,80).map(function(g){
+      return '<tr>'+
+        '<td style="font-weight:700;color:#ddd;font-size:11px">'+esc(g.user_email||'—')+'</td>'+
+        '<td style="font-weight:700;color:#ccc;font-size:11px">'+esc(g.resultado||'—')+'</td>'+
+        '<td style="font-size:10px;color:var(--green)">'+esc(g.prize||'—')+'</td>'+
+        '<td><span class="badge '+(tipoCls[g.tipo]||'badge-gray')+'">'+(tipoLabel[g.tipo]||g.tipo||'—')+'</span></td>'+
+        '<td style="font-size:10px;color:var(--muted)">'+fmtDateTime(g.created_at)+'</td>'+
+      '</tr>';
+    }).join('');
+  }catch(e){tbody.innerHTML='<tr><td colspan="5" class="empty-state">Tabela roda_giros não encontrada — será criada automaticamente ao primeiro giro</td></tr>';}
+}
+
+/* Inicializa realtimes ao entrar no painel */
+var _realtimesPvpIniciados=false;
+var _origIniciarPainel=typeof iniciarPainel==='function'?iniciarPainel:null;
+
 function fmtDateTime(d){if(!d)return'—';return new Date(d).toLocaleString('pt-BR')}
 function badgeStatus(s){
   var map={pago:'badge-green',pendente:'badge-amber',cancelado:'badge-red',entregue:'badge-green'};
