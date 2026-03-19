@@ -1683,7 +1683,10 @@ tr:hover td{background:rgba(255,255,255,.012)}
     <div class="table-wrap">
       <div class="table-head">
         <div class="table-title">Clientes × DNA Alienígena</div>
-        <span style="font-size:9px;color:var(--muted)" id="dna-tabela-count"></span>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:9px;color:var(--muted)" id="dna-tabela-count"></span>
+          <button class="btn btn-outline btn-sm" onclick="dnaExportarCsv()">⬇ CSV</button>
+        </div>
       </div>
       <table>
         <thead><tr>
@@ -1701,6 +1704,40 @@ tr:hover td{background:rgba(255,255,255,.012)}
       </table>
     </div>
 
+    <!-- Painel de análise individual -->
+    <div id="dna-resultado-individual" style="display:none;margin-top:20px;background:var(--surface);border:1px solid rgba(0,255,231,.15);border-radius:14px;padding:24px;animation:fadeUp .3s ease both">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
+        <div style="font-size:9px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#00ffe7;opacity:.6">🧬 ANÁLISE INDIVIDUAL</div>
+        <button onclick="document.getElementById('dna-resultado-individual').style.display='none'" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;padding:4px">✕</button>
+      </div>
+      <!-- Nome e subtítulo da espécie -->
+      <div style="margin-bottom:16px">
+        <div style="font-family:'Orbitron',sans-serif;font-size:clamp(16px,3vw,26px);font-weight:900;line-height:1.1;margin-bottom:4px" id="dna-ind-nome">—</div>
+        <div style="font-size:12px;color:#4a5168;margin-bottom:8px" id="dna-ind-sub">—</div>
+        <div style="display:none" id="dna-ind-excl" style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:6px;font-size:9px;font-weight:900;letter-spacing:1.5px;text-transform:uppercase;background:linear-gradient(135deg,rgba(124,106,247,.25),rgba(255,60,110,.18));border:1px solid rgba(124,106,247,.5);color:#c4b8ff;margin-bottom:8px">✦ EXCLUSIVO MARSPASS</div>
+        <div style="font-size:11px;color:#555;line-height:1.65" id="dna-ind-desc">—</div>
+      </div>
+      <!-- Grid: strands + stats + traits -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+        <!-- Strands de gênero -->
+        <div>
+          <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#3a4058;margin-bottom:10px">GENOMA DOS GÊNEROS</div>
+          <div id="dna-ind-strands" style="display:flex;flex-direction:column;gap:7px"></div>
+        </div>
+        <!-- Stats rápidas -->
+        <div>
+          <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#3a4058;margin-bottom:10px">DADOS DO CLIENTE</div>
+          <div id="dna-ind-stats"></div>
+        </div>
+      </div>
+      <!-- Traits -->
+      <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#3a4058;margin-bottom:10px">TRAÇOS DA ESPÉCIE</div>
+      <div id="dna-ind-traits" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin-bottom:16px"></div>
+      <!-- Linha de evolução -->
+      <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#3a4058;margin-bottom:10px">LINHA DE EVOLUÇÃO</div>
+      <div id="dna-ind-evo" style="display:flex;align-items:center;gap:0;flex-wrap:wrap;gap:4px"></div>
+    </div>
+
     <!-- Modal detalhe DNA -->
     <div id="dna-modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:600;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)fecharDnaModal()">
       <div style="background:var(--card);border:1px solid rgba(0,255,231,.2);border-radius:18px;width:100%;max-width:600px;max-height:90vh;overflow-y:auto;position:relative">
@@ -1715,7 +1752,8 @@ tr:hover td{background:rgba(255,255,255,.012)}
     </div>
   </div>
 
-
+  <!-- ══ RODA DA FORTUNA ══ -->
+  <div class="page" id="page-roda-fortuna">
     <div class="page-head">
       <div><div class="page-eyebrow">Jogos</div><div class="page-title">🎡 Roda da Fortuna</div></div>
       <button class="btn btn-outline btn-sm" onclick="carregarRodaFortuna()">↻ Atualizar</button>
@@ -1978,6 +2016,8 @@ tr:hover td{background:rgba(255,255,255,.012)}
   </div>
 
 </main>
+
+</div><!-- /layout -->
 
 <!-- ══ MODAL NOVO ITEM CÂMBIO ══ -->
 <div class="modal-overlay" id="modal-novo-cambio">
@@ -5648,155 +5688,137 @@ function dnaFiltrarTabela(){
   dnaRenderTabela(result);
 }
 
-function dnaAnalisarEmailDireto(email){
-  var input = document.getElementById('dna-email-input');
-  if(input) input.value = email;
-  dnaAnalisarEmail();
+function fecharDnaModal(){
+  var el=document.getElementById('dna-modal-overlay');
+  if(el){el.style.display='none';}
 }
 
-async function dnaAnalisarEmail(){
-  var email = (document.getElementById('dna-email-input')||{}).value.trim();
-  if(!email){ showToast('Insira um email para analisar', true); return; }
-  var res = document.getElementById('dna-resultado-individual');
-  if(res) res.style.display = 'block';
+function dnaAnalisarEmailDireto(email){
+  /* Mostra painel inline de análise individual */
+  var res=document.getElementById('dna-resultado-individual');
+  if(res){
+    res.style.display='block';
+    res.scrollIntoView({behavior:'smooth',block:'start'});
+  }
+  /* Preenche com dados já carregados se existirem, senão busca do Supabase */
+  var cached=_dnaClientesData.find(function(c){return c.email===email;});
+  if(cached){
+    preencherPainelDna(cached);
+  } else {
+    /* Busca direto se não estiver na cache */
+    document.getElementById('dna-ind-nome').textContent='Analisando...';
+    document.getElementById('dna-ind-sub').textContent=email;
+    document.getElementById('dna-ind-desc').textContent='';
+    document.getElementById('dna-ind-strands').innerHTML='<span class="loader-inline"></span>';
+    document.getElementById('dna-ind-traits').innerHTML='';
+    document.getElementById('dna-ind-stats').innerHTML='<span class="loader-inline"></span>';
+    document.getElementById('dna-ind-evo').innerHTML='';
+    buscarDnaIndividual(email);
+  }
+}
 
-  document.getElementById('dna-ind-nome').textContent = 'Analisando...';
-  document.getElementById('dna-ind-sub').textContent = '';
-  document.getElementById('dna-ind-desc').textContent = '';
-  document.getElementById('dna-ind-strands').innerHTML = '';
-  document.getElementById('dna-ind-traits').innerHTML = '';
-  document.getElementById('dna-ind-stats').innerHTML = '<span class="loader-inline"></span>';
-  document.getElementById('dna-ind-evo').innerHTML = '';
+function preencherPainelDna(c){
+  var sp=c.especie;
+  var excl=document.getElementById('dna-ind-excl');
+  if(excl) excl.style.display=sp.marspass?'inline-flex':'none';
+  var nomeEl=document.getElementById('dna-ind-nome');
+  nomeEl.textContent=sp.icon+' '+sp.name;
+  nomeEl.style.background='linear-gradient(135deg,'+sp.color+','+sp.color+'99)';
+  nomeEl.style.webkitBackgroundClip='text';
+  nomeEl.style.webkitTextFillColor='transparent';
+  nomeEl.style.backgroundClip='text';
+  document.getElementById('dna-ind-sub').textContent=c.numItens+' títulos · '+(c.planoMarspass?'MarsPass '+c.planoMarspass:'Sem MarsPass');
+  document.getElementById('dna-ind-desc').textContent=c.numItens===0?'Nenhuma compra registrada ainda.':
+    'Com base em '+c.numItens+' jogo'+(c.numItens>1?'s':'')+' comprado'+(c.numItens>1?'s':'')+', classificado como '+sp.name+'. Gênero dominante: '+(DNA_GENERO_LABELS[c.genDom]||c.genDom)+'.';
+  /* Strands */
+  var genEntries=Object.entries(c.scores).filter(function(p){return p[1]>0;}).sort(function(a,b){return b[1]-a[1];});
+  document.getElementById('dna-ind-strands').innerHTML=genEntries.map(function(pair,i){
+    var col=DNA_GENERO_COLORS[pair[0]]||'#888';
+    return '<div style="display:flex;align-items:center;gap:8px">'+
+      '<div style="font-size:9px;font-weight:700;width:70px;color:'+col+'">'+DNA_GENERO_LABELS[pair[0]]+'</div>'+
+      '<div style="flex:1;height:5px;background:rgba(255,255,255,.05);border-radius:3px;overflow:hidden">'+
+        '<div style="height:100%;width:'+pair[1]+'%;background:'+col+';border-radius:3px"></div>'+
+      '</div>'+
+      '<div style="font-size:10px;font-weight:700;color:'+col+';width:30px;text-align:right">'+pair[1]+'%</div>'+
+    '</div>';
+  }).join('')||'<div style="font-size:11px;color:var(--muted)">Sem dados</div>';
+  /* Stats */
+  var NIVEL=['Bronze','Prata','Ouro','Esmeralda','Diamante'];
+  function getNivel(p){if(p>=5000)return'Diamante';if(p>=1000)return'Esmeralda';if(p>=500)return'Ouro';if(p>=100)return'Prata';return'Bronze';}
+  document.getElementById('dna-ind-stats').innerHTML=[
+    {lbl:'Compras',val:c.numPedidos,col:'#fff'},
+    {lbl:'Títulos',val:c.numItens,col:'#fff'},
+    {lbl:'Total gasto',val:'R$ '+c.totalGasto.toFixed(2).replace('.',','),col:'var(--green)'},
+    {lbl:'MarsPass',val:c.planoMarspass||'Sem plano',col:c.planoMarspass?'#7c6af7':'var(--muted)'},
+  ].map(function(s){
+    return '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04)">'+
+      '<span style="color:var(--muted);font-size:10px">'+s.lbl+'</span>'+
+      '<span style="font-weight:700;font-size:11px;color:'+s.col+'">'+s.val+'</span></div>';
+  }).join('');
+  /* Traits */
+  var TRAITS_MAP={
+    RPG:[{i:'📖',n:'Lore',v:'Infinito'},{i:'🧠',n:'Imersão',v:'Total'},{i:'🗺️',n:'Exploração',v:'Alta'},{i:'✨',n:'Paciência',v:'Sobrehumana'}],
+    ACAO:[{i:'⚡',n:'Reflexo',v:'Rápido'},{i:'💢',n:'Agressividade',v:'Alta'},{i:'🎯',n:'Precisão',v:'Boa'},{i:'🔥',n:'Intensidade',v:'Elevada'}],
+    ESTRAT:[{i:'♟️',n:'Planejamento',v:'Calculado'},{i:'📊',n:'Análise',v:'Clínica'},{i:'🏗️',n:'Construção',v:'Sistemática'},{i:'🧮',n:'Eficiência',v:'Alta'}],
+    PUZZLE:[{i:'🧩',n:'Lógica',v:'Impecável'},{i:'🔍',n:'Observação',v:'Detalhista'},{i:'💡',n:'Insight',v:'Frequente'},{i:'⏳',n:'Paciência',v:'Infinita'}],
+    CORRIDA:[{i:'💨',n:'Velocidade',v:'Máxima'},{i:'🎮',n:'Precisão',v:'Pixel'},{i:'⏱️',n:'Timing',v:'Sagrado'},{i:'🔄',n:'Repetição',v:'Infinita'}],
+    TERROR:[{i:'😱',n:'Coragem',v:'Variável'},{i:'🌑',n:'Ambientação',v:'Dark'},{i:'🔦',n:'Sobrevivência',v:'Instintiva'},{i:'💜',n:'Adrenalina',v:'Alta'}],
+    SPORT:[{i:'🏆',n:'Competição',v:'Feroz'},{i:'📈',n:'Ranking',v:'Obsessão'},{i:'💪',n:'Perseverança',v:'Alta'},{i:'🤝',n:'Fair Play',v:'Variável'}],
+    PLAT:[{i:'🦘',n:'Agilidade',v:'Alta'},{i:'❤️',n:'Vidas',v:'Gastas'},{i:'🎯',n:'Saltos',v:'Precisos'},{i:'🔄',n:'Tentativas',v:'Muitas'}],
+  };
+  var domGen=genEntries.length?genEntries[0][0]:'ACAO';
+  var traits=TRAITS_MAP[domGen]||TRAITS_MAP.ACAO;
+  document.getElementById('dna-ind-traits').innerHTML=traits.map(function(t){
+    return '<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:8px;padding:10px;text-align:center">'+
+      '<div style="font-size:16px;margin-bottom:4px">'+t.i+'</div>'+
+      '<div style="font-size:8px;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;margin-bottom:2px">'+t.n+'</div>'+
+      '<div style="font-size:12px;font-weight:700;color:#dde2f5">'+t.v+'</div></div>';
+  }).join('');
+  /* Evolução */
+  var evoSteps=[
+    {name:'Terrícola',col:'#4a8fff',cur:sp.id==='terricola'},
+    {name:'Marciano',col:'#e8421a',cur:sp.id==='marciano'},
+    {name:sp.id==='terricola'||sp.id==='marciano'?'Especialista':sp.name,col:sp.color,cur:sp.id!=='terricola'&&sp.id!=='marciano'},
+  ];
+  document.getElementById('dna-ind-evo').innerHTML=evoSteps.map(function(s,i){
+    return '<div style="display:flex;align-items:center;gap:0">'+
+      '<div style="display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:6px;border:1px solid '+(s.cur?s.col:s.col+'44')+';background:'+(s.cur?s.col+'22':'transparent')+'">'+
+        '<div style="width:8px;height:8px;border-radius:50%;background:'+s.col+';'+(s.cur?'box-shadow:0 0 8px '+s.col:'')+'"></div>'+
+        '<span style="font-size:10px;font-weight:'+(s.cur?'900':'600')+';color:'+(s.cur?s.col:'#555')+'">'+s.name+'</span>'+
+        (s.cur?'<span style="font-size:9px;color:'+s.col+'">◀</span>':'')+
+      '</div>'+
+      (i<evoSteps.length-1?'<div style="width:16px;height:1px;background:rgba(255,255,255,.1)"></div>':'')+
+    '</div>';
+  }).join('');
+}
 
-  try {
-    /* Busca dados em paralelo */
-    var [pedsRes, mpRes, mptsRes] = await Promise.all([
-      sb.from('pedidos').select('itens,produto_nome,valor,status,created_at')
-        .eq('cliente_email', email).in('status',['pago','entregue','aprovado'])
-        .order('created_at',{ascending:false}),
-      sb.from('marspass_assinaturas').select('plano,status,data_vencimento')
-        .eq('user_email', email).eq('status','ativo')
-        .gt('data_vencimento', new Date().toISOString()).maybeSingle(),
-      sb.from('marspoints').select('pontos').eq('user_email', email).maybeSingle()
+async function buscarDnaIndividual(email){
+  try{
+    var[pedsRes,mpRes,mptsRes]=await Promise.all([
+      sb.from('pedidos').select('itens,produto_nome,valor,status,created_at').eq('cliente_email',email).in('status',['pago','entregue','aprovado']).order('created_at',{ascending:false}),
+      sb.from('marspass_assinaturas').select('plano,status,data_vencimento').eq('user_email',email).eq('status','ativo').gt('data_vencimento',new Date().toISOString()).maybeSingle(),
+      sb.from('marspoints').select('pontos').eq('user_email',email).maybeSingle()
     ]);
-
-    var peds = pedsRes.data || [];
-    var plano = mpRes.data ? mpRes.data.plano : null;
-    var pts = mptsRes.data ? mptsRes.data.pontos : 0;
-
-    /* Extrai itens */
-    var itens = [];
+    var peds=pedsRes.data||[];
+    var plano=mpRes.data?mpRes.data.plano:null;
+    var itens=[];
     peds.forEach(function(p){
-      var its = p.itens;
-      if(typeof its==='string') try{its=JSON.parse(its);}catch(e){its=[];}
-      if(Array.isArray(its)) its.forEach(function(i){ itens.push(i.nome||i.title||i.name||p.produto_nome||''); });
-      else if(p.produto_nome) itens.push(p.produto_nome);
+      var its=p.itens;if(typeof its==='string')try{its=JSON.parse(its);}catch(e){its=[];}
+      if(Array.isArray(its))its.forEach(function(i){itens.push(i.nome||i.title||i.name||p.produto_nome||'');});
+      else if(p.produto_nome)itens.push(p.produto_nome);
     });
-
-    var scores = dnaComputarScores(itens);
-    var especie = dnaPickEspecie(scores, plano, itens.length);
-    var totalGasto = peds.reduce(function(s,p){return s+Number(p.valor||0);},0);
-
-    /* Preenche card */
-    var excl = document.getElementById('dna-ind-excl');
-    if(excl) excl.style.display = especie.marspass ? 'inline-flex' : 'none';
-
-    var nomeEl = document.getElementById('dna-ind-nome');
-    nomeEl.textContent = especie.icon+' '+especie.name;
-    nomeEl.style.background = 'linear-gradient(135deg,'+especie.color+','+especie.color+'99)';
-    nomeEl.style.webkitBackgroundClip = 'text';
-    nomeEl.style.webkitTextFillColor = 'transparent';
-    nomeEl.style.backgroundClip = 'text';
-
-    document.getElementById('dna-ind-sub').textContent = itens.length + ' títulos comprados · ' + (plano ? 'MarsPass '+plano : 'Sem MarsPass');
-    document.getElementById('dna-ind-desc').textContent = itens.length === 0
-      ? 'Nenhuma compra registrada para este email ainda.'
-      : 'Com base em '+itens.length+' jogo'+(itens.length>1?'s':'')+' comprado'+(itens.length>1?'s':'')+', este cliente é classificado como '+especie.name+'. Gênero dominante: '+(DNA_GENERO_LABELS[Object.entries(scores).sort(function(a,b){return b[1]-a[1];})[0][0]]||'—')+'.';
-
-    /* Strands */
-    var strandsEl = document.getElementById('dna-ind-strands');
-    var genEntries = Object.entries(scores).filter(function(p){return p[1]>0;}).sort(function(a,b){return b[1]-a[1];});
-    strandsEl.innerHTML = genEntries.map(function(pair,i){
-      var col = DNA_GENERO_COLORS[pair[0]]||'#888';
-      return '<div style="display:flex;align-items:center;gap:8px">'+
-        '<div style="font-size:9px;font-weight:700;width:70px;color:'+col+'">'+DNA_GENERO_LABELS[pair[0]]+'</div>'+
-        '<div style="flex:1;height:5px;background:rgba(255,255,255,.05);border-radius:3px;overflow:hidden">'+
-          '<div style="height:100%;width:'+pair[1]+'%;background:'+col+';border-radius:3px;animation:progressFill .6s ease '+(i*.08)+'s both;--w:'+pair[1]+'%"></div>'+
-        '</div>'+
-        '<div style="font-size:10px;font-weight:700;color:'+col+';width:30px;text-align:right">'+pair[1]+'%</div>'+
-      '</div>';
-    }).join('') || '<div style="font-size:11px;color:var(--muted)">Sem dados de gênero</div>';
-
-    /* Traits dinâmicos baseados no top gênero */
-    var TRAITS_MAP = {
-      RPG:[{i:'📖',n:'Lore',v:'Infinito'},{i:'🧠',n:'Imersão',v:'Total'},{i:'🗺️',n:'Exploração',v:'Alta'},{i:'✨',n:'Paciência',v:'Sobrehumana'}],
-      ACAO:[{i:'⚡',n:'Reflexo',v:'Rápido'},{i:'💢',n:'Agressividade',v:'Alta'},{i:'🎯',n:'Precisão',v:'Boa'},{i:'🔥',n:'Intensidade',v:'Elevada'}],
-      ESTRAT:[{i:'♟️',n:'Planejamento',v:'Calculado'},{i:'📊',n:'Análise',v:'Clínica'},{i:'🏗️',n:'Construção',v:'Sistemática'},{i:'🧮',n:'Eficiência',v:'Alta'}],
-      PUZZLE:[{i:'🧩',n:'Lógica',v:'Impecável'},{i:'🔍',n:'Observação',v:'Detalhista'},{i:'💡',n:'Insight',v:'Frequente'},{i:'⏳',n:'Paciência',v:'Infinita'}],
-      CORRIDA:[{i:'💨',n:'Velocidade',v:'Máxima'},{i:'🎮',n:'Precisão',v:'Pixel'},{i:'⏱️',n:'Timing',v:'Sagrado'},{i:'🔄',n:'Repetição',v:'Infinita'}],
-      TERROR:[{i:'😱',n:'Coragem',v:'Variável'},{i:'🌑',n:'Ambientação',v:'Dark'},{i:'🔦',n:'Sobrevivência',v:'Instintiva'},{i:'💜',n:'Adrenalina',v:'Alta'}],
-      SPORT:[{i:'🏆',n:'Competição',v:'Feroz'},{i:'📈',n:'Ranking',v:'Obsessão'},{i:'💪',n:'Perseverança',v:'Alta'},{i:'🤝',n:'Fair Play',v:'Variável'}],
-      PLAT:[{i:'🦘',n:'Agilidade',v:'Alta'},{i:'❤️',n:'Vidas',v:'Gastas'},{i:'🎯',n:'Saltos',v:'Precisos'},{i:'🔄',n:'Tentativas',v:'Muitas'}],
-    };
-    var domGen = genEntries.length ? genEntries[0][0] : 'ACAO';
-    var traits = TRAITS_MAP[domGen] || TRAITS_MAP.ACAO;
-    document.getElementById('dna-ind-traits').innerHTML = traits.map(function(t){
-      return '<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:8px;padding:10px;text-align:center">'+
-        '<div style="font-size:16px;margin-bottom:4px">'+t.i+'</div>'+
-        '<div style="font-size:8px;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;margin-bottom:2px">'+t.n+'</div>'+
-        '<div style="font-size:12px;font-weight:700;color:#dde2f5">'+t.v+'</div>'+
-      '</div>';
-    }).join('');
-
-    /* Stats laterais */
-    var NIVEL_NOMES = {terricola:'Terrícola',marciano:'Marciano',bronze:'Bronze',prata:'Prata',ouro:'Ouro',esmeralda:'Esmeralda',diamante:'Diamante'};
-    function getNivelPts(p){ if(p>=5000)return'Diamante'; if(p>=1000)return'Esmeralda'; if(p>=500)return'Ouro'; if(p>=100)return'Prata'; return'Bronze'; }
-    var nivel = getNivelPts(pts||0);
-    document.getElementById('dna-ind-stats').innerHTML = [
-      {lbl:'MarsPoints',val:(pts||0).toLocaleString('pt-BR')+' pts',col:'var(--green)'},
-      {lbl:'Nível',val:nivel,col:'var(--amber)'},
-      {lbl:'Compras',val:peds.length,col:'#fff'},
-      {lbl:'Total gasto',val:'R$ '+totalGasto.toFixed(2).replace('.',','),col:'var(--green)'},
-      {lbl:'Títulos',val:itens.length,col:'#fff'},
-      {lbl:'MarsPass',val:plano||'Sem plano',col:plano?'#7c6af7':'var(--muted)'},
-    ].map(function(s){
-      return '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04)">'+
-        '<span style="color:var(--muted);font-size:10px">'+s.lbl+'</span>'+
-        '<span style="font-weight:700;font-size:11px;color:'+s.col+'">'+s.val+'</span>'+
-      '</div>';
-    }).join('');
-
-    /* Evolução inline compacta */
-    var evoSteps = [
-      {id:'terricola',name:'Terrícola',col:'#4a8fff'},
-      {id:'marciano',name:'Marciano',col:'#e8421a'},
-      {id:especie.id==='nebula_sovereign'||especie.id==='void_architect'?especie.id:'genero',
-       name:especie.id==='terricola'||especie.id==='marciano'?'Especialista':especie.name,
-       col:especie.color},
-    ];
-    if(especie.id!=='nebula_sovereign' && plano){
-      evoSteps.push({id:'marspass',name:'MarsPass',col:'#7c6af7'});
-    }
-    var curIdx = especie.id==='terricola'?0:especie.id==='marciano'?1:2;
-    document.getElementById('dna-ind-evo').innerHTML = evoSteps.map(function(s,i){
-      var isCur = i === curIdx;
-      return '<div style="display:flex;align-items:center;gap:0">'+
-        '<div style="display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:6px;border:1px solid '+(isCur?s.col:s.col+'44')+';background:'+(isCur?s.col+'22':'transparent')+';">'+
-          '<div style="width:8px;height:8px;border-radius:50%;background:'+s.col+';'+(isCur?'box-shadow:0 0 8px '+s.col:'')+'"></div>'+
-          '<span style="font-size:10px;font-weight:'+(isCur?'900':'600')+';color:'+(isCur?s.col:'#555')+'">'+s.name+'</span>'+
-          (isCur?'<span style="font-size:9px;color:'+s.col+'">◀</span>':'')+
-        '</div>'+
-        (i<evoSteps.length-1?'<div style="width:16px;height:1px;background:rgba(255,255,255,.1)"></div>':'')+
-      '</div>';
-    }).join('');
-
-    /* Scroll para o resultado */
-    setTimeout(function(){ res.scrollIntoView({behavior:'smooth',block:'nearest'}); }, 100);
-
-  } catch(e) {
-    document.getElementById('dna-ind-nome').textContent = 'Erro ao analisar';
-    document.getElementById('dna-ind-sub').textContent = e.message;
-    document.getElementById('dna-ind-stats').innerHTML = '';
+    var scores=dnaComputarScores(itens);
+    var especie=dnaPickEspecie(scores,plano,itens.length);
+    var genDom=Object.entries(scores).sort(function(a,b){return b[1]-a[1];})[0];
+    var totalGasto=peds.reduce(function(s,p){return s+Number(p.valor||0);},0);
+    preencherPainelDna({
+      email:email,nome:email,scores:scores,especie:especie,
+      genDom:genDom?genDom[0]:'—',genDomPct:genDom?genDom[1]:0,
+      planoMarspass:plano,totalGasto:totalGasto,numPedidos:peds.length,numItens:itens.length
+    });
+  }catch(e){
+    document.getElementById('dna-ind-nome').textContent='Erro ao analisar';
+    document.getElementById('dna-ind-sub').textContent=e.message;
   }
 }
 
