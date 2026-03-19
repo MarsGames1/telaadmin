@@ -1571,7 +1571,6 @@ tr:hover td{background:rgba(255,255,255,.012)}
     </div>
 
     <!-- Histórico de duelos -->
-    <div class="table-wrap" style="margin-bottom:16px">
       <div class="table-head">
         <div class="table-title">Histórico de duelos</div>
         <div style="display:flex;gap:8px;align-items:center">
@@ -1985,7 +1984,10 @@ tr:hover td{background:rgba(255,255,255,.012)}
   <div class="page" id="page-planetas-admin">
     <div class="page-head">
       <div><div class="page-eyebrow">Engajamento</div><div class="page-title">🪐 Planetas dos Clientes</div></div>
-      <button class="btn btn-outline btn-sm" onclick="carregarPlanetasAdmin()">↻ Atualizar</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-green btn-sm" onclick="abrirModalDarXPManual()">⚡ Dar XP manual</button>
+        <button class="btn btn-outline btn-sm" onclick="carregarPlanetasAdmin()">↻ Atualizar</button>
+      </div>
     </div>
     <div class="stats-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:20px">
       <div class="stat-card"><div class="stat-label">Planetas ativos</div><div class="stat-value green" id="planet-stat-total">—</div></div>
@@ -2058,7 +2060,7 @@ tr:hover td{background:rgba(255,255,255,.012)}
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('novo-cambio')">Cancelar</button>
-      <button class="btn btn-green" onclick="salvarNovoCambio()">✅ Adicionar item</button>
+      <button class="btn btn-green" onclick="salvarNovoCambioComSupabase()">✅ Adicionar item</button>
     </div>
   </div>
 </div>
@@ -6055,7 +6057,18 @@ async function carregarCambioAdmin(){
     if(cfgRes.data){_cambioTaxaStr=cfgRes.data.value||'5%';}
   }catch(e){_cambioHist=[];}
 
-  if(!_cambioItens.length) _cambioItens=CAMBIO_DEFAULTS.slice();
+  // Load items from Supabase cambio_itens table
+  try{
+    var itensRes=await sb.from('cambio_itens').select('*').order('id',{ascending:true});
+    if(itensRes.data && itensRes.data.length){
+      _cambioItens=itensRes.data.map(function(it){
+        return{id:it.id,nome:it.nome,tipo:it.tipo,icon:it.icon,custo:it.custo,
+          recompensa:it.recompensa,toVal:it.toVal||it.recompensa_valor||1,
+          badge:it.badge,ativo:it.ativo!==false,usos:it.usos||0};
+      });
+      _cambioNextId=Math.max.apply(null,_cambioItens.map(function(i){return i.id;}))+1;
+    }else if(!_cambioItens.length){_cambioItens=CAMBIO_DEFAULTS.slice();}
+  }catch(e2){if(!_cambioItens.length) _cambioItens=CAMBIO_DEFAULTS.slice();}
 
   /* Stats */
   document.getElementById('cambio-stat-total').textContent=_cambioHist.length;
@@ -6089,6 +6102,7 @@ function renderCambioItens(){
       '<td>'+(it.ativo?'<span class="badge badge-green">Ativo</span>':'<span class="badge badge-gray">Inativo</span>')+'</td>'+
       '<td style="color:var(--muted);font-weight:700">'+(it.usos||0)+'</td>'+
       '<td class="td-actions">'+
+        '<button class="btn btn-sm btn-outline" onclick="abrirEditarCambio('+it.id+')">✏️</button>'+
         '<button class="btn btn-sm '+(it.ativo?'btn-amber':'btn-green')+'" onclick="toggleCambioItem('+it.id+')">'+(it.ativo?'Pausar':'Ativar')+'</button>'+
         '<button class="btn btn-red btn-sm" onclick="removeCambioItem('+it.id+')">✕</button>'+
       '</td>'+
@@ -6337,6 +6351,7 @@ function renderPlanetasTabela(lista){
       '<td style="font-weight:700;color:var(--green)">'+((p.jogos||0))+'</td>'+
       '<td style="font-weight:700;color:var(--amber)">'+((p.atividades||0))+'</td>'+
       '<td style="font-size:10px;color:var(--muted)">'+fmtDate(p.updated_at)+'</td>'+
+      '<td><button class="btn btn-sm btn-outline" onclick="abrirModalDarXP('+JSON.stringify(p.user_email)+')">⚡ Dar XP</button></td>'+
     '</tr>';
   }).join('');
 }
@@ -6346,6 +6361,141 @@ function filtrarPlanetas(q){
   renderPlanetasTabela(f);
 }
 
+
+
+/* ══════════════════════════════════════════════════
+   PLANETAS ADMIN — DAR XP
+══════════════════════════════════════════════════ */
+var _darXpEmailAtual='';
+
+function abrirModalDarXP(email){
+  _darXpEmailAtual=email;
+  document.getElementById('darXpEmail').textContent=email;
+  var inputEmail=document.getElementById('darXpEmailInput');
+  if(inputEmail){inputEmail.style.display='none';}
+  document.getElementById('darXpValor').value='';
+  document.getElementById('darXpMotivo').value='';
+  openModal('dar-xp');
+}
+
+function abrirModalDarXPManual(){
+  _darXpEmailAtual='';
+  document.getElementById('darXpEmail').textContent='(inserir abaixo)';
+  var inputEmail=document.getElementById('darXpEmailInput');
+  if(inputEmail){inputEmail.style.display='';inputEmail.value='';}
+  document.getElementById('darXpValor').value='';
+  document.getElementById('darXpMotivo').value='';
+  openModal('dar-xp');
+}
+
+async function confirmarDarXP(){
+  var xp=parseInt(document.getElementById('darXpValor').value)||0;
+  var motivo=document.getElementById('darXpMotivo').value.trim()||'Concessão manual pelo admin';
+  if(xp<=0){showToast('Informe um valor de XP válido',true);return;}
+  // Se email não foi definido pela tabela, usa o input manual
+  var inputManual=document.getElementById('darXpEmailManual');
+  if(!_darXpEmailAtual && inputManual) _darXpEmailAtual=(inputManual.value||'').trim();
+  if(!_darXpEmailAtual){showToast('Informe o email do cliente',true);return;}
+  try{
+    // Carrega planeta atual
+    var{data:pl}=await sb.from('planetas').select('xp,atividades,log').eq('user_email',_darXpEmailAtual).maybeSingle();
+    var xpAtual=(pl&&pl.xp)||0;
+    var atv=(pl&&pl.atividades)||0;
+    var log=(pl&&pl.log)||[];
+    var novoXP=xpAtual+xp;
+    log.unshift({label:motivo,xp:xp,icon:'⚡',t:new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})});
+    await sb.from('planetas').upsert({
+      user_email:_darXpEmailAtual,xp:novoXP,atividades:atv+1,
+      log:log.slice(0,20),updated_at:new Date().toISOString()
+    },{onConflict:'user_email'});
+    closeModal('dar-xp');
+    showToast('✅ +'+xp+' XP concedidos ao planeta de '+_darXpEmailAtual+'!');
+    carregarPlanetasAdmin(); // Recarrega tabela
+  }catch(e){
+    showToast('❌ Erro ao conceder XP: '+(e.message||'tente novamente'),true);
+  }
+}
+
+/* ══════════════════════════════════════════════════
+   CÂMBIO ADMIN — EDITAR ITEM
+══════════════════════════════════════════════════ */
+function abrirEditarCambio(id){
+  var it=_cambioItens.find(function(i){return i.id===id;});
+  if(!it)return;
+  document.getElementById('editCambioId').value=it.id;
+  document.getElementById('editCambioNome').value=it.nome||'';
+  document.getElementById('editCambioTipo').value=it.tipo||'ct-ticket';
+  document.getElementById('editCambioIcon').value=it.icon||'⭐';
+  document.getElementById('editCambioCusto').value=it.custo||100;
+  document.getElementById('editCambioRecompensa').value=it.recompensa||'';
+  document.getElementById('editCambioToVal').value=it.toVal||it.recompensa_valor||1;
+  document.getElementById('editCambioBadge').value=it.badge||'';
+  document.getElementById('editCambioAtivo').value=it.ativo?'1':'0';
+  openModal('editar-cambio');
+}
+
+async function salvarEditarCambio(){
+  var id=parseInt(document.getElementById('editCambioId').value);
+  var nome=document.getElementById('editCambioNome').value.trim();
+  var tipo=document.getElementById('editCambioTipo').value;
+  var icon=document.getElementById('editCambioIcon').value.trim()||'⭐';
+  var custo=parseInt(document.getElementById('editCambioCusto').value)||100;
+  var recompensa=document.getElementById('editCambioRecompensa').value.trim();
+  var toVal=parseInt(document.getElementById('editCambioToVal').value)||1;
+  var badge=document.getElementById('editCambioBadge').value.trim();
+  var ativo=document.getElementById('editCambioAtivo').value==='1';
+  if(!nome||!recompensa){showToast('Preencha nome e recompensa',true);return;}
+  
+  // Atualiza local
+  var idx=_cambioItens.findIndex(function(i){return i.id===id;});
+  if(idx!==-1){
+    _cambioItens[idx]={..._cambioItens[idx],nome:nome,tipo:tipo,icon:icon,custo:custo,recompensa:recompensa,toVal:toVal,recompensa_valor:toVal,badge:badge,ativo:ativo};
+  }
+  
+  // Persiste no Supabase
+  try{
+    await sb.from('cambio_itens').upsert({
+      id:id,nome:nome,tipo:tipo,icon:icon,custo:custo,
+      recompensa:recompensa,toVal:toVal,recompensa_valor:toVal,
+      badge:badge,ativo:ativo,updated_at:new Date().toISOString()
+    },{onConflict:'id'});
+    showToast('✅ Item atualizado com sucesso!');
+  }catch(e){
+    showToast('⚠️ Salvo localmente. Erro Supabase: '+(e.message||'—'));
+  }
+  
+  closeModal('editar-cambio');
+  renderCambioItens();
+}
+
+async function salvarNovoCambioComSupabase(){
+  var nome=document.getElementById('cambio-new-nome').value.trim();
+  var tipo=document.getElementById('cambio-new-tipo').value;
+  var icon=document.getElementById('cambio-new-icon').value.trim()||'⭐';
+  var custo=parseInt(document.getElementById('cambio-new-custo').value)||100;
+  var recomp=document.getElementById('cambio-new-recompensa').value.trim();
+  var badge=document.getElementById('cambio-new-badge').value.trim();
+  if(!nome||!recomp){showToast('Preencha nome e recompensa',true);return;}
+  var toVal=parseInt((recomp.match(/\d+/)||['1'])[0])||1;
+  var novoItem={id:_cambioNextId++,nome:nome,tipo:tipo,icon:icon,custo:custo,recompensa:recomp,toVal:toVal,recompensa_valor:toVal,badge:badge,ativo:true,usos:0};
+  _cambioItens.push(novoItem);
+  
+  // Persiste no Supabase
+  try{
+    await sb.from('cambio_itens').insert({
+      nome:nome,tipo:tipo,icon:icon,custo:custo,
+      recompensa:recomp,toVal:toVal,recompensa_valor:toVal,
+      badge:badge,ativo:true,created_at:new Date().toISOString()
+    });
+    showToast('✅ Item adicionado e salvo no Supabase!');
+  }catch(e){
+    showToast('⚠️ Adicionado localmente. Erro Supabase: '+(e.message||'—'));
+  }
+  
+  closeModal('novo-cambio');
+  renderCambioItens();
+  document.getElementById('cambio-stat-itens').textContent=_cambioItens.filter(function(i){return i.ativo;}).length;
+}
 
 </script>
 <!-- Painel de notificações -->
@@ -6357,6 +6507,88 @@ function filtrarPlanetas(q){
   </div>
   <div class="notif-lista" id="notifLista">
     <div class="notif-vazia">Nenhuma notificação ainda</div>
+  </div>
+</div>
+
+
+<!-- Modal Dar XP ao Planeta -->
+<div class="modal-overlay" id="modal-dar-xp">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-title">⚡ Dar XP ao Planeta</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Cliente: <strong id="darXpEmail" style="color:#ffc200">—</strong></div>
+    <div class="form-row" id="darXpEmailInput" style="display:none;margin-bottom:12px">
+      <label class="form-label">Email do cliente *</label>
+      <input class="form-input" id="darXpEmailManual" placeholder="cliente@email.com">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Quantidade de XP *</label>
+      <input class="form-input" type="number" id="darXpValor" placeholder="Ex: 100" min="1" max="9999">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Motivo</label>
+      <input class="form-input" id="darXpMotivo" placeholder="Ex: Presente de aniversário, correção manual...">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('dar-xp')">Cancelar</button>
+      <button class="btn btn-green" onclick="confirmarDarXP()">⚡ Conceder XP</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Editar Item Câmbio -->
+<div class="modal-overlay" id="modal-editar-cambio">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-title">✏️ Editar item de câmbio</div>
+    <input type="hidden" id="editCambioId">
+    <div class="form-row">
+      <label class="form-label">Nome do item</label>
+      <input class="form-input" id="editCambioNome" placeholder="Ex: Pacote de Tickets">
+    </div>
+    <div class="form-row-2">
+      <div>
+        <label class="form-label">Tipo</label>
+        <select class="form-select" id="editCambioTipo">
+          <option value="ct-ticket">🎟️ Tickets</option>
+          <option value="ct-xp">🧠 XP Planeta</option>
+          <option value="ct-game">🎮 Bônus Especial</option>
+        </select>
+      </div>
+      <div>
+        <label class="form-label">Emoji/ícone</label>
+        <input class="form-input" id="editCambioIcon" placeholder="🎟️" maxlength="4">
+      </div>
+    </div>
+    <div class="form-row-2">
+      <div>
+        <label class="form-label">Custo em MP</label>
+        <input class="form-input" type="number" id="editCambioCusto" placeholder="200" min="1">
+      </div>
+      <div>
+        <label class="form-label">Recompensa (texto)</label>
+        <input class="form-input" id="editCambioRecompensa" placeholder="+5 Tickets">
+      </div>
+    </div>
+    <div class="form-row-2">
+      <div>
+        <label class="form-label">Valor numérico da recompensa</label>
+        <input class="form-input" type="number" id="editCambioToVal" placeholder="5" min="1">
+      </div>
+      <div>
+        <label class="form-label">Badge (opcional)</label>
+        <input class="form-input" id="editCambioBadge" placeholder="🔥 HOT">
+      </div>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Status</label>
+      <select class="form-select" id="editCambioAtivo">
+        <option value="1">✅ Ativo</option>
+        <option value="0">⛔ Inativo</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('editar-cambio')">Cancelar</button>
+      <button class="btn btn-green" onclick="salvarEditarCambio()">💾 Salvar alterações</button>
+    </div>
   </div>
 </div>
 
