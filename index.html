@@ -681,6 +681,24 @@ tr:hover td{background:rgba(255,255,255,.012)}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
       Log de Acesso
     </div>
+    <div class="sb-section">Engajamento</div>
+    <div class="sb-item" onclick="showPage('aniversarios',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><path d="M12 3v2M8 7H6M18 7h-2"/></svg>
+      🎂 Aniversários
+      <span class="sb-badge" id="bday-badge" style="display:none;background:rgba(255,45,122,.15);color:#ff2d7a;border-color:rgba(255,45,122,.3)">!</span>
+    </div>
+    <div class="sb-item" onclick="showPage('cambio-admin',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>
+      🔄 Câmbio
+    </div>
+    <div class="sb-item" onclick="showPage('loja-mp-admin',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+      💰 Loja MP
+    </div>
+    <div class="sb-item" onclick="showPage('planetas-admin',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
+      🪐 Planetas
+    </div>
   </nav>
 
   <!-- MODO MANUTENÇÃO -->
@@ -1626,22 +1644,26 @@ tr:hover td{background:rgba(255,255,255,.012)}
     </div>
 
     <!-- Stats rápidas DNA -->
-    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px" id="dna-stats-grid">
+    <div class="stats-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:20px" id="dna-stats-grid">
       <div class="stat-card">
         <div class="stat-label">Clientes analisados</div>
         <div class="stat-value green" id="dna-stat-total">—</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">Espécie + comum</div>
-        <div class="stat-value" style="color:#00ffe7;font-size:13px" id="dna-stat-top-especie">—</div>
+        <div class="stat-value" style="color:#00ffe7;font-size:13px" id="dna-stat-especie">—</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">Gênero dominante</div>
-        <div class="stat-value amber" id="dna-stat-top-genero">—</div>
+        <div class="stat-value amber" id="dna-stat-genero">—</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">MarsPass c/ DNA exclusivo</div>
-        <div class="stat-value" style="color:#7c6af7" id="dna-stat-exclusivos">—</div>
+        <div class="stat-label">DNA Exclusivo (MP)</div>
+        <div class="stat-value" style="color:#7c6af7" id="dna-stat-marspass">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Perfis evoluídos</div>
+        <div class="stat-value" style="color:var(--green)" id="dna-stat-evol">—</div>
       </div>
     </div>
 
@@ -1803,9 +1825,203 @@ tr:hover td{background:rgba(255,255,255,.012)}
     </div>
   </div>
 
+  <!-- ══ ANIVERSÁRIOS ══ -->
+  <div class="page" id="page-aniversarios">
+    <div class="page-head">
+      <div><div class="page-eyebrow">Engajamento</div><div class="page-title">🎂 Aniversários</div></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-outline btn-sm" onclick="carregarAniversarios()">↻ Atualizar</button>
+        <button class="btn btn-green btn-sm" onclick="enviarPresentesTodos()">🎁 Enviar para todos hoje</button>
+      </div>
+    </div>
+    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px">
+      <div class="stat-card"><div class="stat-label">Aniversariantes hoje</div><div class="stat-value" style="color:#ff2d7a" id="bday-stat-hoje">0</div></div>
+      <div class="stat-card"><div class="stat-label">Presentes enviados hoje</div><div class="stat-value green" id="bday-stat-enviados">0</div></div>
+      <div class="stat-card"><div class="stat-label">Total este mês</div><div class="stat-value amber" id="bday-stat-mes">0</div></div>
+      <div class="stat-card"><div class="stat-label">MP distribuídos</div><div class="stat-value" style="color:#ff2d7a" id="bday-stat-mp">0</div></div>
+    </div>
+    <div style="background:var(--card);border:1px solid rgba(255,45,122,.2);border-radius:var(--radius);padding:18px;margin-bottom:18px">
+      <div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:14px">⚙️ Configuração do presente</div>
+      <div class="form-row-2">
+        <div class="form-row" style="margin:0"><label class="form-label">Marspoints por aniversário</label><input class="form-input" type="number" id="bday-cfg-mp" value="50" min="1"></div>
+        <div class="form-row" style="margin:0"><label class="form-label">Tickets por aniversário</label><input class="form-input" type="number" id="bday-cfg-tk" value="3" min="0"></div>
+      </div>
+      <div style="margin-top:10px"><label class="form-label">Mensagem personalizada</label><input class="form-input" id="bday-cfg-msg" value="A galáxia MarsGames te presenteia neste dia especial! 🎂🚀"></div>
+      <button class="btn btn-green" style="margin-top:12px" onclick="salvarConfigBday()">💾 Salvar configuração</button>
+    </div>
+    <div class="table-wrap" style="margin-bottom:16px">
+      <div class="table-head">
+        <div class="table-title">🎂 Aniversariantes de hoje</div>
+        <span id="bday-hoje-count" style="font-size:10px;color:var(--muted)"></span>
+      </div>
+      <table>
+        <thead><tr><th>Cliente</th><th>Data nascimento</th><th>Presente</th><th>Status</th><th>Ação</th></tr></thead>
+        <tbody id="bday-hoje-tbody"><tr><td colspan="5" class="empty-state">Carregando...</td></tr></tbody>
+      </table>
+    </div>
+    <div class="table-wrap">
+      <div class="table-head"><div class="table-title">📅 Próximos 30 dias</div></div>
+      <table>
+        <thead><tr><th>Cliente</th><th>Data</th><th>Dias restantes</th><th>Último presente</th></tr></thead>
+        <tbody id="bday-prox-tbody"><tr><td colspan="4" class="empty-state">Carregando...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ══ CÂMBIO ADMIN ══ -->
+  <div class="page" id="page-cambio-admin">
+    <div class="page-head">
+      <div><div class="page-eyebrow">Engajamento</div><div class="page-title">🔄 Câmbio Intergaláctico</div></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-green btn-sm" onclick="openModal('novo-cambio')">+ Novo item</button>
+        <button class="btn btn-outline btn-sm" onclick="carregarCambioAdmin()">↻ Atualizar</button>
+      </div>
+    </div>
+    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px">
+      <div class="stat-card"><div class="stat-label">Câmbios realizados</div><div class="stat-value green" id="cambio-stat-total">—</div></div>
+      <div class="stat-card"><div class="stat-label">MP consumidos</div><div class="stat-value" style="color:#ffc200" id="cambio-stat-mp">—</div></div>
+      <div class="stat-card"><div class="stat-label">Tickets distribuídos</div><div class="stat-value amber" id="cambio-stat-tkt">—</div></div>
+      <div class="stat-card"><div class="stat-label">Itens ativos</div><div class="stat-value" style="color:#00ffe7" id="cambio-stat-itens">—</div></div>
+    </div>
+    <div style="background:var(--card);border:1px solid rgba(0,255,231,.15);border-radius:var(--radius);padding:18px;margin-bottom:18px">
+      <div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:14px">⚙️ Taxa burocrática global</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+        <button class="btn btn-outline btn-sm" data-taxa="0" data-str="Grátis" onclick="selecionarTaxaCambio(this)">0% (Grátis)</button>
+        <button class="btn btn-green btn-sm" data-taxa="0.05" data-str="5%" onclick="selecionarTaxaCambio(this)" id="taxa-btn-5">5% ✓</button>
+        <button class="btn btn-outline btn-sm" data-taxa="0.10" data-str="10%" onclick="selecionarTaxaCambio(this)">10%</button>
+        <button class="btn btn-outline btn-sm" data-taxa="0.15" data-str="15%" onclick="selecionarTaxaCambio(this)">15%</button>
+        <button class="btn btn-outline btn-sm" data-taxa="0.20" data-str="20%" onclick="selecionarTaxaCambio(this)">20%</button>
+      </div>
+      <button class="btn btn-green btn-sm" onclick="salvarTaxaCambio()">💾 Salvar taxa</button>
+      <span style="font-size:10px;color:var(--muted);margin-left:12px">Taxa atual: <strong id="cambio-taxa-atual" style="color:#00ffe7">5%</strong></span>
+    </div>
+    <div class="table-wrap" style="margin-bottom:16px">
+      <div class="table-head"><div class="table-title">Itens do câmbio</div></div>
+      <table>
+        <thead><tr><th>Item</th><th>Tipo</th><th>Custo (MP)</th><th>Recompensa</th><th>Status</th><th>Total trocas</th><th>Ações</th></tr></thead>
+        <tbody id="cambio-itens-tbody"><tr><td colspan="7" class="empty-state"><span class="loader-inline"></span></td></tr></tbody>
+      </table>
+    </div>
+    <div class="table-wrap">
+      <div class="table-head">
+        <div class="table-title">Histórico de câmbios</div>
+        <input class="t-search" placeholder="Buscar por email..." id="cambio-busca" oninput="filtrarHistCambio(this.value)">
+      </div>
+      <table>
+        <thead><tr><th>Cliente</th><th>Item</th><th>MP Gastos</th><th>Recebeu</th><th>Taxa</th><th>Data</th></tr></thead>
+        <tbody id="cambio-hist-tbody"><tr><td colspan="6" class="empty-state"><span class="loader-inline"></span></td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ══ LOJA MP ADMIN ══ -->
+  <div class="page" id="page-loja-mp-admin">
+    <div class="page-head">
+      <div><div class="page-eyebrow">Engajamento</div><div class="page-title">💰 Loja de Marspoints</div></div>
+      <button class="btn btn-outline btn-sm" onclick="carregarLojaMpAdmin()">↻ Atualizar</button>
+    </div>
+    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px">
+      <div class="stat-card"><div class="stat-label">Compras realizadas</div><div class="stat-value green" id="loja-stat-total">—</div></div>
+      <div class="stat-card"><div class="stat-label">Receita gerada</div><div class="stat-value" style="color:var(--amber)" id="loja-stat-receita">—</div></div>
+      <div class="stat-card"><div class="stat-label">MP distribuídos</div><div class="stat-value" style="color:#ffc200" id="loja-stat-mp">—</div></div>
+      <div class="stat-card"><div class="stat-label">Pacote + vendido</div><div class="stat-value" style="color:#9f3fff;font-size:13px" id="loja-stat-top">—</div></div>
+    </div>
+    <div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px">📦 Desempenho por pacote</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:20px" id="loja-pkgs-grid">
+      <div class="empty-state">Carregando...</div>
+    </div>
+    <div class="table-wrap">
+      <div class="table-head">
+        <div class="table-title">Histórico de compras</div>
+        <input class="t-search" placeholder="Buscar por email..." id="loja-busca" oninput="filtrarHistLoja(this.value)">
+      </div>
+      <table>
+        <thead><tr><th>Cliente</th><th>Pacote</th><th>MP</th><th>Valor pago</th><th>Bônus</th><th>Data</th></tr></thead>
+        <tbody id="loja-hist-tbody"><tr><td colspan="6" class="empty-state"><span class="loader-inline"></span></td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ══ PLANETAS ADMIN ══ -->
+  <div class="page" id="page-planetas-admin">
+    <div class="page-head">
+      <div><div class="page-eyebrow">Engajamento</div><div class="page-title">🪐 Planetas dos Clientes</div></div>
+      <button class="btn btn-outline btn-sm" onclick="carregarPlanetasAdmin()">↻ Atualizar</button>
+    </div>
+    <div class="stats-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:20px">
+      <div class="stat-card"><div class="stat-label">Planetas ativos</div><div class="stat-value green" id="planet-stat-total">—</div></div>
+      <div class="stat-card"><div class="stat-label">XP total acumulado</div><div class="stat-value" style="color:#ffc200" id="planet-stat-xp">—</div></div>
+      <div class="stat-card"><div class="stat-label">Era mais comum</div><div class="stat-value" style="color:#00b8e6;font-size:14px" id="planet-stat-era">—</div></div>
+      <div class="stat-card"><div class="stat-label">Era Galáctica (V)</div><div class="stat-value" style="color:#9f3fff" id="planet-stat-v">—</div></div>
+      <div class="stat-card"><div class="stat-label">Total atividades</div><div class="stat-value" style="color:var(--green)" id="planet-stat-atv">—</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:14px">🌌 Distribuição por Era</div>
+        <div id="planet-dist-eras" style="display:flex;flex-direction:column;gap:10px"><div class="empty-state" style="padding:12px">Carregando...</div></div>
+      </div>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:14px">⚡ Top atividades XP</div>
+        <div id="planet-top-atv" style="display:flex;flex-direction:column;gap:8px"><div class="empty-state" style="padding:12px">Carregando...</div></div>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <div class="table-head">
+        <div class="table-title">🏆 Ranking — Top XP</div>
+        <input class="t-search" placeholder="Buscar por email..." id="planet-busca" oninput="filtrarPlanetas(this.value)">
+      </div>
+      <table>
+        <thead><tr><th>#</th><th>Cliente</th><th>XP Total</th><th>Era</th><th>Jogos</th><th>Atividades</th><th>Último log</th></tr></thead>
+        <tbody id="planet-tbody"><tr><td colspan="7" class="empty-state"><span class="loader-inline"></span></td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
 </main>
 
-<!-- ══ MODAL NOVA ASSINATURA ══ -->
+<!-- ══ MODAL NOVO ITEM CÂMBIO ══ -->
+<div class="modal-overlay" id="modal-novo-cambio">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-title">➕ Novo item de câmbio</div>
+    <div class="form-row">
+      <label class="form-label">Nome do item</label>
+      <input class="form-input" id="cambio-new-nome" placeholder="Ex: Pacote de Tickets">
+    </div>
+    <div class="form-row-2">
+      <div>
+        <label class="form-label">Tipo</label>
+        <select class="form-select" id="cambio-new-tipo">
+          <option value="ct-ticket">🎟️ Tickets</option>
+          <option value="ct-xp">🧠 XP Planeta</option>
+          <option value="ct-game">🎮 Bônus Especial</option>
+        </select>
+      </div>
+      <div>
+        <label class="form-label">Emoji/ícone</label>
+        <input class="form-input" id="cambio-new-icon" placeholder="🎟️" maxlength="4">
+      </div>
+    </div>
+    <div class="form-row-2">
+      <div>
+        <label class="form-label">Custo em MP</label>
+        <input class="form-input" type="number" id="cambio-new-custo" placeholder="200" min="1">
+      </div>
+      <div>
+        <label class="form-label">Recompensa</label>
+        <input class="form-input" id="cambio-new-recompensa" placeholder="+5 Tickets">
+      </div>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Badge (opcional)</label>
+      <input class="form-input" id="cambio-new-badge" placeholder="🔥 HOT">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('novo-cambio')">Cancelar</button>
+      <button class="btn btn-green" onclick="salvarNovoCambio()">✅ Adicionar item</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-nova-assinatura">
   <div class="modal" style="max-width:500px">
     <div class="modal-title">🌌 Ativar Assinatura MarsPass</div>
@@ -5416,7 +5632,7 @@ function dnaRenderTabela(lista){
         '<div style="font-size:9px;color:var(--muted);margin-top:2px">'+c.numItens+' títulos</div>'+
       '</td>'+
       '<td>'+
-        '<button class="btn btn-outline btn-sm" onclick="dnaAnalisarEmailDireto(\'+esc(c.email)+\')">🔬 Ver DNA</button>'+
+        '<button class="btn btn-outline btn-sm" onclick="dnaAnalisarEmailDireto(\''+esc(c.email)+'\')">🔬 Ver DNA</button>'+
       '</td>'+
     '</tr>';
   }).join('');
@@ -5639,7 +5855,473 @@ var _origShowPageAdmin = window.showPage;
 window.showPage = function(id, el){
   _origShowPageAdmin(id, el);
   if(id === 'arena-pvp') setTimeout(carregarPvpPagamentosMini, 300);
+  if(id === 'dna-clientes') setTimeout(carregarDnaClientes, 100);
+  if(id === 'aniversarios') setTimeout(carregarAniversarios, 100);
+  if(id === 'cambio-admin') setTimeout(carregarCambioAdmin, 100);
+  if(id === 'loja-mp-admin') setTimeout(carregarLojaMpAdmin, 100);
+  if(id === 'planetas-admin') setTimeout(carregarPlanetasAdmin, 100);
 };
+
+/* ══════════════════════════════════════════════════════
+   ANIVERSÁRIOS — painel admin
+══════════════════════════════════════════════════════ */
+var _bdayData=[], _bdayCfg={mp:50,tk:3,msg:'A galáxia MarsGames te presenteia!'};
+
+async function carregarAniversarios(){
+  var hoje=new Date();
+  var mes=hoje.getMonth(),dia=hoje.getDate();
+  try{
+    /* Busca perfis com data_nascimento */
+    var{data:perfis}=await sb.from('perfis').select('email,nome,data_nascimento').not('data_nascimento','is',null);
+    var ps=perfis||[];
+
+    /* Busca histórico de presentes */
+    var{data:hist}=await sb.from('bday_presentes').select('user_email,created_at,mp,tk').order('created_at',{ascending:false});
+    var histMap={};
+    (hist||[]).forEach(function(h){histMap[h.user_email]=h;});
+
+    _bdayData=ps;
+    var anoAtual=new Date().getFullYear();
+    var hojeStr=('0'+(mes+1)).slice(-2)+'-'+('0'+dia).slice(-2);
+
+    /* Aniversariantes de hoje */
+    var today=ps.filter(function(p){
+      if(!p.data_nascimento)return false;
+      var d=new Date(p.data_nascimento);
+      return d.getMonth()===mes&&d.getDate()===dia;
+    });
+
+    document.getElementById('bday-stat-hoje').textContent=today.length;
+
+    var enviadosHj=today.filter(function(p){
+      var h=histMap[p.email];
+      return h&&new Date(h.created_at).getFullYear()===anoAtual&&
+             new Date(h.created_at).getMonth()===mes&&new Date(h.created_at).getDate()===dia;
+    });
+    document.getElementById('bday-stat-enviados').textContent=enviadosHj.length;
+
+    var mesMp=ps.filter(function(p){
+      if(!p.data_nascimento)return false;
+      return new Date(p.data_nascimento).getMonth()===mes;
+    }).length;
+    document.getElementById('bday-stat-mes').textContent=mesMp;
+
+    var totalMp=(hist||[]).reduce(function(s,h){return s+(h.mp||0);},0);
+    document.getElementById('bday-stat-mp').textContent=totalMp.toLocaleString('pt-BR')+' MP';
+
+    /* Badge sidebar */
+    var badge=document.getElementById('bday-badge');
+    if(badge){badge.textContent=today.length;badge.style.display=today.length>0?'flex':'none';}
+
+    /* Tabela hoje */
+    var tbody=document.getElementById('bday-hoje-tbody');
+    document.getElementById('bday-hoje-count').textContent=today.length+' aniversariante'+(today.length!==1?'s':'');
+    if(!today.length){tbody.innerHTML='<tr><td colspan="5" class="empty-state">Nenhum aniversariante hoje 🎂</td></tr>';return;}
+    tbody.innerHTML=today.map(function(p){
+      var h=histMap[p.email];
+      var jaEnv=h&&new Date(h.created_at).getFullYear()===anoAtual&&new Date(h.created_at).getMonth()===mes&&new Date(h.created_at).getDate()===dia;
+      var dn=new Date(p.data_nascimento);
+      var anos=anoAtual-dn.getFullYear();
+      return '<tr>'+
+        '<td style="font-weight:700;color:#fff">'+esc(p.nome||p.email)+'<div style="font-size:9px;color:var(--muted)">'+esc(p.email)+'</div></td>'+
+        '<td>'+dn.toLocaleDateString('pt-BR')+' <span style="color:var(--muted);font-size:10px">('+anos+' anos)</span></td>'+
+        '<td><span style="color:var(--green);font-weight:700">+'+_bdayCfg.mp+' MP</span> <span style="color:var(--amber)">+'+_bdayCfg.tk+' Tickets</span></td>'+
+        '<td>'+(jaEnv?'<span class="badge badge-green">✓ Enviado</span>':'<span class="badge badge-amber">Pendente</span>')+'</td>'+
+        '<td>'+(!jaEnv?'<button class="btn btn-green btn-sm" onclick="enviarPresenteBday(\''+esc(p.email)+'\',this)">🎁 Enviar</button>':'<span style="color:var(--muted);font-size:10px">✓</span>')+'</td>'+
+      '</tr>';
+    }).join('');
+
+    /* Próximos 30 dias */
+    var prox=ps.filter(function(p){
+      if(!p.data_nascimento)return false;
+      var d=new Date(p.data_nascimento);
+      var thisYear=new Date(anoAtual,d.getMonth(),d.getDate());
+      if(thisYear<hoje)thisYear.setFullYear(anoAtual+1);
+      var diff=Math.ceil((thisYear-hoje)/86400000);
+      p._dias=diff;
+      return diff>0&&diff<=30;
+    }).sort(function(a,b){return a._dias-b._dias;});
+
+    var tbodyP=document.getElementById('bday-prox-tbody');
+    if(!prox.length){tbodyP.innerHTML='<tr><td colspan="4" class="empty-state">Nenhum nos próximos 30 dias</td></tr>';return;}
+    tbodyP.innerHTML=prox.map(function(p){
+      var d=new Date(p.data_nascimento);
+      var h=histMap[p.email];
+      return '<tr>'+
+        '<td style="font-weight:700;color:#fff">'+esc(p.nome||p.email)+'<div style="font-size:9px;color:var(--muted)">'+esc(p.email)+'</div></td>'+
+        '<td>'+('0'+(d.getMonth()+1)).slice(-2)+'/'+('0'+d.getDate()).slice(-2)+'</td>'+
+        '<td><span style="color:var(--amber);font-weight:900">'+p._dias+' dia'+(p._dias!==1?'s':'')+'</span></td>'+
+        '<td style="font-size:10px;color:var(--muted)">'+(h?fmtDate(h.created_at):'Nunca recebeu')+'</td>'+
+      '</tr>';
+    }).join('');
+  }catch(e){
+    showToast('Tabela perfis/bday_presentes não encontrada — crie no Supabase',false,true);
+    console.log('[Bday]',e.message);
+  }
+}
+
+async function enviarPresenteBday(email,btn){
+  if(!confirm('Enviar presente de aniversário para '+email+'?'))return;
+  btn.disabled=true;btn.textContent='⏳';
+  try{
+    /* Crédita MP */
+    var{data:mp}=await sb.from('marspoints').select('pontos').eq('user_email',email).maybeSingle();
+    var pts=(mp&&mp.pontos)||0;
+    await sb.from('marspoints').upsert({user_email:email,pontos:pts+_bdayCfg.mp,updated_at:new Date().toISOString()},{onConflict:'user_email'});
+    /* Crédita tickets */
+    if(_bdayCfg.tk>0){
+      var{data:tk}=await sb.from('tickets').select('quantidade').eq('user_email',email).maybeSingle();
+      if(tk){await sb.from('tickets').update({quantidade:(tk.quantidade||0)+_bdayCfg.tk,updated_at:new Date().toISOString()}).eq('user_email',email);}
+    }
+    /* Registra */
+    await sb.from('bday_presentes').insert({user_email:email,mp:_bdayCfg.mp,tk:_bdayCfg.tk,created_at:new Date().toISOString()});
+    showToast('🎂 Presente enviado para '+email+'!');
+    carregarAniversarios();
+  }catch(e){showToast('Erro: '+e.message,true);btn.disabled=false;btn.textContent='🎁 Enviar';}
+}
+
+async function enviarPresentesTodos(){
+  if(!confirm('Enviar presente para TODOS os aniversariantes de hoje?'))return;
+  var hoje=new Date();
+  var pendentes=_bdayData.filter(function(p){
+    if(!p.data_nascimento)return false;
+    var d=new Date(p.data_nascimento);
+    return d.getMonth()===hoje.getMonth()&&d.getDate()===hoje.getDate();
+  });
+  if(!pendentes.length){showToast('Nenhum aniversariante hoje',false,true);return;}
+  for(var i=0;i<pendentes.length;i++){
+    try{
+      var mp=await sb.from('marspoints').select('pontos').eq('user_email',pendentes[i].email).maybeSingle();
+      var pts=(mp.data&&mp.data.pontos)||0;
+      await sb.from('marspoints').upsert({user_email:pendentes[i].email,pontos:pts+_bdayCfg.mp,updated_at:new Date().toISOString()},{onConflict:'user_email'});
+      await sb.from('bday_presentes').insert({user_email:pendentes[i].email,mp:_bdayCfg.mp,tk:_bdayCfg.tk,created_at:new Date().toISOString()});
+    }catch(e){}
+  }
+  showToast('🎂 Presentes enviados para '+pendentes.length+' aniversariantes!');
+  carregarAniversarios();
+}
+
+function salvarConfigBday(){
+  _bdayCfg.mp=parseInt(document.getElementById('bday-cfg-mp').value)||50;
+  _bdayCfg.tk=parseInt(document.getElementById('bday-cfg-tk').value)||3;
+  _bdayCfg.msg=document.getElementById('bday-cfg-msg').value||_bdayCfg.msg;
+  showToast('✅ Configuração de aniversário salva!');
+}
+
+/* ══════════════════════════════════════════════════════
+   CÂMBIO — painel admin
+══════════════════════════════════════════════════════ */
+var _cambioItens=[], _cambioHist=[], _cambioTaxa=0.05, _cambioTaxaStr='5%';
+var CAMBIO_DEFAULTS=[
+  {id:1,nome:'Pacote de Tickets',tipo:'ct-ticket',icon:'🎟️',custo:200,recompensa:'+5 Tickets',badge:'',ativo:true,usos:0},
+  {id:2,nome:'Tickets em Dobro',tipo:'ct-ticket',icon:'🎟️',custo:350,recompensa:'+10 Tickets',badge:'🔥 HOT',ativo:true,usos:0},
+  {id:3,nome:'Boost de XP Planeta',tipo:'ct-xp',icon:'🧠',custo:100,recompensa:'+120 XP',badge:'⚡ DIÁRIO',ativo:true,usos:0},
+  {id:4,nome:'Giro Grátis na Roda',tipo:'ct-game',icon:'🎮',custo:500,recompensa:'1 Giro Grátis',badge:'',ativo:true,usos:0},
+  {id:5,nome:'Mega Pacote',tipo:'ct-ticket',icon:'🎫',custo:800,recompensa:'+25 Tickets',badge:'',ativo:true,usos:0},
+];
+var _cambioNextId=10;
+
+async function carregarCambioAdmin(){
+  /* Tenta carregar do Supabase — fallback para dados locais */
+  try{
+    var[hRes,cfgRes]=await Promise.all([
+      sb.from('cambio_historico').select('*').order('created_at',{ascending:false}).limit(100),
+      sb.from('config').select('value').eq('key','cambio_taxa').maybeSingle()
+    ]);
+    _cambioHist=hRes.data||[];
+    if(cfgRes.data){_cambioTaxaStr=cfgRes.data.value||'5%';}
+  }catch(e){_cambioHist=[];}
+
+  if(!_cambioItens.length) _cambioItens=CAMBIO_DEFAULTS.slice();
+
+  /* Stats */
+  document.getElementById('cambio-stat-total').textContent=_cambioHist.length;
+  var mpTotal=_cambioHist.reduce(function(s,h){return s+(h.mp_gasto||0);},0);
+  document.getElementById('cambio-stat-mp').textContent=mpTotal.toLocaleString('pt-BR')+' MP';
+  var tktTotal=_cambioHist.filter(function(h){return (h.tipo||'').includes('ticket');}).length*5;
+  document.getElementById('cambio-stat-tkt').textContent=tktTotal;
+  document.getElementById('cambio-stat-itens').textContent=_cambioItens.filter(function(i){return i.ativo;}).length;
+  document.getElementById('cambio-taxa-atual').textContent=_cambioTaxaStr;
+
+  renderCambioItens();
+  renderCambioHist(_cambioHist);
+}
+
+function renderCambioItens(){
+  var tbody=document.getElementById('cambio-itens-tbody');
+  if(!_cambioItens.length){tbody.innerHTML='<tr><td colspan="7" class="empty-state">Nenhum item configurado</td></tr>';return;}
+  var tipoCor={'ct-ticket':'var(--green)','ct-xp':'#00b8e6','ct-game':'#9f3fff'};
+  var tipoLabel={'ct-ticket':'Ticket','ct-xp':'XP Planeta','ct-game':'Bônus'};
+  tbody.innerHTML=_cambioItens.map(function(it){
+    var col=tipoCor[it.tipo]||'#888';
+    return '<tr>'+
+      '<td><div style="display:flex;align-items:center;gap:8px">'+
+        '<span style="font-size:18px">'+it.icon+'</span>'+
+        '<div><div style="font-weight:700;color:#fff">'+esc(it.nome)+'</div>'+
+        (it.badge?'<div style="font-size:9px;color:var(--amber)">'+esc(it.badge)+'</div>':'')+
+        '</div></div></td>'+
+      '<td><span style="font-size:10px;font-weight:700;color:'+col+'">'+esc(tipoLabel[it.tipo]||it.tipo)+'</span></td>'+
+      '<td style="font-weight:700;color:#ffc200">'+it.custo.toLocaleString()+'</td>'+
+      '<td style="color:'+col+';font-weight:700">'+esc(it.recompensa)+'</td>'+
+      '<td>'+(it.ativo?'<span class="badge badge-green">Ativo</span>':'<span class="badge badge-gray">Inativo</span>')+'</td>'+
+      '<td style="color:var(--muted);font-weight:700">'+(it.usos||0)+'</td>'+
+      '<td class="td-actions">'+
+        '<button class="btn btn-sm '+(it.ativo?'btn-amber':'btn-green')+'" onclick="toggleCambioItem('+it.id+')">'+(it.ativo?'Pausar':'Ativar')+'</button>'+
+        '<button class="btn btn-red btn-sm" onclick="removeCambioItem('+it.id+')">✕</button>'+
+      '</td>'+
+    '</tr>';
+  }).join('');
+}
+
+function renderCambioHist(lista){
+  var tbody=document.getElementById('cambio-hist-tbody');
+  if(!lista||!lista.length){tbody.innerHTML='<tr><td colspan="6" class="empty-state">Nenhum câmbio ainda</td></tr>';return;}
+  tbody.innerHTML=lista.slice(0,80).map(function(h){
+    return '<tr>'+
+      '<td style="font-weight:700;color:#ddd;font-size:11px">'+esc(h.user_email||'—')+'</td>'+
+      '<td>'+esc(h.item_nome||'—')+'</td>'+
+      '<td style="color:#ffc200;font-weight:700">-'+((h.mp_gasto||0).toLocaleString())+'</td>'+
+      '<td style="color:var(--green);font-weight:700">'+esc(h.recompensa||'—')+'</td>'+
+      '<td style="color:var(--muted)">'+esc(h.taxa||'5%')+'</td>'+
+      '<td style="color:var(--muted);font-size:10px">'+fmtDateTime(h.created_at)+'</td>'+
+    '</tr>';
+  }).join('');
+}
+
+function filtrarHistCambio(q){
+  var f=q?_cambioHist.filter(function(h){return (h.user_email||'').toLowerCase().includes(q.toLowerCase());}):_cambioHist;
+  renderCambioHist(f);
+}
+
+function toggleCambioItem(id){
+  var it=_cambioItens.find(function(i){return i.id===id;});
+  if(!it)return;
+  it.ativo=!it.ativo;
+  renderCambioItens();
+  showToast(it.ativo?'✅ Item ativado':'⛔ Item pausado');
+}
+
+function removeCambioItem(id){
+  if(!confirm('Remover este item do câmbio?'))return;
+  _cambioItens=_cambioItens.filter(function(i){return i.id!==id;});
+  renderCambioItens();
+  showToast('🗑️ Item removido');
+}
+
+function selecionarTaxaCambio(btn){
+  document.querySelectorAll('[data-taxa]').forEach(function(b){b.className='btn btn-outline btn-sm';});
+  btn.className='btn btn-green btn-sm';
+  _cambioTaxa=parseFloat(btn.dataset.taxa);
+  _cambioTaxaStr=btn.dataset.str;
+}
+
+async function salvarTaxaCambio(){
+  try{
+    await sb.from('config').upsert({key:'cambio_taxa',value:_cambioTaxaStr},{onConflict:'key'});
+  }catch(e){}
+  document.getElementById('cambio-taxa-atual').textContent=_cambioTaxaStr;
+  showToast('✅ Taxa atualizada: '+_cambioTaxaStr);
+}
+
+function salvarNovoCambio(){
+  var nome=document.getElementById('cambio-new-nome').value.trim();
+  var tipo=document.getElementById('cambio-new-tipo').value;
+  var icon=document.getElementById('cambio-new-icon').value.trim()||'⭐';
+  var custo=parseInt(document.getElementById('cambio-new-custo').value)||100;
+  var recomp=document.getElementById('cambio-new-recompensa').value.trim();
+  var badge=document.getElementById('cambio-new-badge').value.trim();
+  if(!nome||!recomp){showToast('Preencha nome e recompensa',true);return;}
+  _cambioItens.push({id:_cambioNextId++,nome:nome,tipo:tipo,icon:icon,custo:custo,recompensa:recomp,badge:badge,ativo:true,usos:0});
+  closeModal('novo-cambio');
+  renderCambioItens();
+  showToast('✅ Item adicionado ao câmbio!');
+}
+
+/* ══════════════════════════════════════════════════════
+   LOJA MP — painel admin
+══════════════════════════════════════════════════════ */
+var _lojaHist=[];
+var LOJA_PKGS_ADMIN=[
+  {id:'starter',nome:'Starter',mp:100,preco:4.90,cor:'#4a90d0',usos:0},
+  {id:'explorer',nome:'Explorer',mp:500,preco:14.90,cor:'#ffc200',usos:0},
+  {id:'commander',nome:'Commander',mp:1500,preco:34.90,cor:'#9f3fff',usos:0},
+  {id:'legend',nome:'Legend',mp:5000,preco:89.90,cor:'#ff6a00',usos:0},
+];
+
+async function carregarLojaMpAdmin(){
+  try{
+    var{data}=await sb.from('loja_mp_compras').select('*').order('created_at',{ascending:false}).limit(100);
+    _lojaHist=data||[];
+  }catch(e){_lojaHist=[];}
+
+  var total=_lojaHist.length;
+  var receita=_lojaHist.reduce(function(s,h){return s+(h.valor||0);},0);
+  var mpTotal=_lojaHist.reduce(function(s,h){return s+(h.mp||0);},0);
+  document.getElementById('loja-stat-total').textContent=total;
+  document.getElementById('loja-stat-receita').textContent='R$ '+receita.toFixed(2).replace('.',',');
+  document.getElementById('loja-stat-mp').textContent=mpTotal.toLocaleString('pt-BR')+' MP';
+
+  /* Top pacote */
+  var pkgCount={};
+  _lojaHist.forEach(function(h){pkgCount[h.pacote]=(pkgCount[h.pacote]||0)+1;});
+  var topPkg=Object.entries(pkgCount).sort(function(a,b){return b[1]-a[1];})[0];
+  document.getElementById('loja-stat-top').textContent=topPkg?topPkg[0].toUpperCase():'—';
+
+  /* Cards de pacote */
+  var grid=document.getElementById('loja-pkgs-grid');
+  grid.innerHTML=LOJA_PKGS_ADMIN.map(function(pkg){
+    var usosTotal=_lojaHist.filter(function(h){return (h.pacote||'').toLowerCase()===pkg.id.toLowerCase();}).length;
+    var recPkg=_lojaHist.filter(function(h){return (h.pacote||'').toLowerCase()===pkg.id.toLowerCase();}).reduce(function(s,h){return s+(h.valor||0);},0);
+    return '<div style="background:var(--card);border:1px solid rgba(255,255,255,.06);border-radius:var(--radius);padding:16px;border-top:2px solid '+pkg.cor+'">'+
+      '<div style="font-family:Orbitron,sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;color:'+pkg.cor+';margin-bottom:10px">'+pkg.nome.toUpperCase()+'</div>'+
+      '<div style="font-family:Orbitron,sans-serif;font-size:20px;font-weight:900;color:#fff;margin-bottom:4px">'+pkg.mp.toLocaleString()+' MP</div>'+
+      '<div style="font-size:10px;color:var(--muted);margin-bottom:10px">R$ '+pkg.preco.toFixed(2).replace('.',',')+'</div>'+
+      '<div style="display:flex;justify-content:space-between;font-size:10px">'+
+        '<div><div style="color:var(--muted)">Compras</div><div style="font-weight:900;color:'+pkg.cor+'">'+usosTotal+'</div></div>'+
+        '<div><div style="color:var(--muted)">Receita</div><div style="font-weight:900;color:var(--green)">R$ '+recPkg.toFixed(2).replace('.',',')+'</div></div>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+
+  renderLojaHistAdmin(_lojaHist);
+}
+
+function renderLojaHistAdmin(lista){
+  var tbody=document.getElementById('loja-hist-tbody');
+  if(!lista||!lista.length){tbody.innerHTML='<tr><td colspan="6" class="empty-state">Nenhuma compra ainda</td></tr>';return;}
+  tbody.innerHTML=lista.slice(0,80).map(function(h){
+    var pkg=LOJA_PKGS_ADMIN.find(function(p){return p.id===(h.pacote||'').toLowerCase();});
+    var cor=pkg?pkg.cor:'#888';
+    return '<tr>'+
+      '<td style="font-weight:700;color:#ddd;font-size:11px">'+esc(h.user_email||'—')+'</td>'+
+      '<td><span style="font-weight:700;color:'+cor+'">'+esc(h.pacote||'—')+'</span></td>'+
+      '<td style="color:#ffc200;font-weight:700">+'+((h.mp||0).toLocaleString())+'</td>'+
+      '<td style="color:var(--green);font-weight:700">R$ '+((h.valor||0).toFixed(2).replace('.',','))+'</td>'+
+      '<td style="color:var(--muted);font-size:10px">'+esc(h.bonus||'—')+'</td>'+
+      '<td style="color:var(--muted);font-size:10px">'+fmtDateTime(h.created_at)+'</td>'+
+    '</tr>';
+  }).join('');
+}
+
+function filtrarHistLoja(q){
+  var f=q?_lojaHist.filter(function(h){return (h.user_email||'').toLowerCase().includes(q.toLowerCase());}):_lojaHist;
+  renderLojaHistAdmin(f);
+}
+
+/* ══════════════════════════════════════════════════════
+   PLANETAS — painel admin
+══════════════════════════════════════════════════════ */
+var _planetasData=[];
+
+var ERAS_ADMIN=[
+  {n:'I',label:'Proto',xp:0,cor:'#ffc200'},
+  {n:'II',label:'Vulcânico',xp:200,cor:'#ff6a00'},
+  {n:'III',label:'Oceânico',xp:600,cor:'#00b8e6'},
+  {n:'IV',label:'Biótico',xp:1400,cor:'#00e87a'},
+  {n:'V',label:'Galáctico',xp:3000,cor:'#9f3fff'},
+];
+
+function getEraAdmin(xp){
+  var era=ERAS_ADMIN[0];
+  for(var i=0;i<ERAS_ADMIN.length;i++){if(xp>=ERAS_ADMIN[i].xp)era=ERAS_ADMIN[i];}
+  return era;
+}
+
+async function carregarPlanetasAdmin(){
+  var tbody=document.getElementById('planet-tbody');
+  tbody.innerHTML='<tr><td colspan="7" class="empty-state"><span class="loader-inline"></span></td></tr>';
+
+  try{
+    /* Busca dados de planetas do Supabase */
+    var{data:pls}=await sb.from('planetas').select('user_email,xp,jogos,atividades,log,updated_at').order('xp',{ascending:false});
+    _planetasData=pls||[];
+
+    if(!_planetasData.length){
+      /* Sem tabela/dados — mostra instrução */
+      tbody.innerHTML='<tr><td colspan="7" class="empty-state">Tabela <code>planetas</code> não encontrada no Supabase — crie com colunas: user_email, xp, jogos, atividades, log, updated_at</td></tr>';
+      ['planet-stat-total','planet-stat-xp','planet-stat-era','planet-stat-v','planet-stat-atv'].forEach(function(id){
+        var el=document.getElementById(id);if(el)el.textContent='0';
+      });
+      return;
+    }
+
+    var total=_planetasData.length;
+    var xpTotal=_planetasData.reduce(function(s,p){return s+(p.xp||0);},0);
+    var atvTotal=_planetasData.reduce(function(s,p){return s+(p.atividades||0);},0);
+    var galacticos=_planetasData.filter(function(p){return (p.xp||0)>=3000;}).length;
+
+    document.getElementById('planet-stat-total').textContent=total;
+    document.getElementById('planet-stat-xp').textContent=xpTotal.toLocaleString('pt-BR');
+    document.getElementById('planet-stat-atv').textContent=atvTotal.toLocaleString('pt-BR');
+    document.getElementById('planet-stat-v').textContent=galacticos;
+
+    /* Era mais comum */
+    var eraCnt={};
+    _planetasData.forEach(function(p){var e=getEraAdmin(p.xp||0);eraCnt[e.n]=(eraCnt[e.n]||0)+1;});
+    var topEra=Object.entries(eraCnt).sort(function(a,b){return b[1]-a[1];})[0];
+    if(topEra){
+      var er=ERAS_ADMIN.find(function(e){return e.n===topEra[0];})||ERAS_ADMIN[0];
+      document.getElementById('planet-stat-era').textContent='Era '+topEra[0]+' · '+er.label;
+    }
+
+    /* Distribuição por era */
+    var distEl=document.getElementById('planet-dist-eras');
+    var totalN=_planetasData.length||1;
+    distEl.innerHTML=ERAS_ADMIN.map(function(era){
+      var cnt=eraCnt[era.n]||0;
+      var pct=Math.round(cnt/totalN*100);
+      return '<div>'+
+        '<div style="display:flex;justify-content:space-between;margin-bottom:4px">'+
+          '<span style="font-size:10px;font-weight:700;color:'+era.cor+'">Era '+era.n+' · '+era.label+'</span>'+
+          '<span style="font-size:10px;font-weight:900;color:'+era.cor+'">'+cnt+' ('+pct+'%)</span>'+
+        '</div>'+
+        '<div style="height:5px;background:rgba(255,255,255,.05);border-radius:3px;overflow:hidden">'+
+          '<div style="height:100%;width:'+pct+'%;background:'+era.cor+';border-radius:3px;transition:width .6s"></div>'+
+        '</div>'+
+      '</div>';
+    }).join('');
+
+    /* Top atividades */
+    var atvEl=document.getElementById('planet-top-atv');
+    var topAtv=_planetasData.sort(function(a,b){return (b.atividades||0)-(a.atividades||0);}).slice(0,5);
+    atvEl.innerHTML=topAtv.map(function(p,i){
+      var era=getEraAdmin(p.xp||0);
+      return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04)">'+
+        '<span style="font-family:Orbitron,sans-serif;font-size:11px;font-weight:900;color:#555;width:16px">'+(i+1)+'</span>'+
+        '<div style="flex:1;min-width:0"><div style="font-size:10px;font-weight:700;color:#ddd;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(p.user_email||'—')+'</div></div>'+
+        '<span style="font-size:10px;font-weight:900;color:'+era.cor+'">'+((p.atividades||0))+' atv</span>'+
+      '</div>';
+    }).join('');
+
+    renderPlanetasTabela(_planetasData);
+  }catch(e){
+    tbody.innerHTML='<tr><td colspan="7" class="empty-state">Tabela <code>planetas</code> não encontrada no Supabase</td></tr>';
+    console.log('[Planetas]',e.message);
+  }
+}
+
+function renderPlanetasTabela(lista){
+  var tbody=document.getElementById('planet-tbody');
+  if(!lista||!lista.length){tbody.innerHTML='<tr><td colspan="7" class="empty-state">Nenhum planeta encontrado</td></tr>';return;}
+  tbody.innerHTML=lista.slice(0,80).map(function(p,i){
+    var era=getEraAdmin(p.xp||0);
+    var medals=['🥇','🥈','🥉'];
+    return '<tr>'+
+      '<td style="font-weight:900;color:#555">'+(medals[i]||('#'+(i+1)))+'</td>'+
+      '<td style="font-weight:700;color:#ddd;font-size:11px">'+esc(p.user_email||'—')+'</td>'+
+      '<td style="font-family:Orbitron,sans-serif;font-weight:900;color:'+era.cor+'">'+((p.xp||0).toLocaleString('pt-BR'))+'</td>'+
+      '<td><span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;background:'+era.cor+'22;color:'+era.cor+'">Era '+era.n+' · '+era.label+'</span></td>'+
+      '<td style="font-weight:700;color:var(--green)">'+((p.jogos||0))+'</td>'+
+      '<td style="font-weight:700;color:var(--amber)">'+((p.atividades||0))+'</td>'+
+      '<td style="font-size:10px;color:var(--muted)">'+fmtDate(p.updated_at)+'</td>'+
+    '</tr>';
+  }).join('');
+}
+
+function filtrarPlanetas(q){
+  var f=q?_planetasData.filter(function(p){return (p.user_email||'').toLowerCase().includes(q.toLowerCase());}):_planetasData;
+  renderPlanetasTabela(f);
+}
 
 
 </script>
