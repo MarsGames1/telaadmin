@@ -4768,22 +4768,75 @@ async function verDetalheAssinante(id){
   if(!a)return;
   var pl=MP_PLANOS[a.plano]||{nome:a.plano,icon:'🌌',cor:'#888'};
   var statusCor={ativo:'var(--green)',pendente:'var(--amber)',expirado:'#888',cancelado:'var(--red)'};
-  document.getElementById('md-titulo').textContent=pl.icon+' '+pl.nome+' — '+a.user_email;
+  var podeJogo=a.plano!=='andromeda';
+  var temPendente=a.jogo_mensal_solicitacao&&!a.jogo_mensal_entregue&&!a.jogo_mensal_chave_entregue;
+
+  document.getElementById('md-titulo').innerHTML=
+    '<span style="color:'+pl.cor+'">'+pl.icon+' '+pl.nome+'</span> — '+
+    '<span style="font-size:11px;font-weight:600;color:#888">'+esc(a.user_email)+'</span>';
+
   document.getElementById('md-conteudo').innerHTML=
-    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">'+
-      '<div style="background:var(--surface);border-radius:8px;padding:12px"><div style="font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:4px">STATUS</div><div style="font-weight:900;color:'+(statusCor[a.status]||'#fff')+'">'+a.status.toUpperCase()+'</div></div>'+
-      '<div style="background:var(--surface);border-radius:8px;padding:12px"><div style="font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:4px">VALOR</div><div style="font-weight:900;color:#fff">R$ '+Number(a.valor).toFixed(2).replace('.',',')+'</div></div>'+
-      '<div style="background:var(--surface);border-radius:8px;padding:12px"><div style="font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:4px">INÍCIO</div><div style="font-size:12px;color:#ccc">'+(a.data_inicio?new Date(a.data_inicio).toLocaleDateString('pt-BR'):'—')+'</div></div>'+
-      '<div style="background:var(--surface);border-radius:8px;padding:12px"><div style="font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:4px">VENCIMENTO</div><div style="font-size:12px;color:var(--green)">'+(a.data_vencimento?new Date(a.data_vencimento).toLocaleDateString('pt-BR'):'—')+'</div></div>'+
-      '<div style="background:var(--surface);border-radius:8px;padding:12px"><div style="font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:4px">RENOVAÇÕES</div><div style="font-weight:900;color:#fff">'+(a.renovacoes||0)+'x</div></div>'+
-      '<div style="background:var(--surface);border-radius:8px;padding:12px"><div style="font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:4px">ATIVADO POR</div><div style="font-size:11px;color:#888">'+(a.ativado_por||'sistema')+'</div></div>'+
+    /* Stats grid */
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">'+
+      '<div style="background:var(--surface);border-radius:8px;padding:10px"><div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-bottom:3px">STATUS</div><div style="font-weight:900;color:'+(statusCor[a.status]||'#fff')+'">'+a.status.toUpperCase()+'</div></div>'+
+      '<div style="background:var(--surface);border-radius:8px;padding:10px"><div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-bottom:3px">VALOR</div><div style="font-weight:900;color:#fff">R$ '+Number(a.valor||0).toFixed(2).replace('.',',')+'</div></div>'+
+      '<div style="background:var(--surface);border-radius:8px;padding:10px"><div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-bottom:3px">INÍCIO</div><div style="font-size:11px;color:#ccc">'+(a.data_inicio?new Date(a.data_inicio).toLocaleDateString('pt-BR'):'—')+'</div></div>'+
+      '<div style="background:var(--surface);border-radius:8px;padding:10px"><div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-bottom:3px">VENCIMENTO</div><div style="font-size:11px;color:var(--green)">'+(a.data_vencimento?new Date(a.data_vencimento).toLocaleDateString('pt-BR'):'—')+'</div></div>'+
+      '<div style="background:var(--surface);border-radius:8px;padding:10px"><div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-bottom:3px">RENOVAÇÕES</div><div style="font-weight:900;color:#fff">'+(a.renovacoes||0)+'x</div></div>'+
+      '<div style="background:var(--surface);border-radius:8px;padding:10px"><div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-bottom:3px">ATIVADO POR</div><div style="font-size:10px;color:#888">'+(a.ativado_por||'sistema')+'</div></div>'+
     '</div>'+
-    (a.jogo_mensal_solicitacao?'<div style="background:rgba(255,179,0,.06);border:1px solid rgba(255,179,0,.2);border-radius:8px;padding:12px;margin-bottom:10px"><div style="font-size:9px;color:var(--amber);margin-bottom:4px">JOGO SOLICITADO</div><div style="color:#fff;font-weight:700">'+esc(a.jogo_mensal_solicitacao)+'</div><div style="font-size:10px;color:#888;margin-top:4px">Entregue: '+(a.jogo_mensal_entregue?'✅ Sim':'⏳ Pendente')+'</div></div>':'')+
-    (a.observacao?'<div style="background:var(--surface);border-radius:8px;padding:12px"><div style="font-size:9px;color:var(--muted);margin-bottom:4px">OBSERVAÇÃO</div><div style="font-size:11px;color:#888">'+esc(a.observacao)+'</div></div>':'');
+
+    /* Seção Jogo do Mês */
+    '<div style="background:rgba(255,179,0,.05);border:1px solid rgba(255,179,0,.15);border-radius:10px;padding:12px;margin-bottom:10px">'+
+      '<div style="font-size:8px;font-weight:900;letter-spacing:2px;color:var(--amber);margin-bottom:8px">🎮 JOGO DO MÊS</div>'+
+      (!podeJogo
+        ? '<div style="font-size:11px;color:#555">Plano Andrômeda não inclui jogo mensal.</div>'
+        : a.jogo_mensal_chave_entregue
+          ? '<div style="font-size:11px;color:var(--green);margin-bottom:6px">✅ Entregue: <strong>'+esc(a.jogo_mensal_solicitacao||'')+'</strong></div>'+
+            '<div style="font-family:monospace;font-size:10px;background:rgba(0,0,0,.3);border-radius:6px;padding:8px;word-break:break-all;color:#aaa">'+esc(a.jogo_mensal_chave_entregue)+'</div>'
+          : temPendente
+            ? '<div style="font-size:11px;color:var(--amber);margin-bottom:10px">⏳ Solicitado: <strong style="color:#fff">'+esc(a.jogo_mensal_solicitacao)+'</strong></div>'+
+              '<textarea id="md-chave-input" rows="3" placeholder="Cole aqui o login/senha ou chave de ativação..." style="width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(255,179,0,.3);border-radius:8px;padding:8px 10px;color:#fff;font-family:monospace;font-size:11px;resize:vertical;box-sizing:border-box;margin-bottom:8px"></textarea>'+
+              '<button onclick="entregarJogoDoDetalhe(\''+id+'\',\''+esc(a.user_email)+'\',\''+esc(a.jogo_mensal_solicitacao||'')+'\''+')" style="width:100%;padding:9px;border-radius:8px;border:none;background:var(--green);color:#000;font-weight:900;font-size:11px;cursor:pointer">✅ Entregar agora</button>'
+            : '<div style="font-size:11px;color:#555">Nenhuma solicitação este mês.</div>'+
+              '<div style="margin-top:10px">'+
+                '<textarea id="md-chave-input" rows="2" placeholder="Enviar chave/mensagem avulsa ao cliente..." style="width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:8px 10px;color:#fff;font-family:monospace;font-size:11px;resize:vertical;box-sizing:border-box;margin-bottom:8px"></textarea>'+
+                '<button onclick="entregarJogoDoDetalhe(\''+id+'\',\''+esc(a.user_email)+'\',\'Mensagem do admin\''+')" style="width:100%;padding:9px;border-radius:8px;border:none;background:rgba(255,179,0,.2);border:1px solid rgba(255,179,0,.3);color:var(--amber);font-weight:900;font-size:11px;cursor:pointer">📨 Enviar ao cliente</button>'+
+              '</div>'
+      )+
+    '</div>'+
+
+    /* Observação */
+    (a.observacao?'<div style="background:var(--surface);border-radius:8px;padding:10px"><div style="font-size:8px;color:var(--muted);margin-bottom:4px">OBSERVAÇÃO</div><div style="font-size:11px;color:#888">'+esc(a.observacao)+'</div></div>':'');
 
   document.getElementById('md-btn-renovar').onclick=function(){closeModal('detalhe-assinante');renovarAssinatura(id);};
   document.getElementById('md-btn-cancelar').onclick=function(){closeModal('detalhe-assinante');cancelarAssinatura(id);};
   openModal('detalhe-assinante');
+}
+
+async function entregarJogoDoDetalhe(id, email, jogoNome){
+  var textarea=document.getElementById('md-chave-input');
+  var chave=textarea?textarea.value.trim():'';
+  if(!chave){showToast('Digite a chave ou mensagem antes de enviar',true);return;}
+  var btn=event.target;
+  btn.disabled=true;btn.textContent='Salvando...';
+  try{
+    var{error}=await sb.from('marspass_assinaturas').update({
+      jogo_mensal_entregue:true,
+      jogo_mensal_chave_entregue:chave,
+      updated_at:new Date().toISOString()
+    }).eq('id',id);
+    if(error) throw error;
+    notificarCliente(email,'jogo','🎮 Seu jogo chegou!',
+      'Acesse a aba MarsPass no seu perfil para ver os dados de acesso.',
+      {jogo:jogoNome}).catch(function(){});
+    closeModal('detalhe-assinante');
+    showToast('✅ Entregue! Cliente notificado.');
+    carregarMarsPass();
+  }catch(e){
+    showToast('Erro: '+(e.message||'tente novamente'),true);
+    btn.disabled=false;btn.textContent='✅ Entregar agora';
+  }
 }
 
 /* ══ FAVORITOS ══ */
