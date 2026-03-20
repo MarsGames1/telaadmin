@@ -2734,7 +2734,7 @@ async function carregarDashboard(){
     sb.from('produtos').select('id',{count:'exact'}).eq('ativo',true),
     sb.from('pedidos').select('id',{count:'exact'}),
     sb.from('avaliacoes').select('id',{count:'exact'}).eq('aprovado',true),
-    sb.from('pedidos').select('valor,produto_nome,created_at').eq('status','pago'),
+    sb.from('pedidos').select('valor,produto_nome,created_at').in('status',['pago','aprovado','entregue']),
     sb.from('marspass_assinaturas').select('id',{count:'exact'}).eq('status','ativo').gt('data_vencimento',new Date().toISOString())
   ]);
 
@@ -2844,7 +2844,7 @@ async function carregarDashboard(){
   var{data:semEst}=await sb.from('produtos').select('nome').eq('ativo',true).eq('estoque',0);
   if(semEst&&semEst.length>0) alertas.push({tipo:'danger',icon:'📦',msg:semEst.length+' produto'+(semEst.length>1?'s':'')+' ativo'+(semEst.length>1?'s':'')+' sem estoque',nav:'estoque'});
   /* Chargebacks abertos */
-  var{count:cbCount}=await sb.from('chargebacks').select('id',{count:'exact'}).eq('status','aberto');
+  var{count:cbCount}=await sb.from('chargebacks').select('id',{count:'exact',head:true});
   if(cbCount>0) alertas.push({tipo:'danger',icon:'⚠️',msg:cbCount+' chargeback'+(cbCount>1?'s':'')+' em aberto',nav:'chargeback'});
   /* Avaliações pendentes de aprovação */
   var{count:avalPend}=await sb.from('avaliacoes').select('id',{count:'exact'}).eq('aprovado',false);
@@ -2862,7 +2862,7 @@ async function carregarDashboard(){
   }).join('');
 
   /* ── Pedidos recentes ── */
-  var{data:rec}=await sb.from('pedidos').select('*').order('created_at',{ascending:false}).limit(5);
+  var{data:rec}=await sb.from('pedidos').select('cliente_email,produto_nome,valor,status,created_at').order('created_at',{ascending:false}).limit(5);
   var tbody=document.getElementById('dash-tbody');
   if(!rec||rec.length===0){tbody.innerHTML='<tr><td colspan="5" class="empty-state">Nenhum pedido ainda.</td></tr>';return}
   tbody.innerHTML=rec.map(function(p){
@@ -2900,7 +2900,7 @@ async function carregarMeta(){
     return;
   }
   metaAtual=data[0];
-  var{data:peds}=await sb.from('pedidos').select('valor').eq('status','pago');
+  var{data:peds}=await sb.from('pedidos').select('valor').in('status',['pago','aprovado','entregue']);
   var vendido=peds?peds.reduce(function(s,p){return s+Number(p.valor||0)},0):0;
   var pct=Math.min(100,Math.round((vendido/metaAtual.valor)*100));
   document.getElementById('metaBar').style.width=pct+'%';
@@ -4553,7 +4553,7 @@ async function carregarMarsPass(){
   }).join('');
 
   /* Solicitações de jogo pendentes */
-  var jogos=data.filter(function(a){return a.jogo_mensal_solicitacao&&!a.jogo_mensal_entregue});
+  var jogos=data.filter(function(a){return a.jogo_mensal_solicitacao&&!a.jogo_mensal_entregue&&!a.jogo_mensal_chave_entregue});
   var jogosSection=document.getElementById('mp-jogos-section');
   if(jogos.length>0){
     jogosSection.style.display='block';
