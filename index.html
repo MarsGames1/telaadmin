@@ -2555,6 +2555,17 @@ function entrarNoPainel(session){
   registrarPresenca(email,true);
   registrarLog(nome,email);
   iniciarPresenca();
+  iniciarRealtimeNotifs();
+  iniciarPresenceClientes();
+  /* Inicia realtimes PvP para badge na sidebar */
+  setTimeout(function(){
+    if(!_realtimesPvpIniciados){
+      _realtimesPvpIniciados=true;
+      iniciarRealtimePvp();
+    }
+    /* Atualiza dashboard com stats do PvP */
+    carregarStatsPvp();
+  },1200);
   carregarNotifs();
   carregarDashboard();
   carregarFavoritos();
@@ -2607,10 +2618,10 @@ async function registrarPresenca(email,online){
 }
 function iniciarPresenca(){
   atualizarPresencaUI();
-  /* Polling simples a cada 60s — sem channel realtime */
-  setInterval(atualizarPresencaUI,60000);
-  setInterval(function(){if(currentEmail)registrarPresenca(currentEmail,true)},60000);
+  setInterval(atualizarPresencaUI,15000);
+  setInterval(function(){if(currentEmail)registrarPresenca(currentEmail,true)},30000);
   window.addEventListener('beforeunload',function(){if(currentEmail)registrarPresenca(currentEmail,false)});
+  sb.channel('presenca').on('postgres_changes',{event:'*',schema:'public',table:'presenca'},atualizarPresencaUI).subscribe();
 }
 async function atualizarPresencaUI(){
   var{data}=await sb.from('presenca').select('*');
@@ -2686,55 +2697,22 @@ async function carregarHistorico(){
 }
 
 /* ══ NAVEGAÇÃO ══ */
-/* Canal ativo no momento — só um por vez */
-var _channelAtivo=null;
-function _destruirChannelAtivo(){
-  if(_channelAtivo){
-    try{sb.removeChannel(_channelAtivo);}catch(e){}
-    _channelAtivo=null;
-  }
-}
-
 function showPage(id,el){
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active')});
   document.querySelectorAll('.sb-item').forEach(function(n){n.classList.remove('active')});
   document.getElementById('page-'+id).classList.add('active');
   if(el)el.classList.add('active');
-
-  /* Destrói channel da aba anterior */
-  _destruirChannelAtivo();
-
-  /* Para o interval do sorteio se sair da aba */
-  if(typeof sortAdmInterval!=='undefined'&&sortAdmInterval){
-    clearInterval(sortAdmInterval);sortAdmInterval=null;
-  }
-
-  /* Carrega dados da aba e abre channel só se necessário */
   var map={
     dashboard:carregarDashboard,produtos:carregarProdutos,pedidos:carregarPedidos,
     estoque:carregarEstoque,
     avaliacoes:carregarAvaliacoes,marspoints:carregarMarsPoints,marstickets:carregarMarsTickets,clientes:carregarClientes,
     historico:carregarHistorico,logs:carregarLogs,cupons:carregarCupons,
     sorteios:carregarSorteios,favoritos:carregarFavoritos,marspass:carregarMarsPass,
-    'arena-pvp':carregarArenaPvp,'roda-fortuna':carregarRodaFortuna,
+  'arena-pvp':carregarArenaPvp,'roda-fortuna':carregarRodaFortuna,
     chargeback:carregarChargeback,
-    'dna-clientes':carregarDnaClientes
+  'dna-clientes':carregarDnaClientes
   };
-  if(map[id]) map[id]();
-
-  /* Abre realtime APENAS para abas que precisam de live update */
-  if(id==='pedidos'){
-    _channelAtivo=sb.channel('admin_pedidos_live')
-      .on('postgres_changes',{event:'INSERT',schema:'public',table:'pedidos'},function(){carregarPedidos();})
-      .subscribe();
-  } else if(id==='arena-pvp'){
-    _channelAtivo=sb.channel('admin_pvp_live')
-      .on('postgres_changes',{event:'*',schema:'public',table:'pvp_rodadas'},function(){carregarArenaPvp();})
-      .subscribe();
-  } else if(id==='clientes'){
-    /* Clientes online — só quando está na aba de clientes */
-    iniciarPresenceClientes();
-  }
+  if(map[id])map[id]();
 }
 
 /* ══ DASHBOARD ══ */
@@ -5448,35 +5426,57 @@ async function marcarTodasLidas(){
 }
 
 function iniciarRealtimeNotifs(){
-  /* Sem channel realtime — polling leve a cada 90s */
-  setInterval(carregarNotifs, 90000);
+  sb.channel('notificacoes')
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'notificacoes_admin'},
+      function(payload){
+        var n=payload.new;
+        showToast(n.titulo);
+        carregarNotifs();
+      }
+    ).subscribe();
 }
 
 /* ── CLIENTES ONLINE via Realtime Presence ──
    O site público faz broadcast a cada 30s
    O admin escuta e conta os ativos
 */
+var _clientesPresenceChannel=null;
 var _clientesOnlineMap={};
 
 function iniciarPresenceClientes(){
-  /* Usa o slot de channel ativo — será destruído ao trocar de aba */
-  if(_channelAtivo) return;
-  _clientesOnlineMap={};
-  _channelAtivo=sb.channel('site-visitors',{config:{presence:{key:'admin-observer'}}})
+  if(_clientesPresenceChannel) return;
+  _clientesPresenceChannel=sb.channel('site-visitors',{
+    config:{presence:{key:'admin-observer'}}
+  });
+  _clientesPresenceChannel
     .on('presence',{event:'sync'},function(){
-      var state=_channelAtivo.presenceState();
+      var state=_clientesPresenceChannel.presenceState();
       _clientesOnlineMap={};
       Object.values(state).forEach(function(presencas){
-        presencas.forEach(function(p){if(p.tipo==='visitante'&&p.email)_clientesOnlineMap[p.email]=p;});
+        presencas.forEach(function(p){
+          if(p.tipo==='visitante'&&p.email){
+            _clientesOnlineMap[p.email]=p;
+          }
+        });
       });
       _atualizarUIClientesOnline();
     })
     .on('presence',{event:'join'},function(payload){
-      if(payload.newPresences) payload.newPresences.forEach(function(p){if(p.tipo==='visitante'&&p.email)_clientesOnlineMap[p.email]=p;});
+      if(payload.newPresences){
+        payload.newPresences.forEach(function(p){
+          if(p.tipo==='visitante'&&p.email){
+            _clientesOnlineMap[p.email]=p;
+          }
+        });
+      }
       _atualizarUIClientesOnline();
     })
     .on('presence',{event:'leave'},function(payload){
-      if(payload.leftPresences) payload.leftPresences.forEach(function(p){if(p.email)delete _clientesOnlineMap[p.email];});
+      if(payload.leftPresences){
+        payload.leftPresences.forEach(function(p){
+          if(p.email) delete _clientesOnlineMap[p.email];
+        });
+      }
       _atualizarUIClientesOnline();
     })
     .subscribe();
@@ -6046,7 +6046,10 @@ async function carregarAniversarios(){
     /* Tabela hoje */
     var tbody=document.getElementById('bday-hoje-tbody');
     document.getElementById('bday-hoje-count').textContent=today.length+' aniversariante'+(today.length!==1?'s':'');
-    if(!today.length){tbody.innerHTML='<tr><td colspan="5" class="empty-state">Nenhum aniversariante hoje 🎂</td></tr>';return;}
+    if(!today.length){
+      tbody.innerHTML='<tr><td colspan="5" class="empty-state">Nenhum aniversariante hoje 🎂</td></tr>';
+      /* NÃO retorna aqui — continua para mostrar próximos 30 dias */
+    } else {
     tbody.innerHTML=today.map(function(p){
       var h=histMap[p.email];
       var jaEnv=h&&new Date(h.created_at).getFullYear()===anoAtual&&new Date(h.created_at).getMonth()===mes&&new Date(h.created_at).getDate()===dia;
@@ -6060,6 +6063,7 @@ async function carregarAniversarios(){
         '<td>'+(!jaEnv?'<button class="btn btn-green btn-sm" onclick="enviarPresenteBday(\''+esc(p.email)+'\',this)">🎁 Enviar</button>':'<span style="color:var(--muted);font-size:10px">✓</span>')+'</td>'+
       '</tr>';
     }).join('');
+    } /* fim else today.length */
 
     /* Próximos 30 dias */
     var prox=ps.filter(function(p){
@@ -6508,27 +6512,53 @@ async function confirmarDarXP(){
   var xp=parseInt(document.getElementById('darXpValor').value)||0;
   var motivo=document.getElementById('darXpMotivo').value.trim()||'Concessão manual pelo admin';
   if(xp<=0){showToast('Informe um valor de XP válido',true);return;}
-  // Se email não foi definido pela tabela, usa o input manual
   var inputManual=document.getElementById('darXpEmailManual');
   if(!_darXpEmailAtual && inputManual) _darXpEmailAtual=(inputManual.value||'').trim();
   if(!_darXpEmailAtual){showToast('Informe o email do cliente',true);return;}
+
+  var btn=document.querySelector('#modal-dar-xp .btn-green');
+  if(btn){btn.disabled=true;btn.textContent='Salvando...';}
+
   try{
-    // Carrega planeta atual
-    var{data:pl}=await sb.from('planetas').select('xp,atividades,log').eq('user_email',_darXpEmailAtual).maybeSingle();
+    /* Busca planeta atual */
+    var{data:pl,error:plErr}=await sb.from('planetas').select('xp,atividades,log').eq('user_email',_darXpEmailAtual).maybeSingle();
+    if(plErr) throw new Error('Erro ao buscar planeta: '+plErr.message);
+
     var xpAtual=(pl&&pl.xp)||0;
     var atv=(pl&&pl.atividades)||0;
-    var log=(pl&&pl.log)||[];
+    var log=Array.isArray(pl&&pl.log)?pl.log:[];
     var novoXP=xpAtual+xp;
-    log.unshift({label:motivo,xp:xp,icon:'⚡',t:new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})});
-    await sb.from('planetas').upsert({
-      user_email:_darXpEmailAtual,xp:novoXP,atividades:atv+1,
-      log:log.slice(0,20),updated_at:new Date().toISOString()
-    },{onConflict:'user_email'});
+    log.unshift({label:motivo,xp:xp,icon:'⚡',bg:'rgba(255,194,0,.1)',color:'#ffc200',t:new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})});
+
+    var payload={
+      user_email:_darXpEmailAtual,
+      xp:novoXP,
+      atividades:atv+1,
+      log:log.slice(0,20),
+      updated_at:new Date().toISOString()
+    };
+
+    var{error:upErr};
+    if(pl){
+      /* Atualiza linha existente */
+      var r=await sb.from('planetas').update(payload).eq('user_email',_darXpEmailAtual);
+      upErr=r.error;
+    } else {
+      /* Cria nova linha */
+      var r=await sb.from('planetas').insert(payload);
+      upErr=r.error;
+    }
+
+    if(upErr) throw new Error('Erro ao salvar: '+upErr.message);
+
     closeModal('dar-xp');
     showToast('✅ +'+xp+' XP concedidos ao planeta de '+_darXpEmailAtual+'!');
-    carregarPlanetasAdmin(); // Recarrega tabela
+    carregarPlanetasAdmin();
   }catch(e){
-    showToast('❌ Erro ao conceder XP: '+(e.message||'tente novamente'),true);
+    console.error('[darXP]',e);
+    showToast('❌ Erro: '+(e.message||'tente novamente'),true);
+  } finally {
+    if(btn){btn.disabled=false;btn.textContent='⚡ Conceder XP';}
   }
 }
 
