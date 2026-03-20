@@ -6235,19 +6235,30 @@ function filtrarHistCambio(q){
   renderCambioHist(f);
 }
 
-function toggleCambioItem(id){
+async function toggleCambioItem(id){
   var it=_cambioItens.find(function(i){return i.id===id;});
   if(!it)return;
   it.ativo=!it.ativo;
   renderCambioItens();
-  showToast(it.ativo?'✅ Item ativado':'⛔ Item pausado');
+  try{
+    await sb.from('cambio_itens').update({ativo:it.ativo,updated_at:new Date().toISOString()}).eq('id',id);
+    showToast(it.ativo?'✅ Item ativado no Supabase':'⛔ Item pausado no Supabase');
+  }catch(e){
+    showToast((it.ativo?'✅ Ativado':'⛔ Pausado')+' — erro ao salvar: '+(e.message||'—'));
+  }
 }
 
-function removeCambioItem(id){
+async function removeCambioItem(id){
   if(!confirm('Remover este item do câmbio?'))return;
   _cambioItens=_cambioItens.filter(function(i){return i.id!==id;});
   renderCambioItens();
-  showToast('🗑️ Item removido');
+  document.getElementById('cambio-stat-itens').textContent=_cambioItens.filter(function(i){return i.ativo;}).length;
+  try{
+    await sb.from('cambio_itens').delete().eq('id',id);
+    showToast('🗑️ Item removido do Supabase!');
+  }catch(e){
+    showToast('🗑️ Removido localmente — erro ao salvar: '+(e.message||'—'));
+  }
 }
 
 function selecionarTaxaCambio(btn){
