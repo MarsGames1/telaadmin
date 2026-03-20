@@ -2555,17 +2555,6 @@ function entrarNoPainel(session){
   registrarPresenca(email,true);
   registrarLog(nome,email);
   iniciarPresenca();
-  iniciarRealtimeNotifs();
-  iniciarPresenceClientes();
-  /* Inicia realtimes PvP para badge na sidebar */
-  setTimeout(function(){
-    if(!_realtimesPvpIniciados){
-      _realtimesPvpIniciados=true;
-      iniciarRealtimePvp();
-    }
-    /* Atualiza dashboard com stats do PvP */
-    carregarStatsPvp();
-  },1200);
   carregarNotifs();
   carregarDashboard();
   carregarFavoritos();
@@ -2618,10 +2607,10 @@ async function registrarPresenca(email,online){
 }
 function iniciarPresenca(){
   atualizarPresencaUI();
+  /* Polling simples a cada 60s — sem channel realtime */
   setInterval(atualizarPresencaUI,60000);
   setInterval(function(){if(currentEmail)registrarPresenca(currentEmail,true)},60000);
   window.addEventListener('beforeunload',function(){if(currentEmail)registrarPresenca(currentEmail,false)});
-  sb.channel('presenca').on('postgres_changes',{event:'*',schema:'public',table:'presenca'},atualizarPresencaUI).subscribe();
 }
 async function atualizarPresencaUI(){
   var{data}=await sb.from('presenca').select('*');
@@ -2697,29 +2686,61 @@ async function carregarHistorico(){
 }
 
 /* ══ NAVEGAÇÃO ══ */
+/* Canal ativo no momento — só um por vez */
+var _channelAtivo=null;
+function _destruirChannelAtivo(){
+  if(_channelAtivo){
+    try{sb.removeChannel(_channelAtivo);}catch(e){}
+    _channelAtivo=null;
+  }
+}
+
 function showPage(id,el){
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active')});
   document.querySelectorAll('.sb-item').forEach(function(n){n.classList.remove('active')});
   document.getElementById('page-'+id).classList.add('active');
   if(el)el.classList.add('active');
+
+  /* Destrói channel da aba anterior */
+  _destruirChannelAtivo();
+
+  /* Para o interval do sorteio se sair da aba */
+  if(typeof sortAdmInterval!=='undefined'&&sortAdmInterval){
+    clearInterval(sortAdmInterval);sortAdmInterval=null;
+  }
+
+  /* Carrega dados da aba e abre channel só se necessário */
   var map={
     dashboard:carregarDashboard,produtos:carregarProdutos,pedidos:carregarPedidos,
     estoque:carregarEstoque,
     avaliacoes:carregarAvaliacoes,marspoints:carregarMarsPoints,marstickets:carregarMarsTickets,clientes:carregarClientes,
     historico:carregarHistorico,logs:carregarLogs,cupons:carregarCupons,
     sorteios:carregarSorteios,favoritos:carregarFavoritos,marspass:carregarMarsPass,
-  'arena-pvp':carregarArenaPvp,'roda-fortuna':carregarRodaFortuna,
+    'arena-pvp':carregarArenaPvp,'roda-fortuna':carregarRodaFortuna,
     chargeback:carregarChargeback,
-  'dna-clientes':carregarDnaClientes
+    'dna-clientes':carregarDnaClientes
   };
-  if(map[id])map[id]();
+  if(map[id]) map[id]();
+
+  /* Abre realtime APENAS para abas que precisam de live update */
+  if(id==='pedidos'){
+    _channelAtivo=sb.channel('admin_pedidos_live')
+      .on('postgres_changes',{event:'INSERT',schema:'public',table:'pedidos'},function(){carregarPedidos();})
+      .subscribe();
+  } else if(id==='arena-pvp'){
+    _channelAtivo=sb.channel('admin_pvp_live')
+      .on('postgres_changes',{event:'*',schema:'public',table:'pvp_rodadas'},function(){carregarArenaPvp();})
+      .subscribe();
+  } else if(id==='clientes'){
+    /* Clientes online — só quando está na aba de clientes */
+    iniciarPresenceClientes();
+  }
 }
 
 /* ══ DASHBOARD ══ */
 async function carregarDashboard(){
   document.getElementById('dash-date').textContent=new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'});
-
-  /* Carrega manutenção sem bloquear */
+  /* Carrega estado atual de manutenção */
   sb.from('config').select('value').eq('key','manutencao').maybeSingle().then(function(r){
     if(!r.data) return;
     var on=r.data.value==='1';
@@ -2730,38 +2751,31 @@ async function carregarDashboard(){
     syncMobMaintPill(on);
   });
 
-  /* ── TODAS as queries do dashboard em um único Promise.all ── */
-  var[prods,peds,avals,pedsPagos,mpassTotal,perfisEmails,pedsEmails,favsTotal,
-      buscasLog,prdsViews,pendCount,semEst,cbCount,avalPend,mpVenc,rec]=
-  await Promise.all([
-    sb.from('produtos').select('id',{count:'exact',head:true}).eq('ativo',true),
-    sb.from('pedidos').select('id',{count:'exact',head:true}),
-    sb.from('avaliacoes').select('id',{count:'exact',head:true}).eq('aprovado',true),
+  /* ── Queries principais em paralelo ── */
+  var[prods,peds,avals,pedsPagos,mpassTotal]=await Promise.all([
+    sb.from('produtos').select('id',{count:'exact'}).eq('ativo',true),
+    sb.from('pedidos').select('id',{count:'exact'}),
+    sb.from('avaliacoes').select('id',{count:'exact'}).eq('aprovado',true),
     sb.from('pedidos').select('valor,produto_nome,created_at').eq('status','pago'),
-    sb.from('marspass_assinaturas').select('id',{count:'exact',head:true}).eq('status','ativo').gt('data_vencimento',new Date().toISOString()),
-    sb.from('perfis').select('email'),
-    sb.from('pedidos').select('cliente_email'),
-    sb.from('favoritos').select('id',{count:'exact',head:true}),
-    sb.from('buscas_log').select('termo').order('created_at',{ascending:false}).limit(200),
-    sb.from('produtos').select('nome,views,preco').eq('ativo',true).order('views',{ascending:false}).limit(5),
-    sb.from('pedidos').select('id',{count:'exact',head:true}).eq('status','pendente'),
-    sb.from('produtos').select('nome').eq('ativo',true).eq('estoque',0),
-    sb.from('chargebacks').select('id',{count:'exact',head:true}).eq('status','aberto'),
-    sb.from('avaliacoes').select('id',{count:'exact',head:true}).eq('aprovado',false),
-    sb.from('marspass_assinaturas').select('id',{count:'exact',head:true}).eq('status','ativo').lte('data_vencimento',new Date(Date.now()+3*86400000).toISOString()).gt('data_vencimento',new Date().toISOString()),
-    sb.from('pedidos').select('cliente_email,produto_nome,valor,status,created_at').order('created_at',{ascending:false}).limit(5)
+    sb.from('marspass_assinaturas').select('id',{count:'exact'}).eq('status','ativo').gt('data_vencimento',new Date().toISOString())
   ]);
 
-  /* Clientes únicos */
+  /* Clientes únicos = union de emails de perfis + emails de pedidos */
+  var[perfisEmails,pedsEmails,favsTotal]=await Promise.all([
+    sb.from('perfis').select('email'),
+    sb.from('pedidos').select('cliente_email'),
+    sb.from('favoritos').select('id',{count:'exact'})
+  ]);
   var emailsSet=new Set();
   (perfisEmails.data||[]).forEach(function(r){if(r.email)emailsSet.add(r.email.toLowerCase())});
   (pedsEmails.data||[]).forEach(function(r){if(r.cliente_email)emailsSet.add(r.cliente_email.toLowerCase())});
+  var totalClientes=emailsSet.size;
 
   /* Stats linha 1 */
   document.getElementById('stat-produtos').textContent=prods.count??0;
   document.getElementById('stat-pedidos').textContent=peds.count??0;
   document.getElementById('stat-aval').textContent=avals.count??0;
-  document.getElementById('stat-pts').textContent=emailsSet.size;
+  document.getElementById('stat-pts').textContent=totalClientes;
 
   /* Stats linha 2 */
   var listaPagos=pedsPagos.data||[];
@@ -2773,48 +2787,107 @@ async function carregarDashboard(){
   document.getElementById('stat-marspass-total').textContent=mpassTotal.count??0;
   document.getElementById('stat-favs').textContent=favsTotal.count??0;
 
-  /* Top 5 mais vendidos */
+  /* ── Top 5 mais vendidos (por contagem de pedidos pagos) ── */
   var contagem={};
-  listaPagos.forEach(function(p){var n=p.produto_nome||'Desconhecido';contagem[n]=(contagem[n]||0)+1;});
+  listaPagos.forEach(function(p){
+    var n=p.produto_nome||'Desconhecido';
+    contagem[n]=(contagem[n]||0)+1;
+  });
   var topVendidos=Object.entries(contagem).sort(function(a,b){return b[1]-a[1]}).slice(0,5);
   var maxVend=topVendidos[0]?topVendidos[0][1]:1;
   var posClass=['p1','p2','p3','px','px'];
   var barColors=['#FFD700','#C0C0C0','#cd9f6a','var(--green)','var(--green)'];
   document.getElementById('dash-top-vendidos').innerHTML=topVendidos.length===0
-    ?'<div class="empty-state" style="padding:12px;font-size:10px">Nenhum pedido pago ainda.</div>'
-    :topVendidos.map(function(e,i){var pct=Math.max(8,Math.round((e[1]/maxVend)*100));return'<div class="rank-item"><div class="rank-pos '+posClass[i]+'">'+(i+1)+'</div><div class="rank-bar-wrap"><div class="rank-name">'+esc(e[0])+'</div><div class="rank-bar-bg"><div class="rank-bar-fill" style="width:'+pct+'%;background:'+barColors[i]+'"></div></div></div><div class="rank-val">'+e[1]+'x</div></div>';}).join('');
+    ? '<div class="empty-state" style="padding:12px;font-size:10px">Nenhum pedido pago ainda.</div>'
+    : topVendidos.map(function(e,i){
+        var pct=Math.max(8,Math.round((e[1]/maxVend)*100));
+        return '<div class="rank-item">'+
+          '<div class="rank-pos '+posClass[i]+'">'+(i+1)+'</div>'+
+          '<div class="rank-bar-wrap">'+
+            '<div class="rank-name">'+esc(e[0])+'</div>'+
+            '<div class="rank-bar-bg"><div class="rank-bar-fill" style="width:'+pct+'%;background:'+barColors[i]+'"></div></div>'+
+          '</div>'+
+          '<div class="rank-val">'+e[1]+'x</div>'+
+        '</div>';
+      }).join('');
 
-  /* Top 5 mais buscados */
+  /* ── Top 5 mais buscados (buscas_log) ── */
+  var{data:buscasLog}=await sb.from('buscas_log').select('termo,created_at').order('created_at',{ascending:false}).limit(500);
   var contagemBuscas={};
-  (buscasLog.data||[]).forEach(function(b){var t=(b.termo||'').trim().toLowerCase();if(t.length>=2)contagemBuscas[t]=(contagemBuscas[t]||0)+1;});
+  (buscasLog||[]).forEach(function(b){
+    var t=(b.termo||'').trim().toLowerCase();
+    if(t.length<2) return;
+    contagemBuscas[t]=(contagemBuscas[t]||0)+1;
+  });
   var topBuscas=Object.entries(contagemBuscas).sort(function(a,b){return b[1]-a[1]}).slice(0,5);
   var maxBuscas=topBuscas[0]?topBuscas[0][1]:1;
   var elBuscas=document.getElementById('dash-top-buscas');
-  if(elBuscas){elBuscas.innerHTML=topBuscas.length===0
-    ?'<div class="empty-state" style="padding:12px;font-size:10px">Nenhuma busca registrada ainda.</div>'
-    :topBuscas.map(function(e,i){var pct=Math.max(8,Math.round((e[1]/maxBuscas)*100));return'<div class="rank-item"><div class="rank-pos '+posClass[i]+'">'+(i+1)+'</div><div class="rank-bar-wrap"><div class="rank-name" style="text-transform:capitalize">'+esc(e[0])+'</div><div class="rank-bar-bg"><div class="rank-bar-fill" style="width:'+pct+'%;background:var(--mars)"></div></div></div><div class="rank-val" style="color:var(--mars)">'+e[1]+'x</div></div>';}).join('');}
+  if(elBuscas){
+    elBuscas.innerHTML=topBuscas.length===0
+      ? '<div class="empty-state" style="padding:12px;font-size:10px">Nenhuma busca registrada ainda. As buscas dos clientes no catálogo aparecem aqui.</div>'
+      : topBuscas.map(function(e,i){
+          var pct=Math.max(8,Math.round((e[1]/maxBuscas)*100));
+          return '<div class="rank-item">'+
+            '<div class="rank-pos '+posClass[i]+'">'+(i+1)+'</div>'+
+            '<div class="rank-bar-wrap">'+
+              '<div class="rank-name" style="text-transform:capitalize">'+esc(e[0])+'</div>'+
+              '<div class="rank-bar-bg"><div class="rank-bar-fill" style="width:'+pct+'%;background:var(--mars)"></div></div>'+
+            '</div>'+
+            '<div class="rank-val" style="color:var(--mars)">'+e[1]+'x</div>'+
+          '</div>';
+        }).join('');
+  }
 
-  /* Top 5 mais vistos */
-  var topViews=prdsViews.data||[];var maxViews=topViews[0]?(topViews[0].views||0):1;
+  /* ── Top 5 mais vistos (views de página) ── */
+  var{data:prdsViews}=await sb.from('produtos').select('nome,views,preco').eq('ativo',true).order('views',{ascending:false}).limit(5);
+  var topViews=prdsViews||[];
+  var maxViews=topViews[0]?(topViews[0].views||0):1;
   document.getElementById('dash-top-views').innerHTML=topViews.length===0
-    ?'<div class="empty-state" style="padding:12px;font-size:10px">Sem dados de views ainda.</div>'
-    :topViews.map(function(p,i){var v=p.views||0;var pct=Math.max(8,Math.round((v/Math.max(maxViews,1))*100));return'<div class="rank-item"><div class="rank-pos '+posClass[i]+'">'+(i+1)+'</div><div class="rank-bar-wrap"><div class="rank-name">'+esc(p.nome||'—')+'</div><div class="rank-bar-bg"><div class="rank-bar-fill" style="width:'+pct+'%;background:var(--blue)"></div></div></div><div class="rank-val" style="color:var(--blue)">'+v+'</div></div>';}).join('');
+    ? '<div class="empty-state" style="padding:12px;font-size:10px">Sem dados de views ainda.</div>'
+    : topViews.map(function(p,i){
+        var v=p.views||0;
+        var pct=Math.max(8,Math.round((v/Math.max(maxViews,1))*100));
+        return '<div class="rank-item">'+
+          '<div class="rank-pos '+posClass[i]+'">'+(i+1)+'</div>'+
+          '<div class="rank-bar-wrap">'+
+            '<div class="rank-name">'+esc(p.nome||'—')+'</div>'+
+            '<div class="rank-bar-bg"><div class="rank-bar-fill" style="width:'+pct+'%;background:var(--blue)"></div></div>'+
+          '</div>'+
+          '<div class="rank-val" style="color:var(--blue)">'+v+'</div>'+
+        '</div>';
+      }).join('');
 
-  /* Alertas */
+  /* ── Alertas rápidos ── */
   var alertas=[];
-  if((pendCount.count||0)>0){var n=pendCount.count;alertas.push({tipo:'warn',icon:'⏳',msg:n+' pedido'+(n>1?'s':'')+' pendente'+(n>1?'s':'')+' aguardando pagamento',nav:'pedidos'});}
-  if((semEst.data||[]).length>0){var n=semEst.data.length;alertas.push({tipo:'danger',icon:'📦',msg:n+' produto'+(n>1?'s':'')+' ativo'+(n>1?'s':'')+' sem estoque',nav:'estoque'});}
-  if((cbCount.count||0)>0){var n=cbCount.count;alertas.push({tipo:'danger',icon:'⚠️',msg:n+' chargeback'+(n>1?'s':'')+' em aberto',nav:'chargeback'});}
-  if((avalPend.count||0)>0){var n=avalPend.count;alertas.push({tipo:'info',icon:'⭐',msg:n+' avaliação'+(n>1?'s':'')+' aguardando aprovação',nav:'avaliacoes'});}
-  if((mpVenc.count||0)>0){var n=mpVenc.count;alertas.push({tipo:'warn',icon:'🌌',msg:n+' MarsPass vencem em até 3 dias',nav:'marspass'});}
+  /* Pedidos pendentes */
+  var{count:pendCount}=await sb.from('pedidos').select('id',{count:'exact'}).eq('status','pendente');
+  if(pendCount>0) alertas.push({tipo:'warn',icon:'⏳',msg:pendCount+' pedido'+(pendCount>1?'s':'')+' pendente'+(pendCount>1?'s':'')+' aguardando pagamento',nav:'pedidos'});
+  /* Produtos sem estoque */
+  var{data:semEst}=await sb.from('produtos').select('nome').eq('ativo',true).eq('estoque',0);
+  if(semEst&&semEst.length>0) alertas.push({tipo:'danger',icon:'📦',msg:semEst.length+' produto'+(semEst.length>1?'s':'')+' ativo'+(semEst.length>1?'s':'')+' sem estoque',nav:'estoque'});
+  /* Chargebacks abertos */
+  var{count:cbCount}=await sb.from('chargebacks').select('id',{count:'exact'}).eq('status','aberto');
+  if(cbCount>0) alertas.push({tipo:'danger',icon:'⚠️',msg:cbCount+' chargeback'+(cbCount>1?'s':'')+' em aberto',nav:'chargeback'});
+  /* Avaliações pendentes de aprovação */
+  var{count:avalPend}=await sb.from('avaliacoes').select('id',{count:'exact'}).eq('aprovado',false);
+  if(avalPend>0) alertas.push({tipo:'info',icon:'⭐',msg:avalPend+' avaliação'+(avalPend>1?'s':'')+' aguardando aprovação',nav:'avaliacoes'});
+  /* MarsPass a vencer em 3 dias */
+  var em3dias=new Date();em3dias.setDate(em3dias.getDate()+3);
+  var{count:mpVenc}=await sb.from('marspass_assinaturas').select('id',{count:'exact'}).eq('status','ativo').lte('data_vencimento',em3dias.toISOString()).gt('data_vencimento',new Date().toISOString());
+  if(mpVenc>0) alertas.push({tipo:'warn',icon:'🌌',msg:mpVenc+' MarsPass vencem em até 3 dias',nav:'marspass'});
+  /* Tudo ok */
   if(alertas.length===0) alertas.push({tipo:'ok',icon:'✅',msg:'Tudo em ordem — nenhum alerta no momento',nav:null});
-  document.getElementById('dash-alertas').innerHTML=alertas.map(function(a){return'<div class="alerta-item '+a.tipo+'"'+(a.nav?' onclick="showPage(\''+a.nav+'\',document.querySelector(\'[onclick*='+a.nav+']\'))"':'')+'>'+a.icon+' '+esc(a.msg)+'</div>';}).join('');
+  document.getElementById('dash-alertas').innerHTML=alertas.map(function(a){
+    return '<div class="alerta-item '+a.tipo+'"'+(a.nav?' onclick="showPage(\''+a.nav+'\',document.querySelector(\'[onclick*='+a.nav+']\'))"':'')+'>'+
+      '<span class="alerta-icon">'+a.icon+'</span>'+esc(a.msg)+
+    '</div>';
+  }).join('');
 
-  /* Pedidos recentes */
+  /* ── Pedidos recentes ── */
+  var{data:rec}=await sb.from('pedidos').select('*').order('created_at',{ascending:false}).limit(5);
   var tbody=document.getElementById('dash-tbody');
-  var recData=rec.data||[];
-  if(!recData.length){tbody.innerHTML='<tr><td colspan="5" class="empty-state">Nenhum pedido ainda.</td></tr>';return;}
-  tbody.innerHTML=recData.map(function(p){
+  if(!rec||rec.length===0){tbody.innerHTML='<tr><td colspan="5" class="empty-state">Nenhum pedido ainda.</td></tr>';return}
+  tbody.innerHTML=rec.map(function(p){
     return '<tr><td>'+esc(p.cliente_email||'—')+'</td><td>'+esc(p.produto_nome||'—')+'</td>'+
       '<td style="color:var(--green);font-weight:900">R$ '+Number(p.valor||0).toFixed(2).replace('.',',')+'</td>'+
       '<td>'+badgeStatus(p.status)+'</td><td>'+fmtDate(p.created_at)+'</td></tr>';
@@ -2890,7 +2963,7 @@ async function salvarNovaMeta(){
 async function carregarProdutos(){
   var tbody=document.getElementById('prod-tbody');
   tbody.innerHTML='<tr><td colspan="7" class="empty-state"><span class="loader-inline"></span></td></tr>';
-  var{data}=await sb.from('produtos').select('id,nome,preco,preco_original,desconto,categoria,imagem,descricao,plataforma,ativo,estoque,views,created_at').order('created_at',{ascending:false});
+  var{data}=await sb.from('produtos').select('*').order('created_at',{ascending:false});
   todosOsProdutos=data||[];
   renderProdutos(todosOsProdutos);
   verificarEstoqueBaixo(todosOsProdutos);
@@ -3029,26 +3102,10 @@ async function salvarProduto(){
     showToast(id?'Produto atualizado!':'Produto cadastrado!');
   }
 
-  closeModal('produto');
-  /* Se editou, atualiza só essa linha na tabela sem recarregar tudo */
-  if(id){
-    atualizarLinhaProdutoNaTabela(prodId,dados,count||0);
-  } else {
-    carregarProdutos(); /* novo produto: precisa recarregar para mostrar na lista */
-  }
+  closeModal('produto');carregarProdutos();
   registrarHistorico('produto',
     id?('editou "'+nome+'" +'+qtdAdicionadas+' keys'):('cadastrou "'+nome+'" com '+qtdAdicionadas+' keys'),
     antes,dados).catch(function(e){console.warn('[historico]',e);});
-}
-
-/* Atualiza só a linha do produto na tabela sem query nova */
-function atualizarLinhaProdutoNaTabela(prodId,dados,estoqueAtual){
-  var tr=document.querySelector('tr[data-prod-id="'+prodId+'"]');
-  if(!tr){carregarProdutos();return;} /* fallback se não achar */
-  tr.querySelector('.td-nome') && (tr.querySelector('.td-nome').textContent=dados.nome||'');
-  tr.querySelector('.td-preco') && (tr.querySelector('.td-preco').textContent='R$ '+Number(dados.preco).toFixed(2).replace('.',','));
-  tr.querySelector('.td-cat') && (tr.querySelector('.td-cat').textContent=dados.categoria||'');
-  tr.querySelector('.td-estoque') && (tr.querySelector('.td-estoque').textContent=estoqueAtual);
 }
 
 /* Adiciona keys ao estoque SEM salvar o produto — mostra resultado imediato no modal */
@@ -3285,7 +3342,7 @@ async function carregarEstoque(){
   var tbody=document.getElementById('est-tbody');
   tbody.innerHTML='<tr><td colspan="6" class="empty-state"><span class="loader-inline"></span></td></tr>';
 
-  var{data,error}=await sb.from('estoque_chaves').select('id,produto_id,produto_nome,tipo,conteudo,status,created_at').order('created_at',{ascending:false});
+  var{data,error}=await sb.from('estoque_chaves').select('*').order('created_at',{ascending:false});
   if(error){tbody.innerHTML='<tr><td colspan="6" class="empty-state" style="color:var(--red)">Erro ao carregar: '+esc(error.message)+'</td></tr>';return}
   _todasAsChaves=data||[];
 
@@ -3430,7 +3487,7 @@ var _todosOsPedidos=[];
 async function carregarPedidos(){
   var tbody=document.getElementById('ped-tbody');
   tbody.innerHTML='<tr><td colspan="7" class="empty-state"><span class="loader-inline"></span></td></tr>';
-  var{data}=await sb.from('pedidos').select('id,cliente_email,produto_nome,valor,status,metodo,created_at,reference,mp_payment_id').order('created_at',{ascending:false});
+  var{data}=await sb.from('pedidos').select('*').order('created_at',{ascending:false});
   _todosOsPedidos=data||[];
   renderPedidos(_todosOsPedidos);
   var busca=document.querySelector('#page-pedidos .t-search');
@@ -3639,7 +3696,7 @@ async function carregarAvaliacoes(){
   var grid=document.getElementById('aval-grid');
   if(!grid) return;
   grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted)"><span class="loader-inline"></span></div>';
-  var{data,error}=await sb.from('avaliacoes').select('id,user_email,produto_id,produto_nome,nota,comentario,aprovado,created_at').order('created_at',{ascending:false});
+  var{data,error}=await sb.from('avaliacoes').select('*').order('created_at',{ascending:false});
   if(error||!data||data.length===0){
     grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:48px;color:var(--muted);font-size:12px;font-weight:600">Nenhuma avaliação recebida ainda.</div>';
     return;
@@ -3745,7 +3802,7 @@ var _mpData=[], _mpSaldoAtual=0, _mpSaldoRmAtual=0;
 async function carregarMarsPoints(){
   var tbody=document.getElementById('pts-tbody');
   tbody.innerHTML='<tr><td colspan="6" class="empty-state"><span class="loader-inline"></span></td></tr>';
-  var{data}=await sb.from('marspoints').select('user_email,pontos,updated_at').order('pontos',{ascending:false});
+  var{data}=await sb.from('marspoints').select('*').order('pontos',{ascending:false});
   if(!data||data.length===0){tbody.innerHTML='<tr><td colspan="6" class="empty-state">Nenhum cliente ainda.</td></tr>';return}
   _mpData=data;
   var total=data.reduce(function(s,r){return s+(r.pontos||0)},0);
@@ -5391,57 +5448,35 @@ async function marcarTodasLidas(){
 }
 
 function iniciarRealtimeNotifs(){
-  sb.channel('notificacoes')
-    .on('postgres_changes',{event:'INSERT',schema:'public',table:'notificacoes_admin'},
-      function(payload){
-        var n=payload.new;
-        showToast(n.titulo);
-        carregarNotifs();
-      }
-    ).subscribe();
+  /* Sem channel realtime — polling leve a cada 90s */
+  setInterval(carregarNotifs, 90000);
 }
 
 /* ── CLIENTES ONLINE via Realtime Presence ──
    O site público faz broadcast a cada 30s
    O admin escuta e conta os ativos
 */
-var _clientesPresenceChannel=null;
 var _clientesOnlineMap={};
 
 function iniciarPresenceClientes(){
-  if(_clientesPresenceChannel) return;
-  _clientesPresenceChannel=sb.channel('site-visitors',{
-    config:{presence:{key:'admin-observer'}}
-  });
-  _clientesPresenceChannel
+  /* Usa o slot de channel ativo — será destruído ao trocar de aba */
+  if(_channelAtivo) return;
+  _clientesOnlineMap={};
+  _channelAtivo=sb.channel('site-visitors',{config:{presence:{key:'admin-observer'}}})
     .on('presence',{event:'sync'},function(){
-      var state=_clientesPresenceChannel.presenceState();
+      var state=_channelAtivo.presenceState();
       _clientesOnlineMap={};
       Object.values(state).forEach(function(presencas){
-        presencas.forEach(function(p){
-          if(p.tipo==='visitante'&&p.email){
-            _clientesOnlineMap[p.email]=p;
-          }
-        });
+        presencas.forEach(function(p){if(p.tipo==='visitante'&&p.email)_clientesOnlineMap[p.email]=p;});
       });
       _atualizarUIClientesOnline();
     })
     .on('presence',{event:'join'},function(payload){
-      if(payload.newPresences){
-        payload.newPresences.forEach(function(p){
-          if(p.tipo==='visitante'&&p.email){
-            _clientesOnlineMap[p.email]=p;
-          }
-        });
-      }
+      if(payload.newPresences) payload.newPresences.forEach(function(p){if(p.tipo==='visitante'&&p.email)_clientesOnlineMap[p.email]=p;});
       _atualizarUIClientesOnline();
     })
     .on('presence',{event:'leave'},function(payload){
-      if(payload.leftPresences){
-        payload.leftPresences.forEach(function(p){
-          if(p.email) delete _clientesOnlineMap[p.email];
-        });
-      }
+      if(payload.leftPresences) payload.leftPresences.forEach(function(p){if(p.email)delete _clientesOnlineMap[p.email];});
       _atualizarUIClientesOnline();
     })
     .subscribe();
