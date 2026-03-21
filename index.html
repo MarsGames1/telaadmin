@@ -4614,12 +4614,13 @@ async function ativarAssinatura(){
 }
 
 async function ativarAssinaturaDireta(id, plano, email){
-  /* Esta função é chamada quando o webhook JÁ ATIVOU mas o admin quer confirmar.
-     Não aplica benefícios novamente — o webhook já fez isso. */
+  /* Ativa a assinatura pendente e aplica todos os benefícios.
+     Tenta primeiro via edge fn marspass-ativar (aplica tudo server-side).
+     Fallback: ativa direto no DB + aplica benefícios localmente. */
   var pl=MP_PLANOS[plano];
   if(!pl){showToast('Plano inválido',true);return;}
 
-  /* Verifica se já está ativo (webhook pode ter ativado entre o load e o clique) */
+  /* Verifica se já está ativo */
   var{data:atual}=await sb.from('marspass_assinaturas').select('status,renovacoes').eq('id',id).maybeSingle();
   if(atual&&atual.status==='ativo'){
     showToast('✅ Já está ativo! Atualizando lista...');
@@ -4627,7 +4628,35 @@ async function ativarAssinaturaDireta(id, plano, email){
     return;
   }
 
-  /* Cancela ativa anterior se houver */
+  showToast('⏳ Ativando assinatura...');
+
+  /* TENTATIVA 1: Chama edge fn marspass-ativar que faz tudo server-side */
+  try{
+    var sess = await sb.auth.getSession();
+    var token = sess&&sess.data&&sess.data.session&&sess.data.session.access_token;
+    if(token){
+      var res = await fetch(SUPABASE_URL+'/functions/v1/marspass-ativar',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+        body:JSON.stringify({assinatura_id:id, plano:plano, user_email:email, admin:true})
+      });
+      var resData = await res.json();
+      if(res.ok && (resData.ativo || resData.success)){
+        notificarCliente(email,'marspass','🌌 MarsPass '+pl.nome+' ativado!',
+          'Sua assinatura MarsPass '+pl.nome+' está ativa por 30 dias. Aproveite todos os benefícios!',
+          {plano:plano}).catch(function(){});
+        await registrarHistorico('sistema','admin ativou MarsPass '+plano+' para '+email,null,{plano,email});
+        showToast('✅ Assinatura ativada via servidor!');
+        carregarMarsPass();
+        return;
+      }
+      /* Edge fn retornou erro — continua para fallback */
+      console.warn('[marspass-ativar edge]', resData.error||resData);
+    }
+  }catch(eEdge){ console.warn('[marspass-ativar edge err]', eEdge.message); }
+
+  /* FALLBACK: ativa diretamente no DB + aplica benefícios localmente */
+  /* Cancela ativa anterior */
   await sb.from('marspass_assinaturas').update({status:'cancelado',data_cancelamento:new Date().toISOString()})
     .eq('user_email',email).eq('status','ativo').catch(function(){});
 
@@ -4641,9 +4670,9 @@ async function ativarAssinaturaDireta(id, plano, email){
     renovacoes:1
   }).eq('id',id);
 
-  if(error){showToast('Erro: '+error.message,true);return;}
+  if(error){showToast('Erro ao ativar: '+error.message,true);return;}
 
-  /* Verifica se benefícios já foram aplicados pelo webhook (renovacoes > 0) */
+  /* Aplica benefícios se ainda não aplicados */
   if(!atual||!atual.renovacoes){
     await aplicarBeneficiosSeNecessario(email,plano,pl,id);
   }
