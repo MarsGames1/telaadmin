@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pagar com Pix - MarsGames</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&family=Orbitron:wght@700;900&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--green:#00ff55;--green2:#00cc44;--mars:#e8421a;--orange:#ff6b2b;--gold:#ffb800;}
+body{-webkit-tap-highlight-color:transparent;background:#07070c;color:#fff;font-family:'Montserrat',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;position:relative;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;background-image:linear-gradient(rgba(0,255,85,.02) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,85,.02) 1px,transparent 1px);background-size:48px 48px;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pop{0%{transform:scale(0)}70%{transform:scale(1.15)}100%{transform:scale(1)}}
+@keyframes confettiDrop{0%{transform:translateY(-20px) rotate(0deg);opacity:1}100%{transform:translateY(110vh) rotate(720deg);opacity:0}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes countdown{from{stroke-dashoffset:0}to{stroke-dashoffset:283}}
+@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+@keyframes glowPulse{0%,100%{box-shadow:0 0 16px rgba(0,255,85,.1)}50%{box-shadow:0 0 40px rgba(0,255,85,.35)}}
+
+.confetti-wrap{position:fixed;inset:0;pointer-events:none;z-index:100}
+.cp{position:absolute;border-radius:2px;opacity:0}
+
+.card{position:relative;z-index:1;background:#0f0f16;border:1px solid rgba(0,255,85,.11);border-radius:28px;padding:40px;width:100%;max-width:460px;text-align:center;animation:fadeUp .5s ease both;box-shadow:0 40px 100px rgba(0,0,0,.85);}
+.card::before{content:'';position:absolute;top:0;left:10%;right:10%;height:2px;background:linear-gradient(to right,transparent,var(--green),transparent);border-radius:0 0 4px 4px;}
+
+/* ESTADOS */
+#stateLoading, #statePix, #stateSuccess, #stateError{display:none}
+#stateLoading.show, #statePix.show, #stateSuccess.show, #stateError.show{display:block}
+
+/* LOADING */
+.loader{width:56px;height:56px;border:3px solid rgba(0,255,85,.1);border-top-color:var(--green);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 20px;}
+
+/* HEADER PIX */
+.pix-header{margin-bottom:24px;}
+.pix-logo{font-family:'Orbitron',sans-serif;font-size:22px;font-weight:900;color:#fff;margin-bottom:4px;}
+.pix-logo span{color:var(--green)}
+.pix-sub{font-size:12px;color:#555;font-weight:600;}
+
+/* VALOR */
+.valor-box{background:rgba(0,255,85,.04);border:1px solid rgba(0,255,85,.1);border-radius:12px;padding:14px;margin-bottom:20px;}
+.valor-label{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#555;margin-bottom:4px;}
+.valor-num{font-family:'Orbitron',sans-serif;font-size:28px;font-weight:900;color:var(--green);}
+.valor-prod{font-size:11px;color:#666;margin-top:4px;font-weight:600;}
+
+/* QR CODE */
+.qr-wrap{position:relative;display:inline-block;margin:0 auto 20px;}
+.qr-img{width:200px;height:200px;border-radius:12px;border:3px solid rgba(0,255,85,.2);background:#fff;display:block;}
+.qr-timer{position:absolute;bottom:-12px;left:50%;transform:translateX(-50%);background:#0f0f16;border:1px solid rgba(0,255,85,.2);border-radius:99px;padding:3px 12px;font-size:10px;font-weight:900;color:var(--green);white-space:nowrap;}
+
+/* STATUS POLLING */
+.poll-status{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:20px;font-size:12px;font-weight:700;color:#555;}
+.poll-dot{width:8px;height:8px;border-radius:50%;background:var(--green);animation:pulse 1.5s ease-in-out infinite;flex-shrink:0;}
+
+/* COPIA E COLA */
+.pix-copy-box{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:12px;margin-bottom:16px;text-align:left;}
+.pix-copy-label{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#555;margin-bottom:6px;}
+.pix-copy-code{font-family:monospace;font-size:9px;color:#888;word-break:break-all;line-height:1.6;max-height:44px;overflow:hidden;}
+.btn-copy{width:100%;padding:13px;border-radius:10px;background:rgba(0,255,85,.08);border:1px solid rgba(0,255,85,.2);color:var(--green);font-family:'Montserrat',sans-serif;font-weight:900;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;transition:background .2s;margin-bottom:10px;}
+.btn-copy:hover{background:rgba(0,255,85,.14)}
+.btn-copy.copiado{background:rgba(0,255,85,.18);border-color:var(--green);}
+
+/* INSTRUÇÕES */
+.instrucoes{background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.05);border-radius:10px;padding:14px;margin-bottom:20px;text-align:left;}
+.inst-title{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#555;margin-bottom:10px;}
+.inst-item{display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;}
+.inst-item:last-child{margin-bottom:0}
+.inst-num{width:20px;height:20px;border-radius:50%;background:rgba(0,255,85,.08);border:1px solid rgba(0,255,85,.2);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;color:var(--green);flex-shrink:0;}
+.inst-text{font-size:11px;color:#666;font-weight:600;line-height:1.5;}
+
+/* SUCESSO */
+.success-icon{width:80px;height:80px;border-radius:50%;background:rgba(0,255,85,.1);border:2px solid rgba(0,255,85,.3);display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:36px;animation:pop .5s ease both, glowPulse 3s ease-in-out 1s infinite;}
+.success-title{font-family:'Orbitron',sans-serif;font-size:22px;font-weight:900;color:#fff;margin-bottom:8px;}
+.success-title span{color:var(--green)}
+.success-sub{font-size:13px;color:#666;font-weight:600;margin-bottom:24px;line-height:1.6;}
+
+/* CHAVE */
+.chave-box{background:linear-gradient(135deg,rgba(232,66,26,.07),rgba(255,107,43,.04));border:1px dashed rgba(232,66,26,.3);border-radius:12px;padding:16px;margin-bottom:14px;text-align:left;position:relative;overflow:hidden;}
+.chave-box::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(to right,transparent,rgba(232,66,26,.4),transparent);}
+.chave-label{font-size:8px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:rgba(255,107,43,.65);margin-bottom:10px;}
+.chave-field-label{font-size:9px;color:#555;margin-bottom:3px;font-weight:600;}
+.chave-code{font-family:'Orbitron',sans-serif;font-size:13px;font-weight:900;color:var(--orange);letter-spacing:1px;word-break:break-all;background:rgba(255,107,43,.06);border:1px solid rgba(255,107,43,.1);border-radius:8px;padding:8px 10px;margin-bottom:6px;background-image:linear-gradient(90deg,transparent,rgba(255,255,255,.03) 50%,transparent);background-size:200% 100%;animation:shimmer 3s ease infinite;}
+.btn-copiar-chave{width:100%;padding:9px;border-radius:8px;background:linear-gradient(135deg,var(--mars),var(--orange));border:none;color:#fff;font-family:'Montserrat',sans-serif;font-weight:900;font-size:11px;letter-spacing:1px;text-transform:uppercase;cursor:pointer;transition:opacity .2s;margin-top:6px;}
+.btn-copiar-chave.ok{background:linear-gradient(135deg,var(--green),var(--green2));color:#000;}
+
+/* PTS BADGE */
+.pts-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(255,184,0,.07);border:1px solid rgba(255,184,0,.2);border-radius:99px;padding:6px 16px;font-size:11px;font-weight:900;color:var(--gold);margin-bottom:20px;}
+
+/* BOTÕES FINAIS */
+.btn-primary{display:flex;align-items:center;justify-content:center;padding:14px;border-radius:12px;background:linear-gradient(135deg,var(--green),var(--green2));border:none;color:#000;font-family:'Montserrat',sans-serif;font-weight:900;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;text-decoration:none;transition:box-shadow .2s,transform .15s;box-shadow:0 4px 20px rgba(0,255,85,.18);margin-bottom:10px;}
+.btn-primary:hover{box-shadow:0 8px 32px rgba(0,255,85,.35);transform:translateY(-2px)}
+.btn-secondary{display:flex;align-items:center;justify-content:center;padding:12px;border-radius:12px;background:transparent;border:1px solid rgba(255,255,255,.07);color:#555;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;text-decoration:none;transition:border-color .2s,color .2s;}
+.btn-secondary:hover{border-color:rgba(255,255,255,.18);color:#ccc}
+
+/* ERRO */
+.erro-box{background:rgba(255,68,68,.06);border:1px solid rgba(255,68,68,.2);border-radius:10px;padding:14px;font-size:12px;color:#ff8888;line-height:1.6;margin-bottom:16px;}
+
+@media(max-width:480px){
+  .card{padding:28px 20px;border-radius:20px;max-width:100%;}
+  .qr-img{width:170px!important;height:170px!important;}
+  .pix-code-box{font-size:10px;padding:10px 12px;}
+  h1{font-size:18px;}
+  .copy-btn{padding:12px;font-size:11px;}
+  .step-txt{font-size:11px;}
+}
+</style>
+</head>
+<body>
+<div class="confetti-wrap" id="confettiWrap"></div>
+
+<div class="card">
+
+  <!-- LOADING -->
+  <div id="stateLoading">
+    <div class="loader"></div>
+    <div style="font-family:'Orbitron',sans-serif;font-size:16px;font-weight:900;margin-bottom:8px">Gerando Pix</div>
+    <div style="font-size:12px;color:#555;font-weight:600">Preparando seu QR Code...</div>
+  </div>
+
+  <!-- PIX -->
+  <div id="statePix">
+    <div class="pix-header">
+      <div class="pix-logo">Mars<span>Games</span></div>
+      <div class="pix-sub">Pague com Pix — confirmação instantânea</div>
+    </div>
+
+    <div class="valor-box">
+      <div class="valor-label">Total a pagar</div>
+      <div class="valor-num" id="valorNum">R$ 0,00</div>
+      <div class="valor-prod" id="valorProd"></div>
+    </div>
+
+    <div class="qr-wrap">
+      <img class="qr-img" id="qrImg" src="" alt="QR Code Pix">
+      <div class="qr-timer" id="qrTimer">⏱ 30:00</div>
+    </div>
+
+    <div class="poll-status">
+      <div class="poll-dot"></div>
+      <span id="pollMsg">Aguardando pagamento...</span>
+    </div>
+
+    <div class="pix-copy-box">
+      <div class="pix-copy-label">Pix Copia e Cola</div>
+      <div class="pix-copy-code" id="pixCode">—</div>
+    </div>
+    <button class="btn-copy" id="btnCopy" onclick="copiarPix()">📋 Copiar código Pix</button>
+
+    <div class="instrucoes">
+      <div class="inst-title">Como pagar</div>
+      <div class="inst-item"><div class="inst-num">1</div><div class="inst-text">Abra o app do seu banco</div></div>
+      <div class="inst-item"><div class="inst-num">2</div><div class="inst-text">Escaneie o QR Code ou use o Pix Copia e Cola</div></div>
+      <div class="inst-item"><div class="inst-num">3</div><div class="inst-text">Confirme o pagamento — sua chave aparece aqui automaticamente ✅</div></div>
+    </div>
+  </div>
+
+  <!-- SUCESSO -->
+  <div id="stateSuccess">
+    <div class="success-icon" id="successIcon">✅</div>
+    <div class="success-title" id="successTitle">Pix <span>Confirmado!</span></div>
+    <div class="success-sub" id="successSub">Sua chave está pronta. Bons jogos! 🎮</div>
+
+    <!-- Tela especial para câmbio concluído -->
+    <div id="cambioResultBox" style="display:none;margin-bottom:20px">
+      <div style="background:rgba(0,255,85,.06);border:1px solid rgba(0,255,85,.2);border-radius:16px;padding:24px;text-align:center">
+        <div style="font-size:48px;margin-bottom:8px" id="cambioResultIcon">🎟️</div>
+        <div style="font-family:'Orbitron',sans-serif;font-size:22px;font-weight:900;color:#00ff55;margin-bottom:4px" id="cambioResultQtd">+5 Tickets</div>
+        <div style="font-size:12px;color:#555;margin-bottom:16px" id="cambioResultDesc">creditados na sua conta agora</div>
+        <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+          <div style="background:rgba(255,194,0,.08);border:1px solid rgba(255,194,0,.2);border-radius:10px;padding:10px 16px;font-size:11px;color:#ffc200;font-weight:700" id="cambioResultMP">-200 MP debitados</div>
+          <div style="background:rgba(0,255,85,.08);border:1px solid rgba(0,255,85,.2);border-radius:10px;padding:10px 16px;font-size:11px;color:#00ff55;font-weight:700" id="cambioResultSaldo">Novo saldo: —</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="chavesSection"></div>
+
+    <div class="pts-badge" id="ptsBadge" style="display:none">
+      ⭐ +<span id="ptsGanhos">0</span> MarsPoints ganhos!
+    </div>
+
+    <a class="btn-primary" id="successBtn" href="perfil.html">🎮 Ver meus pedidos</a>
+    <a class="btn-secondary" href="index.html">Continuar comprando</a>
+  </div>
+
+  <!-- ERRO -->
+  <div id="stateError">
+    <div style="font-size:48px;margin-bottom:16px">⚠️</div>
+    <div style="font-family:'Orbitron',sans-serif;font-size:18px;font-weight:900;margin-bottom:8px">Erro ao gerar Pix</div>
+    <div class="erro-box" id="erroMsg">Não foi possível gerar o QR Code.</div>
+    <a class="btn-primary" href="index.html">Tentar novamente</a>
+  </div>
+
+</div>
+
+<script>
+const SUPA_URL = 'https://rzjtlghpsygxkivgwgws.supabase.co';
+const SUPA_KEY  = 'sb_publishable_sDCnL56QQzg976Pt9if_GA_2mZn2Wzm';
+
+// Dados salvos pelo checkout.html
+const pixData     = JSON.parse(sessionStorage.getItem('mg_pix_data') || 'null');
+const userEmail   = sessionStorage.getItem('mg_user_email') || '';
+const reference   = sessionStorage.getItem('mg_external_ref') || '';
+const pedidoId    = sessionStorage.getItem('mg_pedido_id') || '';
+const accessToken  = sessionStorage.getItem('mg_access_token')  || '';
+const refreshToken = sessionStorage.getItem('mg_refresh_token') || '';
+/* Timestamp de quando esta sessão de checkout começou — pedidos anteriores são ignorados */
+const checkoutStartedAt = new Date().toISOString();
+
+// Query direta via REST com Authorization — ignora RLS completamente para leitura do próprio pedido
+async function dbGet(table, filters) {
+  const token = accessToken || SUPA_KEY;
+  const params = Object.entries(filters)
+    .map(([k,v]) => `${k}=eq.${encodeURIComponent(v)}`).join('&');
+  const url = `${SUPA_URL}/rest/v1/${table}?${params}&limit=1`;
+  const res = await fetch(url, {
+    headers: {
+      'apikey': SUPA_KEY,
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/json'
+    }
+  });
+  if (!res.ok) return null;
+  const rows = await res.json();
+  return Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+}
+
+async function dbUpdate(table, id, data) {
+  const token = accessToken || SUPA_KEY;
+  const url = `${SUPA_URL}/rest/v1/${table}?id=eq.${id}`;
+  await fetch(url, {
+    method: 'PATCH',
+    headers: {
+      'apikey': SUPA_KEY,
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=minimal'
+    },
+    body: JSON.stringify(data)
+  }).catch(() => {});
+}
+
+function show(id) {
+  ['stateLoading','statePix','stateSuccess','stateError'].forEach(s => {
+    document.getElementById(s).classList.remove('show');
+  });
+  document.getElementById(id).classList.add('show');
+}
+
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ── CONFETTI ──
+function confetti() {
+  const wrap = document.getElementById('confettiWrap');
+  const cores = ['#00ff55','#00cc44','#e8421a','#ffb800','#7b61ff','#00ffff','#fff'];
+  for (let i = 0; i < 80; i++) {
+    const el = document.createElement('div');
+    el.className = 'cp';
+    const cor = cores[Math.floor(Math.random()*cores.length)];
+    const tam = 5 + Math.random()*8;
+    el.style.cssText = `left:${Math.random()*100}%;top:-20px;width:${tam}px;height:${tam}px;`
+      + `background:${cor};border-radius:${Math.random()>.5?'50%':'3px'};`
+      + `animation:confettiDrop ${2+Math.random()*2.5}s ease-in ${Math.random()*1.5}s forwards;`;
+    wrap.appendChild(el);
+  }
+}
+
+// ── TIMER ──
+let timerInterval = null;
+function iniciarTimer(minutos) {
+  let total = minutos * 60;
+  const el = document.getElementById('qrTimer');
+  timerInterval = setInterval(() => {
+    total--;
+    if (total <= 0) { clearInterval(timerInterval); el.textContent = '⏱ Expirado'; return; }
+    const m = String(Math.floor(total/60)).padStart(2,'0');
+    const s = String(total%60).padStart(2,'0');
+    el.textContent = `⏱ ${m}:${s}`;
+    if (total <= 300) el.style.color = '#ff8888';
+  }, 1000);
+}
+
+// ── COPIAR PIX ──
+function copiarPix() {
+  const code = document.getElementById('pixCode').textContent;
+  navigator.clipboard.writeText(code).then(() => {
+    const btn = document.getElementById('btnCopy');
+    btn.textContent = '✓ Copiado!';
+    btn.classList.add('copiado');
+    setTimeout(() => { btn.textContent = '📋 Copiar código Pix'; btn.classList.remove('copiado'); }, 2500);
+  });
+}
+
+// ── REDIRECIONA PARA SUCESSO ──
+async function irParaSucesso(ref) {
+  clearInterval(timerInterval);
+  confetti();
+  localStorage.removeItem('mg_cart');
+  localStorage.removeItem('mg_cart_saved');
+  const refFinal = ref || reference || pedidoId || '';
+
+  document.getElementById('pollMsg').textContent = 'Pagamento confirmado! Processando...';
+  document.getElementById('pollMsg').style.color = '#00ff55';
+  document.querySelector('.poll-dot').style.background = '#00ff55';
+  document.querySelector('.poll-dot').style.animation = 'none';
+
+  const itens   = JSON.parse(sessionStorage.getItem('mg_itens_pendentes') || '[]');
+  const tipo    = itens[0]?.tipo || '';
+
+  if (tipo === 'marspoints') {
+    await creditarPacoteMP().catch(e => console.error('[MP crédito]', e));
+    show('stateSuccess');
+    document.getElementById('successTitle').innerHTML = 'MarsPoints <span>Creditados!</span>';
+    document.getElementById('successSub').textContent = 'Seus MarsPoints estão disponíveis agora!';
+    document.getElementById('successBtn').href        = 'perfil.html#loja-mp';
+    document.getElementById('successBtn').textContent = '⭐ Ver meus MarsPoints';
+    setTimeout(() => { window.location.href = 'perfil.html#loja-mp'; }, 5000);
+
+  } else if (tipo === 'cambio') {
+    show('stateSuccess');
+    document.getElementById('successTitle').innerHTML = 'Pix <span>Confirmado!</span>';
+    document.getElementById('successSub').textContent = 'Processando câmbio...';
+    document.getElementById('successBtn').style.display = 'none';
+    // Executa câmbio — atualiza a tela internamente quando terminar
+    await executarCambioPosPagemento();
+
+  } else {
+    show('stateSuccess');
+    setTimeout(() => {
+      window.location.href = 'sucesso.html?ref=' + encodeURIComponent(refFinal);
+    }, 1800);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// creditarPacoteMP — credita MP + Tickets + XP do planeta
+// Cada etapa tem try/catch independente: falha em tickets NÃO
+// impede crédito de XP. Fallback lê bonus de mg_itens_pendentes
+// se mg_loja_pkg_bonus estiver vazio.
+// ═══════════════════════════════════════════════════════════
+async function creditarPacoteMP() {
+  if (!userEmail) return;
+
+  // Idempotência: bloqueia duplo crédito em retry/reload
+  const _idemKey = 'mg_loja_creditado_' + (reference || pedidoId || userEmail.slice(0,8));
+  if (sessionStorage.getItem(_idemKey)) {
+    console.log('[creditarPacoteMP] já creditado — ignorando');
+    return;
+  }
+  sessionStorage.setItem(_idemKey, '1');
+
+  const pkgId = sessionStorage.getItem('mg_loja_pkg_id') || '';
+  const pkgMP = parseInt(sessionStorage.getItem('mg_loja_pkg_mp') || '0');
+
+  // Lê bonus de mg_loja_pkg_bonus; se vazio, usa itens embeddados como fallback
+  let bonus = [];
+  try {
+    const bonusRaw = sessionStorage.getItem('mg_loja_pkg_bonus') || '[]';
+    bonus = JSON.parse(bonusRaw);
+  } catch(e) { bonus = []; }
+
+  // Fallback: lê bonus do próprio objeto de itens (salvo pela perfil.html)
+  if (!bonus.length) {
+    try {
+      const itensRaw = sessionStorage.getItem('mg_itens_pendentes') || '[]';
+      const itens = JSON.parse(itensRaw);
+      if (itens[0] && Array.isArray(itens[0].bonus)) bonus = itens[0].bonus;
+    } catch(e) {}
+  }
+
+  console.log('[creditarPacoteMP] pkgId:', pkgId, '| pkgMP:', pkgMP, '| bonus:', JSON.stringify(bonus));
+
+  // Token: prefere JWT do usuário (permite escrita via RLS), fallback para anon key
+  const token = (accessToken && accessToken.length > 20) ? accessToken : SUPA_KEY;
+  const headers = { 'apikey': SUPA_KEY, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'Accept': 'application/json' };
+
+  let tktCreditado = 0;
+  let xpCreditado  = 0;
+  const erros = [];
+
+  // ── 1. MarsPoints ──────────────────────────────────────────
+  try {
+    const mpRes  = await fetch(`${SUPA_URL}/rest/v1/marspoints?user_email=eq.${encodeURIComponent(userEmail)}&limit=1`, { headers });
+    if (!mpRes.ok) throw new Error(`MP SELECT ${mpRes.status}`);
+    const mpRows = await mpRes.json();
+    const mpAtual = (mpRows[0] && mpRows[0].pontos) || 0;
+    const hist    = (mpRows[0] && mpRows[0].historico) || [];
+    hist.unshift({ pontos: pkgMP, descricao: 'Compra pacote MP: ' + pkgId, data: new Date().toISOString(), tipo: 'compra_mp' });
+
+    const mpWrite = await fetch(`${SUPA_URL}/rest/v1/marspoints`, {
+      method: 'POST',
+      headers: { ...headers, 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify({ user_email: userEmail, pontos: mpAtual + pkgMP, historico: hist.slice(0, 50) })
+    });
+    if (!mpWrite.ok) {
+      const errTxt = await mpWrite.text();
+      throw new Error(`MP WRITE ${mpWrite.status}: ${errTxt.slice(0,120)}`);
+    }
+    console.log('[MP] ✅ +' + pkgMP + ' creditado');
+  } catch(e) {
+    console.error('[MP ERRO]', e.message);
+    erros.push('MP: ' + e.message);
+  }
+
+  // ── 2. Tickets bônus ──────────────────────────────────────
+  try {
+    const tktBonus = bonus
+      .filter(b => b.type === 'tkt')
+      .reduce((s, b) => { const m = (b.label || '').match(/\d+/); return s + (m ? parseInt(m[0]) : 0); }, 0);
+
+    if (tktBonus > 0) {
+      const tktGet = await fetch(`${SUPA_URL}/rest/v1/tickets?user_email=eq.${encodeURIComponent(userEmail)}&limit=1`, { headers });
+      if (!tktGet.ok) throw new Error(`TKT SELECT ${tktGet.status}`);
+      const tktRows = await tktGet.json();
+      const tktAtual = (tktRows[0] && tktRows[0].quantidade)      || 0;
+      const tktTotal = (tktRows[0] && tktRows[0].total_acumulado) || 0;
+
+      // Não sobrescreve ultima_renovacao em registro existente
+      const tktPayload = { user_email: userEmail, quantidade: tktAtual + tktBonus, total_acumulado: tktTotal + tktBonus };
+      if (!tktRows[0]) tktPayload.ultima_renovacao = new Date().toISOString();
+
+      const tktWrite = await fetch(`${SUPA_URL}/rest/v1/tickets`, {
+        method: 'POST',
+        headers: { ...headers, 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+        body: JSON.stringify(tktPayload)
+      });
+      if (!tktWrite.ok) {
+        const errTxt = await tktWrite.text();
+        throw new Error(`TKT WRITE ${tktWrite.status}: ${errTxt.slice(0,120)}`);
+      }
+      tktCreditado = tktBonus;
+      console.log('[Tickets] ✅ +' + tktBonus + ' creditado');
+    }
+  } catch(e) {
+    console.error('[TICKETS ERRO]', e.message);
+    erros.push('Tickets: ' + e.message);
+  }
+
+  // ── 3. XP Planeta ─────────────────────────────────────────
+  try {
+    const xpBonus = bonus
+      .filter(b => b.type === 'xp')
+      .reduce((s, b) => { const m = (b.label || '').match(/\d+/); return s + (m ? parseInt(m[0]) : 0); }, 0);
+
+    if (xpBonus > 0) {
+      const plGet = await fetch(`${SUPA_URL}/rest/v1/planetas?user_email=eq.${encodeURIComponent(userEmail)}&limit=1`, { headers });
+      if (!plGet.ok) throw new Error(`XP SELECT ${plGet.status}`);
+      const plRows = await plGet.json();
+      const xpAtual = (plRows[0] && plRows[0].xp)   || 0;
+      const pLog    = (plRows[0] && plRows[0].log)   || [];
+      pLog.unshift({ label: 'Bônus XP pacote ' + pkgId, xp: xpBonus, icon: '🌟', t: new Date().toLocaleTimeString('pt-BR') });
+
+      const plWrite = await fetch(`${SUPA_URL}/rest/v1/planetas`, {
+        method: 'POST',
+        headers: { ...headers, 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+        body: JSON.stringify({ user_email: userEmail, xp: xpAtual + xpBonus, log: pLog.slice(0, 20), updated_at: new Date().toISOString() })
+      });
+      if (!plWrite.ok) {
+        const errTxt = await plWrite.text();
+        throw new Error(`XP WRITE ${plWrite.status}: ${errTxt.slice(0,120)}`);
+      }
+      xpCreditado = xpBonus;
+      console.log('[XP Planeta] ✅ +' + xpBonus + ' creditado');
+    }
+  } catch(e) {
+    console.error('[XP ERRO]', e.message);
+    erros.push('XP: ' + e.message);
+  }
+
+  // ── 4. Feedback visual ────────────────────────────────────
+  const parts = [`✅ +${pkgMP.toLocaleString('pt-BR')} MP`];
+  if (tktCreditado > 0) parts.push(`+${tktCreditado} Tickets`);
+  if (xpCreditado  > 0) parts.push(`+${xpCreditado} XP`);
+  if (erros.length > 0) parts.push(`⚠️ Erro parcial — verifique perfil`);
+
+  const msgEl = document.getElementById('pollMsg');
+  if (msgEl) msgEl.textContent = parts.join(' · ');
+
+  // Atualiza badge de pontos na tela de sucesso
+  const ptsEl = document.getElementById('ptsGanhos');
+  if (ptsEl) ptsEl.textContent = pkgMP.toLocaleString('pt-BR');
+
+  // Se houve erro de tickets/XP, salva flag para perfil.html tentar novamente
+  if (erros.length > 0) {
+    console.warn('[creditarPacoteMP] erros:', erros);
+    sessionStorage.setItem('mg_loja_pago', 'sim'); // perfil.html retenta via processarBonusLojaPendente
+  }
+
+  // Limpa sessão
+  sessionStorage.removeItem('mg_loja_pkg_id');
+  sessionStorage.removeItem('mg_loja_pkg_mp');
+  sessionStorage.removeItem('mg_loja_pkg_bonus');
+  sessionStorage.removeItem('mg_itens_pendentes');
+}
+
+// Executa o câmbio após pagamento da taxa via Pix
+async function executarCambioPosPagemento() {
+  const cambioRaw = sessionStorage.getItem('mg_cambio_pendente');
+  if (!cambioRaw) {
+    _mostrarErroCambio('Dados do câmbio não encontrados. Entre em contato.');
+    return;
+  }
+  const cambio = JSON.parse(cambioRaw);
+  console.log('[cambio pós-pix] iniciando:', cambio);
+
+  // Inicializa SDK Supabase com sessão do usuário para passar no RLS
+  let sb = null;
+  try {
+    sb = window.supabase.createClient(SUPA_URL, SUPA_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false }
+    });
+    // Restaura sessão salva pelo perfil.html
+    if (accessToken && refreshToken) {
+      await sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+    }
+  } catch(e) {
+    console.warn('[cambio] erro init sb:', e);
+    _mostrarErroCambio('Erro de autenticação. Verifique seu perfil.');
+    return;
+  }
+
+  const email        = userEmail || cambio.user_email || '';
+  const custoMP      = parseInt(cambio.custo_mp) || 0;
+  const recompensaVal = parseInt(cambio.recompensa_val) || 1;
+  const recompensaTipo = cambio.recompensa_tipo || cambio.item_tipo || '';
+
+  try {
+    // 1. Busca saldo atual de MP no banco
+    const { data: mpRow } = await sb
+      .from('marspoints')
+      .select('pontos, historico')
+      .eq('user_email', email)
+      .maybeSingle();
+
+    const mpAtual = (mpRow && mpRow.pontos) || 0;
+    const novoMP  = Math.max(0, mpAtual - custoMP);
+    const hist    = (mpRow && mpRow.historico) || [];
+    hist.unshift({
+      pontos: -custoMP,
+      descricao: 'Câmbio: ' + cambio.item_nome,
+      data: new Date().toISOString(),
+      tipo: 'cambio'
+    });
+
+    // 2. Debita MP
+    const { error: mpErr } = await sb
+      .from('marspoints')
+      .upsert({ user_email: email, pontos: novoMP, historico: hist.slice(0, 50) }, { onConflict: 'user_email' });
+    if (mpErr) throw new Error('Erro ao debitar MP: ' + mpErr.message);
+    console.log('[cambio] MP debitado:', custoMP, '→ novo saldo:', novoMP);
+
+    // 3. Credita recompensa
+    let descRecompensa = '';
+    if (recompensaTipo === 'ct-ticket') {
+      const { data: tktRow } = await sb
+        .from('tickets')
+        .select('quantidade, total_acumulado')
+        .eq('user_email', email)
+        .maybeSingle();
+
+      const tktAtual = (tktRow && tktRow.quantidade) || 0;
+      const tktTotal = (tktRow && tktRow.total_acumulado) || 0;
+      const novoTkt  = tktAtual + recompensaVal;
+
+      const { error: tktErr } = await sb
+        .from('tickets')
+        .upsert({
+          user_email: email,
+          quantidade: novoTkt,
+          total_acumulado: tktTotal + recompensaVal,
+          ultima_renovacao: new Date().toISOString()
+        }, { onConflict: 'user_email' });
+      if (tktErr) throw new Error('Erro ao creditar tickets: ' + tktErr.message);
+
+      descRecompensa = `+${recompensaVal} Marstickets`;
+      console.log('[cambio] Tickets creditados:', recompensaVal, '→ total:', novoTkt);
+
+    } else if (recompensaTipo === 'ct-xp') {
+      // XP: tenta banco, fallback localStorage
+      let xpAtual = 0;
+      try {
+        const { data: plRow } = await sb
+          .from('planetas')
+          .select('xp')
+          .eq('user_email', email)
+          .maybeSingle();
+        xpAtual = (plRow && plRow.xp) || parseInt(localStorage.getItem('mg_planeta_xp') || '0');
+      } catch(_) {
+        xpAtual = parseInt(localStorage.getItem('mg_planeta_xp') || '0');
+      }
+      const novoXP = xpAtual + recompensaVal;
+      localStorage.setItem('mg_planeta_xp', String(novoXP));
+      try {
+        await sb.from('planetas').upsert(
+          { user_email: email, xp: novoXP, updated_at: new Date().toISOString() },
+          { onConflict: 'user_email' }
+        );
+      } catch(_) {}
+
+      descRecompensa = `+${recompensaVal} XP`;
+      console.log('[cambio] XP creditado:', recompensaVal, '→ total:', novoXP);
+    }
+
+    // 4. Histórico câmbio (silencioso — tabela pode não existir)
+    try {
+      await sb.from('cambio_historico').insert({
+        user_email: email,
+        item_nome: cambio.item_nome,
+        tipo: recompensaTipo,
+        mp_gasto: custoMP,
+        recompensa: cambio.recompensa,
+        taxa: (cambio.taxa_pct || 0) + '%',
+        taxa_reais: cambio.taxa_reais || 0,
+        created_at: new Date().toISOString()
+      });
+    } catch(_) {}
+
+    sessionStorage.removeItem('mg_cambio_pendente');
+    console.log('[cambio pós-pix] ✅ concluído');
+
+    // 5. Mostra tela de sucesso do câmbio
+    _mostrarSucessoCambio(cambio, recompensaVal, recompensaTipo, descRecompensa, novoMP, custoMP);
+
+  } catch(e) {
+    console.error('[cambio pós-pix] erro:', e);
+    _mostrarErroCambio('Pagamento confirmado, mas ocorreu um erro ao creditar. Entre em contato informando: ' + cambio.item_nome);
+  }
+}
+
+/* Tela de sucesso do câmbio */
+function _mostrarSucessoCambio(cambio, recompensaVal, tipo, descRecompensa, novoMP, custoMP) {
+  const icones = { 'ct-ticket': '🎟️', 'ct-xp': '⚡', 'ct-game': '🎮' };
+  const icone  = icones[tipo] || '✅';
+  const cores  = { 'ct-ticket': '#ffc200', 'ct-xp': '#00ffe7', 'ct-game': '#9f3fff' };
+  const cor    = cores[tipo] || '#00ff55';
+
+  // Atualiza ícone e título
+  document.getElementById('successIcon').textContent = icone;
+  document.getElementById('successIcon').style.cssText += `;background:rgba(0,255,85,.1);border-color:rgba(0,255,85,.3)`;
+  document.getElementById('successTitle').innerHTML = 'Câmbio <span>Concluído!</span>';
+  document.getElementById('successSub').textContent  = 'Seus itens foram creditados agora mesmo.';
+
+  // Mostra box de resultado
+  const box = document.getElementById('cambioResultBox');
+  box.style.display = 'block';
+
+  document.getElementById('cambioResultIcon').textContent = icone;
+  document.getElementById('cambioResultQtd').style.color  = cor;
+  document.getElementById('cambioResultQtd').textContent  = descRecompensa;
+  document.getElementById('cambioResultDesc').textContent = 'creditados na sua conta';
+
+  document.getElementById('cambioResultMP').textContent    = '−' + custoMP.toLocaleString('pt-BR') + ' MP debitados';
+  document.getElementById('cambioResultSaldo').textContent = 'Saldo restante: ' + novoMP.toLocaleString('pt-BR') + ' MP';
+
+  // Botão vai para perfil aba câmbio
+  const btn = document.getElementById('successBtn');
+  btn.style.display    = 'flex';
+  btn.href             = 'perfil.html#cambio';
+  btn.textContent      = '💼 Ver meu perfil atualizado';
+}
+
+/* Tela de erro do câmbio */
+function _mostrarErroCambio(msg) {
+  document.getElementById('successIcon').textContent = '⚠️';
+  document.getElementById('successTitle').innerHTML  = 'Atenção <span style="color:#ffb800">necessária</span>';
+  document.getElementById('successSub').textContent  = msg || 'Erro ao processar câmbio.';
+  const btn = document.getElementById('successBtn');
+  btn.style.display  = 'flex';
+  btn.href           = 'perfil.html#cambio';
+  btn.textContent    = '📋 Ir para o Câmbio';
+}
+
+// ── POLLING: edge function + consulta direta ao banco ──
+let pollTentativas = 0;
+const POLL_MAX = 60;
+let pollAtivo = true;
+
+async function buscarPedidoPago() {
+  // SEGURANÇA: só confirma se status for pago/aprovado/entregue
+  // E SOMENTE para o pedido desta transação (reference ou pedidoId)
+  // NUNCA busca por email — evita confirmar pagamento com pedidos antigos
+  const statusOk = ['pago','aprovado','entregue'];
+  try {
+    // 1. Por reference — identificador único desta transação MP
+    if (reference) {
+      const p = await dbGet('pedidos', { reference });
+      console.log('[db] reference:', reference, '→ status:', p?.status);
+      if (p && statusOk.includes(p.status)) return p;
+      // NÃO aceita 'pendente' — pagamento ainda não confirmado pelo MP
+    }
+
+    // 2. Por pedido_id — só se diferente da reference
+    if (pedidoId && pedidoId !== reference) {
+      const p = await dbGet('pedidos', { id: pedidoId });
+      console.log('[db] pedidoId:', pedidoId, '→ status:', p?.status);
+      if (p && statusOk.includes(p.status)) return p;
+      // NÃO aceita 'pendente'
+    }
+
+    // ⚠️ Busca por email REMOVIDA — causava confirmação falsa com pedidos antigos do usuário
+  } catch(e) { console.warn('[buscarPedidoPago erro]', e); }
+  return null;
+}
+
+
+async function pollPagamento(paymentId, ref) {
+  if (!pollAtivo) return;
+  pollTentativas++;
+
+  // Detecta tipo da compra (câmbio/marspoints não têm pedido na tabela pedidos)
+  const itensPend = JSON.parse(sessionStorage.getItem('mg_itens_pendentes') || '[]');
+  const tipoPend = itensPend[0]?.tipo || '';
+  const ehCambioOuMP = tipoPend === 'cambio' || tipoPend === 'marspoints';
+
+  // 1. Edge function — com Authorization (sem ela retorna 404)
+  try {
+    const res = await fetch(SUPA_URL + '/functions/v1/mp-confirmar-pagamento', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken || SUPA_KEY}`
+      },
+      body: JSON.stringify({ payment_id: paymentId, reference: ref })
+    });
+    if (res.ok) {
+      const d = await res.json();
+      console.log('[poll edge]', pollTentativas, d);
+      if (d.aprovado) {
+        pollAtivo = false;
+        irParaSucesso(d.reference || ref);
+        return;
+      }
+    } else {
+      console.warn('[poll edge] status:', res.status, '— usando fallback DB');
+    }
+  } catch(e) { console.warn('[poll edge]', e); }
+
+  // 2. Fallback: busca pedido na tabela (para compras normais)
+  if (!ehCambioOuMP) {
+    try {
+      const pedido = await buscarPedidoPago();
+      if (pedido) {
+        console.log('[poll db] pedido encontrado:', pedido.id, pedido.status);
+        pollAtivo = false;
+        irParaSucesso(pedido.reference || ref || pedido.id);
+        return;
+      }
+    } catch(e) { console.warn('[poll db]', e); }
+  }
+
+  // 3. Fallback para câmbio/MP: consulta payment_id direto no MP via edge function de status
+  if (ehCambioOuMP && pollTentativas % 3 === 0) {
+    try {
+      const res2 = await fetch(SUPA_URL + '/functions/v1/mp-confirmar-pagamento', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken || SUPA_KEY}`
+        },
+        body: JSON.stringify({ payment_id: paymentId, reference: ref, force_check: true })
+      });
+      if (res2.ok) {
+        const d2 = await res2.json();
+        console.log('[poll cambio edge]', d2);
+        // Aceita qualquer status de aprovado
+        if (d2.aprovado || d2.status === 'approved' || d2.pago) {
+          pollAtivo = false;
+          irParaSucesso(ref);
+          return;
+        }
+      }
+    } catch(e2) { console.warn('[poll cambio]', e2); }
+  }
+
+  if (pollTentativas < POLL_MAX) {
+    setTimeout(() => pollPagamento(paymentId, ref), 5000); /* 5s em vez de 3s — reduz carga no DB */
+  } else {
+    // Esgotou tentativas — para câmbio/MP vai direto para o perfil executar
+    document.getElementById('pollMsg').textContent = 'Verificando pagamento...';
+    document.getElementById('pollMsg').style.color = '#ffb800';
+    document.querySelector('.poll-dot').style.background = '#ffb800';
+    document.querySelector('.poll-dot').style.animation = 'none';
+    setTimeout(() => {
+      if (ehCambioOuMP) {
+        // Câmbio/MP — vai pro perfil para verificar manualmente
+        irParaSucesso(ref);
+      } else {
+        // Compra normal — expirou sem confirmação do MP
+        // NÃO redireciona para sucesso — mostra mensagem para verificar email
+        document.getElementById('pollMsg').textContent = 'Tempo esgotado. Verifique seu email para confirmação do pagamento.';
+        document.getElementById('pollMsg').style.color = '#ffb800';
+        show('stateError');
+        document.getElementById('erroMsg').textContent = 'O tempo de verificação expirou. Se você pagou, sua chave será entregue em até 5 minutos por email. Caso não receba, entre em contato.';
+      }
+    }, 2000);
+  }
+}
+
+// ── INIT ──
+async function init() {
+  show('stateLoading');
+  if (pixData && pixData.qr_code) {
+    renderPix(pixData);
+    return;
+  }
+  show('stateError');
+  document.getElementById('erroMsg').textContent = 'Sessão expirada. Volte ao carrinho e tente novamente.';
+}
+
+function renderPix(data) {
+  if (data.qr_code_base64) {
+    document.getElementById('qrImg').src = 'data:image/png;base64,' + data.qr_code_base64;
+  }
+  document.getElementById('valorNum').textContent = 'R$ ' + Number(data.valor||0).toFixed(2).replace('.',',');
+  const itens = JSON.parse(sessionStorage.getItem('mg_itens_pendentes') || '[]');
+  if (itens.length) {
+    document.getElementById('valorProd').textContent = itens.map(i => i.nome).join(', ');
+  }
+  if (data.qr_code) {
+    document.getElementById('pixCode').textContent = data.qr_code;
+  }
+  iniciarTimer(data.expira_em || 30);
+  if (data.reference) sessionStorage.setItem('mg_external_ref', data.reference);
+  show('statePix');
+  pollPagamento(data.payment_id, data.reference || reference);
+}
+
+init();
+</script>
+</body>
+</html>
