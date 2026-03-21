@@ -6645,9 +6645,15 @@ function renderPlanetasTabela(lista){
       '<td style="font-weight:700;color:var(--green)">'+((p.jogos||0))+'</td>'+
       '<td style="font-weight:700;color:var(--amber)">'+((p.atividades||0))+'</td>'+
       '<td style="font-size:10px;color:var(--muted)">'+fmtDate(p.updated_at)+'</td>'+
-      '<td><button class="btn btn-sm btn-outline" onclick="abrirModalDarXP('+JSON.stringify(p.user_email)+')">⚡ Dar XP</button></td>'+
+      '<td><button class="btn btn-sm btn-outline btn-dar-xp" data-email="'+(p.user_email||'').replace(/"/g,'&quot;')+'">⚡ Dar XP</button></td>'+
     '</tr>';
   }).join('');
+  /* Event delegation — evita problema de aspas no onclick inline */
+  tbody.querySelectorAll('.btn-dar-xp').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      abrirModalDarXP(this.getAttribute('data-email'));
+    });
+  });
 }
 
 function filtrarPlanetas(q){
