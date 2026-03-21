@@ -6614,7 +6614,7 @@ async function carregarPlanetasAdmin(){
 
     /* Top atividades */
     var atvEl=document.getElementById('planet-top-atv');
-    var topAtv=_planetasData.sort(function(a,b){return (b.atividades||0)-(a.atividades||0);}).slice(0,5);
+    var topAtv=_planetasData.slice().sort(function(a,b){return (b.atividades||0)-(a.atividades||0);}).slice(0,5);
     atvEl.innerHTML=topAtv.map(function(p,i){
       var era=getEraAdmin(p.xp||0);
       return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04)">'+
@@ -6699,10 +6699,17 @@ async function confirmarDarXP(){
     var log=Array.isArray(pl&&pl.log)?pl.log:[];
     var novoXP=xpAtual+xp;
     log.unshift({label:motivo,xp:xp,icon:'⚡',bg:'rgba(255,194,0,.1)',color:'#ffc200',t:new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})});
-    var payload={user_email:_darXpEmailAtual,xp:novoXP,atividades:atv+1,log:log.slice(0,20),updated_at:new Date().toISOString()};
+    var logSlice=log.slice(0,20);
     var upErr;
-    if(pl){var r=await sb.from('planetas').update(payload).eq('user_email',_darXpEmailAtual);upErr=r.error;}
-    else{var r=await sb.from('planetas').insert(payload);upErr=r.error;}
+    if(pl){
+      /* Atualiza apenas os campos que mudam — NÃO inclui user_email no payload de update */
+      var r=await sb.from('planetas').update({xp:novoXP,atividades:atv+1,log:logSlice,updated_at:new Date().toISOString()}).eq('user_email',_darXpEmailAtual);
+      upErr=r.error;
+    }else{
+      /* Insere novo registro com todos os campos */
+      var r=await sb.from('planetas').insert({user_email:_darXpEmailAtual,xp:novoXP,atividades:1,log:logSlice,updated_at:new Date().toISOString()});
+      upErr=r.error;
+    }
     if(upErr) throw new Error('Erro ao salvar: '+upErr.message);
     /* Notifica cliente */
     notificarCliente(_darXpEmailAtual,'xp','🪐 +'+xp+' XP no seu planeta!',
