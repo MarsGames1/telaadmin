@@ -3690,8 +3690,13 @@ async function carregarAvaliacoes(){
   if(document.getElementById('aval-stat-media'))document.getElementById('aval-stat-media').textContent=media+' ★';
   if(document.getElementById('aval-stat-5'))document.getElementById('aval-stat-5').textContent=cinco;
   if(document.getElementById('aval-stat-baixo'))document.getElementById('aval-stat-baixo').textContent=baixo;
-  /* Também atualiza dashboard */
-  if(document.getElementById('stat-aval'))document.getElementById('stat-aval').textContent=total;
+  /* Atualiza dashboard — mostra só as aprovadas */
+  var aprovadas=data.filter(function(a){return a.aprovado;}).length;
+  var pendentes=data.filter(function(a){return !a.aprovado;}).length;
+  if(document.getElementById('stat-aval'))document.getElementById('stat-aval').textContent=aprovadas;
+  /* Badge de pendentes no menu lateral */
+  var pendBadge=document.getElementById('aval-pend-badge');
+  if(pendBadge) pendBadge.textContent=pendentes>0?pendentes:'';
   renderAvaliacoes(data);
 }
 
@@ -3730,13 +3735,24 @@ function renderAvaliacoes(data){
       '</div>'+
       /* Comentário */
       (comentario?'<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:8px;padding:10px 12px;font-size:11px;color:#bbb;font-style:italic;line-height:1.6">"'+comentario+'"</div>':'')+
-      /* Cliente */
-      '<div style="padding-top:10px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">'+
-        '<div>'+
-          '<div style="font-size:11px;font-weight:700;color:#ddd">'+nome+'</div>'+
-          '<div style="font-size:9px;color:var(--muted)">'+email+'</div>'+
+      /* Status + Cliente + Botões */
+      '<div style="padding-top:10px;border-top:1px solid var(--border)">'+
+        /* Badge de status */
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'+
+          '<span style="font-size:9px;font-weight:700;letter-spacing:1px;padding:2px 8px;border-radius:20px;'+
+            (a.aprovado?'background:rgba(0,255,85,.12);color:#00ff55;border:1px solid rgba(0,255,85,.3)':'background:rgba(255,183,0,.12);color:#ffb300;border:1px solid rgba(255,183,0,.3)')+'">'+
+            (a.aprovado?'✅ APROVADA':'⏳ PENDENTE')+'</span>'+
+          '<div style="display:flex;gap:6px">'+
+            (!a.aprovado?'<button class="btn btn-green btn-sm" onclick="aprovarAval(\''+esc(a.id)+'\',this)">✓ Aprovar</button>':'')+
+            '<button class="btn btn-red btn-sm" onclick="excluirAval(\''+esc(a.id)+'\',this)">🗑 Excluir</button>'+
+          '</div>'+
         '</div>'+
-        '<button class="btn btn-red btn-sm" onclick="excluirAval(\''+esc(a.id)+'\',this)">🗑 Excluir</button>'+
+        '<div style="display:flex;align-items:center;gap:8px">'+
+          '<div>'+
+            '<div style="font-size:11px;font-weight:700;color:#ddd">'+nome+'</div>'+
+            '<div style="font-size:9px;color:var(--muted)">'+email+'</div>'+
+          '</div>'+
+        '</div>'+
       '</div>'+
     '</div>';
   }).join('');
@@ -3776,6 +3792,25 @@ async function excluirAval(id,btn){
 
 /* ══ MARSPOINTS ══ */
 var _mpData=[], _mpSaldoAtual=0, _mpSaldoRmAtual=0;
+
+async function aprovarAval(id, btn){
+  if(btn){ btn.disabled=true; btn.textContent='...'; }
+  var{error}=await sb.from('avaliacoes').update({aprovado:true}).eq('id',id);
+  if(error){ showToast('Erro ao aprovar.',true); if(btn){btn.disabled=false;btn.textContent='✓ Aprovar';} return; }
+  /* Atualiza localmente sem recarregar tudo */
+  var a=_avalData.find(function(x){return x.id===id;});
+  if(a) a.aprovado=true;
+  /* Recalcula contadores */
+  var aprovadas=_avalData.filter(function(x){return x.aprovado;}).length;
+  var pendentes=_avalData.filter(function(x){return !x.aprovado;}).length;
+  if(document.getElementById('aval-stat-total')) document.getElementById('aval-stat-total').textContent=_avalData.length;
+  if(document.getElementById('stat-aval')) document.getElementById('stat-aval').textContent=aprovadas;
+  /* Atualiza badge de pendentes no menu */
+  var pend=document.getElementById('aval-pend-badge');
+  if(pend) pend.textContent=pendentes>0?pendentes:'';
+  showToast('✅ Avaliação aprovada!');
+  filtrarAvaliacoes();
+}
 
 async function carregarMarsPoints(){
   var tbody=document.getElementById('pts-tbody');
