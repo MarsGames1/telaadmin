@@ -2980,7 +2980,7 @@ function renderProdutos(lista){
     var isFav=favsProdutos.includes(p.id);
     return '<tr>'+
       '<td><div class="prod-cell">'+
-        (p.imagem?'<img class="prod-img-thumb" src="'+esc(p.imagem)+'" onerror="this.style.display='none'">':'<div class="prod-img-thumb"></div>')+
+        (p.imagem?'<img class="prod-img-thumb" src="'+esc(p.imagem)+'" onerror="this.style.display=\'none\'">':'<div class="prod-img-thumb"></div>')+
         '<div><div class="prod-name-td">'+esc(p.nome)+'</div><div class="prod-cat-td">'+esc(p.plataforma||'Steam')+'</div></div>'+
       '</div></td>'+
       '<td><span class="badge badge-gray">'+esc(p.categoria||'—')+'</span></td>'+
@@ -2990,8 +2990,8 @@ function renderProdutos(lista){
       '<td>'+mkToggle(p)+'</td>'+
       '<td><div class="td-actions">'+
         '<button class="btn btn-outline btn-sm" onclick="editarProduto('+escJson(p)+')">Editar</button>'+
-        '<button class="btn btn-outline btn-sm" onclick="toggleFavProd(''+p.id+'',''+esc(p.nome)+'')" title="Favorito" style="'+(isFav?'color:var(--amber);border-color:var(--amber)':'')+'">★</button>'+
-        '<button class="btn btn-red btn-sm" onclick="excluirProduto(''+p.id+'')">Excluir</button>'+
+        '<button class="btn btn-outline btn-sm" onclick="toggleFavProd(\''+p.id+'\',\''+esc(p.nome)+'\') " title="Favorito" style="'+(isFav?'color:var(--amber);border-color:var(--amber)':'')+'">★</button>'+
+        '<button class="btn btn-red btn-sm" onclick="excluirProduto(\''+p.id+'\')">Excluir</button>'+
       '</div></td></tr>';
   }).join('');
 }
