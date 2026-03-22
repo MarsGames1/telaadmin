@@ -2953,21 +2953,44 @@ async function salvarNovaMeta(){
 var PROD_POR_PAG=50,_prodPagAtual=0,_prodTotal=0,_prodBusca='',_prodBuscaTimer=null;
 
 async function carregarProdutos(pag,busca){
-  pag=pag||0;
-  busca=(busca!==undefined)?busca:_prodBusca;
-  _prodPagAtual=pag;_prodBusca=busca;
-  var tbody=document.getElementById('prod-tbody');
-  tbody.innerHTML='<tr><td colspan="7" class="empty-state"><span class="loader-inline"></span></td></tr>';
-  var from=pag*PROD_POR_PAG,to=from+PROD_POR_PAG-1;
-  var campos='id,nome,preco,preco_original,desconto,categoria,plataforma,imagem,estoque,ativo,views,created_at,tipo_key';
-  var q=sb.from('produtos').select(campos,{count:'exact'}).order('created_at',{ascending:false}).range(from,to);
-  if(busca.trim()) q=q.or('nome.ilike.%'+busca.trim()+'%,categoria.ilike.%'+busca.trim()+'%');
-  var{data,count,error}=await q;
-  if(error){tbody.innerHTML='<tr><td colspan="7" class="empty-state">Erro ao carregar produtos.</td></tr>';return;}
-  todosOsProdutos=data||[];_prodTotal=count||0;
-  renderProdutos(todosOsProdutos);
-  renderProdPaginacao();
-  if(pag===0&&!busca.trim()) verificarEstoqueBaixo(todosOsProdutos);
+  try{
+    pag=(pag!=null&&pag!==undefined&&!isNaN(pag))?Number(pag):0;
+    busca=(typeof busca==='string')?busca:(typeof _prodBusca==='string'?_prodBusca:'');
+    _prodPagAtual=pag;_prodBusca=busca;
+    var tbody=document.getElementById('prod-tbody');
+    if(!tbody) return;
+    tbody.innerHTML='<tr><td colspan="7" class="empty-state"><span class="loader-inline"></span></td></tr>';
+    var from=pag*PROD_POR_PAG,to=from+PROD_POR_PAG-1;
+
+    /* Query 1: count total (head:true = sem dados, só o count) */
+    var qCount=sb.from('produtos').select('*',{count:'exact',head:true});
+    if(busca&&busca.trim()) qCount=qCount.or('nome.ilike.%'+busca.trim()+'%,categoria.ilike.%'+busca.trim()+'%');
+    var resCount=await qCount;
+    if(resCount.error){
+      console.error('[carregarProdutos] erro count:',resCount.error.message);
+      tbody.innerHTML='<tr><td colspan="7" class="empty-state" style="color:var(--red)">Erro: '+esc(resCount.error.message)+'</td></tr>';
+      return;
+    }
+    _prodTotal=resCount.count||0;
+
+    /* Query 2: dados da página */
+    var qData=sb.from('produtos').select('*').order('created_at',{ascending:false}).range(from,to);
+    if(busca&&busca.trim()) qData=qData.or('nome.ilike.%'+busca.trim()+'%,categoria.ilike.%'+busca.trim()+'%');
+    var resData=await qData;
+    if(resData.error){
+      console.error('[carregarProdutos] erro dados:',resData.error.message);
+      tbody.innerHTML='<tr><td colspan="7" class="empty-state" style="color:var(--red)">Erro: '+esc(resData.error.message)+'</td></tr>';
+      return;
+    }
+    todosOsProdutos=resData.data||[];
+    renderProdutos(todosOsProdutos);
+    renderProdPaginacao();
+    if(pag===0&&(!busca||!busca.trim())) verificarEstoqueBaixo(todosOsProdutos);
+  }catch(e){
+    console.error('[carregarProdutos] exceção:',e);
+    var tbody2=document.getElementById('prod-tbody');
+    if(tbody2) tbody2.innerHTML='<tr><td colspan="7" class="empty-state" style="color:var(--red)">Erro inesperado: '+esc(e.message)+'</td></tr>';
+  }
 }
 
 function renderProdutos(lista){
