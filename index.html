@@ -2962,26 +2962,21 @@ async function carregarProdutos(pag,busca){
     tbody.innerHTML='<tr><td colspan="7" class="empty-state"><span class="loader-inline"></span></td></tr>';
     var from=pag*PROD_POR_PAG,to=from+PROD_POR_PAG-1;
 
-    /* Query 1: count total (head:true = sem dados, só o count) */
-    var qCount=sb.from('produtos').select('*',{count:'exact',head:true});
-    if(busca&&busca.trim()) qCount=qCount.or('nome.ilike.%'+busca.trim()+'%,categoria.ilike.%'+busca.trim()+'%');
-    var resCount=await qCount;
-    if(resCount.error){
-      console.error('[carregarProdutos] erro count:',resCount.error.message);
-      tbody.innerHTML='<tr><td colspan="7" class="empty-state" style="color:var(--red)">Erro: '+esc(resCount.error.message)+'</td></tr>';
-      return;
+    /* Busca dados + count em uma única query usando range */
+    var qData=sb.from('produtos')
+      .select('*',{count:'exact'})
+      .order('created_at',{ascending:false})
+      .range(from,to);
+    if(busca&&busca.trim()){
+      qData=qData.or('nome.ilike.%25'+encodeURIComponent(busca.trim())+'%25,categoria.ilike.%25'+encodeURIComponent(busca.trim())+'%25');
     }
-    _prodTotal=resCount.count||0;
-
-    /* Query 2: dados da página */
-    var qData=sb.from('produtos').select('*').order('created_at',{ascending:false}).range(from,to);
-    if(busca&&busca.trim()) qData=qData.or('nome.ilike.%'+busca.trim()+'%,categoria.ilike.%'+busca.trim()+'%');
     var resData=await qData;
+    console.log('[carregarProdutos] pag='+pag+' from='+from+' to='+to+' count='+resData.count+' rows='+(resData.data||[]).length+' error='+JSON.stringify(resData.error));
     if(resData.error){
-      console.error('[carregarProdutos] erro dados:',resData.error.message);
       tbody.innerHTML='<tr><td colspan="7" class="empty-state" style="color:var(--red)">Erro: '+esc(resData.error.message)+'</td></tr>';
       return;
     }
+    _prodTotal=resData.count||0;
     todosOsProdutos=resData.data||[];
     renderProdutos(todosOsProdutos);
     renderProdPaginacao();
