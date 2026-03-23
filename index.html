@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&family=Orbitron:wght@700;900&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -899,36 +900,113 @@ tr:hover td{background:rgba(255,255,255,.012)}
   <div class="page" id="page-analise">
     <div class="page-head">
       <div><div class="page-eyebrow">Métricas</div><div class="page-title">Análise</div></div>
-    </div>
-    <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:24px;text-align:center">
-      <div style="font-size:32px;margin-bottom:12px">📊</div>
-      <div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:8px">Google Analytics 4</div>
-      <div style="font-size:11px;color:var(--muted);line-height:1.7;max-width:400px;margin:0 auto 20px">
-        Para ativar o painel de análise completo com dados de visitantes, produtos mais vistos e origem do tráfego, insira seu ID do Google Analytics 4.
-      </div>
-      <div style="display:flex;gap:8px;max-width:400px;margin:0 auto">
-        <input class="form-input" id="ga4-id" placeholder="G-XXXXXXXXXX" style="flex:1">
-        <button class="btn btn-green" onclick="salvarGA4()">Ativar</button>
-      </div>
-      <div id="ga4-frame" style="margin-top:20px;display:none">
-        <iframe id="ga4-iframe" src="" width="100%" height="500" frameborder="0" style="border-radius:8px;border:1px solid var(--border)"></iframe>
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="analise-periodo" class="t-search" style="width:160px;background:var(--bg)" onchange="carregarAnalise()">
+          <option value="7">Últimos 7 dias</option>
+          <option value="14">Últimos 14 dias</option>
+          <option value="30" selected>Últimos 30 dias</option>
+        </select>
+        <button class="btn btn-outline btn-sm" onclick="carregarAnalise()">↻ Atualizar</button>
       </div>
     </div>
 
-    <!-- STATS INTERNOS -->
-    <div style="margin-top:20px">
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-label">Produtos mais vistos</div>
-          <div id="top-prod-list" style="margin-top:8px;display:flex;flex-direction:column;gap:6px">
-            <div class="empty-state" style="padding:16px">Dados em coleta...</div>
-          </div>
+    <!-- Stats rápidas -->
+    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px">
+      <div class="stat-card">
+        <div class="stat-label">Acessos hoje</div>
+        <div class="stat-value green" id="an-hoje">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Acessos no período</div>
+        <div class="stat-value" id="an-periodo">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Visitantes únicos</div>
+        <div class="stat-value amber" id="an-unicos">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Média por dia</div>
+        <div class="stat-value" id="an-media">—</div>
+      </div>
+    </div>
+
+    <!-- Gráfico de acessos por dia -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div>
+          <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted)">ACESSOS</div>
+          <div style="font-size:14px;font-weight:900;color:#fff;margin-top:2px">Visitantes por dia</div>
         </div>
-        <div class="stat-card" style="grid-column:span 3">
-          <div class="stat-label">Ações recentes dos clientes</div>
-          <div id="acoes-list" style="margin-top:8px;display:flex;flex-direction:column;gap:4px;max-height:200px;overflow-y:auto">
-            <div class="empty-state" style="padding:16px">Aguardando eventos do site...</div>
+        <div style="font-size:10px;color:var(--muted);display:flex;gap:12px">
+          <span style="display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:10px;height:3px;background:#00ff55;border-radius:2px"></span>Acessos</span>
+          <span style="display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:10px;height:3px;background:#7b5bf0;border-radius:2px"></span>Únicos</span>
+        </div>
+      </div>
+      <div id="an-grafico-wrap" style="position:relative;height:220px;width:100%">
+        <canvas id="an-grafico" style="width:100%;height:100%"></canvas>
+        <div id="an-grafico-empty" style="display:none;position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--muted)">
+          <div style="font-size:28px">📊</div>
+          <div style="font-size:11px;font-weight:600">Nenhum dado de acesso ainda</div>
+          <div style="font-size:10px;max-width:280px;text-align:center;line-height:1.6">Execute o SQL abaixo para criar a tabela de rastreamento</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Páginas mais acessadas -->
+    <div class="stats-grid" style="grid-template-columns:1fr 1fr;margin-bottom:20px">
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px">
+        <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px">PÁGINAS MAIS ACESSADAS</div>
+        <div id="an-paginas" style="display:flex;flex-direction:column;gap:8px">
+          <div style="color:var(--muted);font-size:11px;text-align:center;padding:16px">Carregando...</div>
+        </div>
+      </div>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px">
+        <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px">ACESSOS RECENTES</div>
+        <div id="an-recentes" style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto">
+          <div style="color:var(--muted);font-size:11px;text-align:center;padding:16px">Carregando...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Instruções para ativar rastreamento -->
+    <div id="an-setup-box" style="background:var(--card);border:1px solid rgba(255,183,0,.25);border-radius:var(--radius);padding:20px">
+      <div style="display:flex;align-items:flex-start;gap:12px">
+        <div style="font-size:24px;flex-shrink:0">🛠️</div>
+        <div style="flex:1">
+          <div style="font-size:12px;font-weight:900;color:#ffb300;margin-bottom:6px">Como ativar o rastreamento de acessos</div>
+          <div style="font-size:11px;color:var(--muted);line-height:1.8;margin-bottom:12px">
+            Execute o SQL abaixo no <strong style="color:#fff">Supabase → SQL Editor</strong> para criar a tabela de acessos. Depois atualize o <code style="background:rgba(255,255,255,.08);padding:1px 5px;border-radius:4px">index.html</code> com o script de rastreamento.
           </div>
+          <div style="background:rgba(0,0,0,.4);border:1px solid var(--border);border-radius:8px;padding:14px;font-family:monospace;font-size:10px;color:#aaffcc;line-height:1.8;white-space:pre-wrap;margin-bottom:12px">CREATE TABLE IF NOT EXISTS site_pageviews (
+  id          bigserial PRIMARY KEY,
+  pagina      text NOT NULL DEFAULT 'index',
+  email       text,
+  session_id  text,
+  referrer    text,
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_spv_created ON site_pageviews(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_spv_pagina  ON site_pageviews(pagina);
+ALTER TABLE site_pageviews ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "anon insert" ON site_pageviews FOR INSERT TO anon, authenticated WITH CHECK (true);
+CREATE POLICY "admin select" ON site_pageviews FOR SELECT USING (true);</div>
+          <div style="font-size:11px;color:var(--muted);line-height:1.8;margin-bottom:12px">
+            Adicione o script abaixo no <code style="background:rgba(255,255,255,.08);padding:1px 5px;border-radius:4px">index.html</code> (e demais páginas), logo antes do <code style="background:rgba(255,255,255,.08);padding:1px 5px;border-radius:4px">&lt;/body&gt;</code>:
+          </div>
+          <div style="background:rgba(0,0,0,.4);border:1px solid var(--border);border-radius:8px;padding:14px;font-family:monospace;font-size:10px;color:#aaccff;line-height:1.8;white-space:pre-wrap">/* ── Rastreamento de pageviews ── */
+(function(){
+  var _t=0;
+  function _reg(){
+    if(typeof sb==='undefined'||!sb){if(_t++<20)setTimeout(_reg,500);return;}
+    var sid=sessionStorage.getItem('mg_sid');
+    if(!sid){sid='s'+Date.now()+Math.random().toString(36).slice(2,6);sessionStorage.setItem('mg_sid',sid);}
+    var em=(typeof userSession!=='undefined'&&userSession&&userSession.user&&userSession.user.email)||null;
+    var pg=window.location.pathname.replace(/^\//,'').replace('.html','').replace(/\/$/,'')||'index';
+    sb.from('site_pageviews').insert({pagina:pg,email:em,session_id:sid,referrer:document.referrer||null});
+  }
+  setTimeout(_reg,1200);
+})();</div>
+          <button class="btn btn-outline btn-sm" style="margin-top:12px" onclick="this.closest('#an-setup-box').style.display='none'">✕ Fechar instruções</button>
         </div>
       </div>
     </div>
@@ -1225,6 +1303,15 @@ tr:hover td{background:rgba(255,255,255,.012)}
     <div id="aval-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px">
       <div class="empty-state" style="grid-column:1/-1;padding:40px;text-align:center">
         <span class="loader-inline"></span>
+      </div>
+    </div>
+    <!-- Paginação avaliações -->
+    <div id="aval-paginacao" style="display:none;align-items:center;justify-content:space-between;padding:14px 4px;margin-top:8px;flex-wrap:wrap;gap:10px">
+      <div style="font-size:11px;color:var(--muted);font-weight:600" id="aval-pag-info"></div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="btn btn-outline btn-sm" id="aval-pag-prev" onclick="avalPagNav(-1)" disabled>← Anterior</button>
+        <div id="aval-pag-nums" style="display:flex;gap:4px"></div>
+        <button class="btn btn-outline btn-sm" id="aval-pag-next" onclick="avalPagNav(1)">Próxima →</button>
       </div>
     </div>
   </div>
@@ -2731,6 +2818,7 @@ function showPage(id,el){
   var map={
     dashboard:carregarDashboard,produtos:carregarProdutos,pedidos:carregarPedidos,
     estoque:carregarEstoque,
+    analise:carregarAnalise,
     avaliacoes:carregarAvaliacoes,marspoints:carregarMarsPoints,marstickets:carregarMarsTickets,clientes:carregarClientes,
     historico:carregarHistorico,logs:carregarLogs,cupons:carregarCupons,
     sorteios:carregarSorteios,favoritos:carregarFavoritos,marspass:carregarMarsPass,
@@ -2985,7 +3073,8 @@ async function carregarProdutos(pag,busca){
       .order('created_at',{ascending:false})
       .range(from,to);
     if(busca&&busca.trim()){
-      qData=qData.or('nome.ilike.%25'+encodeURIComponent(busca.trim())+'%25,categoria.ilike.%25'+encodeURIComponent(busca.trim())+'%25');
+      var t=busca.trim();
+      qData=qData.or('nome.ilike.%'+t+'%,categoria.ilike.%'+t+'%');
     }
     var resData=await qData;
     console.log('[carregarProdutos] pag='+pag+' from='+from+' to='+to+' count='+resData.count+' rows='+(resData.data||[]).length+' error='+JSON.stringify(resData.error));
@@ -3553,6 +3642,116 @@ function abrirImportCSV(){
   input.click();
 }
 
+/* ══ ANÁLISE DE ACESSOS ══ */
+var _anChart=null;
+async function carregarAnalise(){
+  var dias=parseInt(document.getElementById('analise-periodo')?document.getElementById('analise-periodo').value:30)||30;
+  var dataInicio=new Date(); dataInicio.setDate(dataInicio.getDate()-(dias-1)); dataInicio.setHours(0,0,0,0);
+  try{
+    var{data,error}=await sb.from('site_pageviews')
+      .select('pagina,email,session_id,created_at')
+      .gte('created_at',dataInicio.toISOString())
+      .order('created_at',{ascending:true});
+    if(error) throw error;
+    if(!data||data.length===0){ _anMostrarVazio(); return; }
+    /* Agrupa por dia */
+    var hoje=new Date(); hoje.setHours(0,0,0,0);
+    var porDia={}, unicosDia={};
+    data.forEach(function(r){
+      var d=r.created_at.substring(0,10);
+      porDia[d]=(porDia[d]||0)+1;
+      if(!unicosDia[d]) unicosDia[d]=new Set();
+      if(r.session_id) unicosDia[d].add(r.session_id);
+    });
+    /* Gera labels dos dias */
+    var labels=[], totais=[], unicos=[];
+    for(var i=dias-1;i>=0;i--){
+      var dt=new Date(hoje); dt.setDate(dt.getDate()-i);
+      var iso=dt.toISOString().substring(0,10);
+      var label=dt.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
+      labels.push(label);
+      totais.push(porDia[iso]||0);
+      unicos.push(unicosDia[iso]?unicosDia[iso].size:0);
+    }
+    /* Stats rápidas */
+    var hj=hoje.toISOString().substring(0,10);
+    var totalHoje=porDia[hj]||0;
+    var totalPer=data.length;
+    var todosUnicos=new Set(data.map(function(r){return r.session_id;}).filter(Boolean)).size;
+    var mediaDia=Math.round(totalPer/dias);
+    if(document.getElementById('an-hoje')) document.getElementById('an-hoje').textContent=totalHoje;
+    if(document.getElementById('an-periodo')) document.getElementById('an-periodo').textContent=totalPer;
+    if(document.getElementById('an-unicos')) document.getElementById('an-unicos').textContent=todosUnicos;
+    if(document.getElementById('an-media')) document.getElementById('an-media').textContent=mediaDia;
+    /* Gráfico */
+    var canvas=document.getElementById('an-grafico');
+    var emptyEl=document.getElementById('an-grafico-empty');
+    if(emptyEl) emptyEl.style.display='none';
+    if(canvas){
+      if(_anChart) _anChart.destroy();
+      var ctx=canvas.getContext('2d');
+      _anChart=new Chart(ctx,{
+        type:'bar',
+        data:{
+          labels:labels,
+          datasets:[
+            {label:'Acessos',data:totais,backgroundColor:'rgba(0,255,85,.25)',borderColor:'#00ff55',borderWidth:2,borderRadius:4,order:2},
+            {label:'Únicos',data:unicos,type:'line',fill:false,borderColor:'#7b5bf0',backgroundColor:'#7b5bf0',borderWidth:2,pointRadius:3,pointBackgroundColor:'#7b5bf0',tension:.3,order:1}
+          ]
+        },
+        options:{
+          responsive:true,maintainAspectRatio:false,
+          plugins:{legend:{display:false},tooltip:{callbacks:{title:function(i){return i[0].label;}}}},
+          scales:{
+            x:{ticks:{color:'#555',font:{size:9},maxRotation:45},grid:{color:'rgba(255,255,255,.03)'}},
+            y:{ticks:{color:'#555',font:{size:9},stepSize:1},grid:{color:'rgba(255,255,255,.05)'},beginAtZero:true}
+          }
+        }
+      });
+    }
+    /* Páginas mais acessadas */
+    var contPag={};
+    data.forEach(function(r){contPag[r.pagina||'index']=(contPag[r.pagina||'index']||0)+1;});
+    var sorted=Object.keys(contPag).sort(function(a,b){return contPag[b]-contPag[a];}).slice(0,8);
+    var maxPag=sorted.length>0?contPag[sorted[0]]:1;
+    var paginasEl=document.getElementById('an-paginas');
+    if(paginasEl) paginasEl.innerHTML=sorted.length?sorted.map(function(p){
+      var pct=Math.round(contPag[p]/maxPag*100);
+      return '<div style="display:flex;flex-direction:column;gap:4px">'+
+        '<div style="display:flex;justify-content:space-between;align-items:center">'+
+          '<span style="font-size:11px;color:#ddd;font-weight:600">'+p+'</span>'+
+          '<span style="font-size:10px;color:var(--green);font-weight:700">'+contPag[p]+'</span>'+
+        '</div>'+
+        '<div style="height:4px;background:rgba(255,255,255,.06);border-radius:2px">'+
+          '<div style="height:4px;width:'+pct+'%;background:linear-gradient(90deg,#00ff55,#00cc44);border-radius:2px"></div>'+
+        '</div>'+
+      '</div>';
+    }).join(''):'<div style="color:var(--muted);font-size:11px;text-align:center;padding:16px">Nenhum dado</div>';
+    /* Acessos recentes */
+    var recentes=data.slice(-30).reverse();
+    var recentesEl=document.getElementById('an-recentes');
+    if(recentesEl) recentesEl.innerHTML=recentes.map(function(r){
+      var hora=new Date(r.created_at).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+      var em=r.email||'Visitante';
+      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:10px">'+
+        '<span style="color:#aaa">📄 '+esc(r.pagina||'index')+'</span>'+
+        '<span style="color:var(--muted)">'+esc(em.length>22?em.substring(0,18)+'…':em)+'</span>'+
+        '<span style="color:#555">'+hora+'</span>'+
+      '</div>';
+    }).join('');
+  }catch(e){
+    console.log('[analise]',e);
+    _anMostrarVazio();
+  }
+}
+function _anMostrarVazio(){
+  ['an-hoje','an-periodo','an-unicos','an-media'].forEach(function(id){var el=document.getElementById(id);if(el)el.textContent='0';});
+  var emptyEl=document.getElementById('an-grafico-empty'); if(emptyEl){emptyEl.style.display='flex';}
+  var canvas=document.getElementById('an-grafico'); if(canvas) canvas.style.opacity='0';
+  var pEl=document.getElementById('an-paginas');if(pEl)pEl.innerHTML='<div style="color:var(--muted);font-size:11px;text-align:center;padding:16px">Nenhum dado ainda</div>';
+  var rEl=document.getElementById('an-recentes');if(rEl)rEl.innerHTML='<div style="color:var(--muted);font-size:11px;text-align:center;padding:16px">Nenhum acesso registrado</div>';
+}
+
 /* ══ PEDIDOS ══ */
 var _todosOsPedidos=[];
 async function carregarPedidos(){
@@ -3811,7 +4010,7 @@ async function salvarObs(){
 }
 
 /* ══ AVALIAÇÕES ══ */
-var _avalData=[];
+var _avalData=[], _avalFiltrado=[], _avalPagina=1, _avalPorPag=10;
 
 async function carregarAvaliacoes(){
   var grid=document.getElementById('aval-grid');
@@ -3844,13 +4043,45 @@ async function carregarAvaliacoes(){
 }
 
 function renderAvaliacoes(data){
+  _avalFiltrado=data||[];
+  _avalPagina=1;
+  _renderAvalPagina();
+}
+function _renderAvalPagina(){
   var grid=document.getElementById('aval-grid');
   if(!grid) return;
+  var data=_avalFiltrado;
   if(!data||data.length===0){
     grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted);font-size:12px;font-weight:600">Nenhuma avaliação encontrada.</div>';
+    var pg=document.getElementById('aval-paginacao'); if(pg) pg.style.display='none';
     return;
   }
-  grid.innerHTML=data.map(function(a){
+  var total=data.length;
+  var totalPag=Math.ceil(total/_avalPorPag);
+  if(_avalPagina>totalPag) _avalPagina=totalPag;
+  var inicio=(_avalPagina-1)*_avalPorPag;
+  var fatia=data.slice(inicio, inicio+_avalPorPag);
+  /* Paginação UI */
+  var pagEl=document.getElementById('aval-paginacao');
+  if(pagEl){
+    pagEl.style.display='flex';
+    var info=document.getElementById('aval-pag-info');
+    if(info) info.textContent='Mostrando '+(inicio+1)+'–'+Math.min(inicio+_avalPorPag,total)+' de '+total+' avaliações';
+    var prev=document.getElementById('aval-pag-prev');
+    var next=document.getElementById('aval-pag-next');
+    if(prev) prev.disabled=_avalPagina<=1;
+    if(next) next.disabled=_avalPagina>=totalPag;
+    var nums=document.getElementById('aval-pag-nums');
+    if(nums){
+      var html='';
+      var s=Math.max(1,_avalPagina-2), e=Math.min(totalPag,_avalPagina+2);
+      for(var p=s;p<=e;p++){
+        html+='<button class="btn btn-sm '+(p===_avalPagina?'btn-green':'btn-outline')+'" onclick="avalPagIr('+p+')">'+p+'</button>';
+      }
+      nums.innerHTML=html;
+    }
+  }
+  grid.innerHTML=fatia.map(function(a){
     var estrelas='';
     for(var i=1;i<=5;i++) estrelas+='<span style="color:'+(i<=a.estrelas?'#FFD700':'#333');estrelas+='">★</span>';
     // reconstruir corretamente
@@ -3900,6 +4131,9 @@ function renderAvaliacoes(data){
     '</div>';
   }).join('');
 }
+
+function avalPagNav(dir){ _avalPagina+=dir; _renderAvalPagina(); }
+function avalPagIr(p){ _avalPagina=p; _renderAvalPagina(); }
 
 function filtrarAvaliacoes(){
   var estrelas=document.getElementById('aval-filtro-estrelas')?document.getElementById('aval-filtro-estrelas').value:'';
