@@ -944,7 +944,7 @@ tr:hover td{background:rgba(255,255,255,.012)}
       </div>
       <div id="an-grafico-wrap" style="position:relative;height:220px;width:100%">
         <canvas id="an-grafico" style="width:100%;height:100%"></canvas>
-        <div id="an-grafico-empty" style="display:none;position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--muted)">
+        <div id="an-grafico-empty" style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--muted)">
           <div style="font-size:28px">📊</div>
           <div style="font-size:11px;font-weight:600">Nenhum dado de acesso ainda</div>
           <div style="font-size:10px;max-width:280px;text-align:center;line-height:1.6">Execute o SQL abaixo para criar a tabela de rastreamento</div>
@@ -1041,14 +1041,35 @@ CREATE POLICY "admin select" ON site_pageviews FOR SELECT USING (true);</div>
   <div class="page" id="page-pedidos">
     <div class="page-head">
       <div><div class="page-eyebrow">Loja</div><div class="page-title">Pedidos</div></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="ped-filtro-status" class="t-search" style="width:160px;background:var(--bg)" onchange="carregarPedidos()">
+          <option value="">Todos os status</option>
+          <option value="pendente">Pendente</option>
+          <option value="pago">Pago</option>
+          <option value="aprovado">Aprovado</option>
+          <option value="entregue">Entregue</option>
+          <option value="concluido">Concluído</option>
+          <option value="cancelado">Cancelado</option>
+        </select>
+        <input class="t-search" id="ped-busca" placeholder="Buscar por email..." oninput="pedFiltrarBusca(this.value)" style="width:200px">
+      </div>
     </div>
     <div class="table-wrap">
       <div class="table-head">
-        <div class="table-title">Todos os pedidos</div>
-        <input class="t-search" placeholder="Buscar por email...">
+        <div class="table-title">Todos os pedidos <span id="ped-total-label" style="font-size:10px;color:var(--muted);font-weight:600"></span></div>
+        <div style="font-size:10px;color:var(--muted);font-weight:700" id="ped-sel-info"></div>
       </div>
       <table><thead><tr><th>ID</th><th>Cliente</th><th>Produto</th><th>Valor</th><th>Status</th><th>Data</th><th>Ações</th></tr></thead>
       <tbody id="ped-tbody"><tr><td colspan="7" class="empty-state"><span class="loader-inline"></span></td></tr></tbody></table>
+      <!-- Paginação pedidos -->
+      <div id="ped-paginacao" style="display:none;align-items:center;justify-content:space-between;padding:14px 16px;border-top:1px solid var(--border);flex-wrap:wrap;gap:10px">
+        <div style="font-size:11px;color:var(--muted);font-weight:600" id="ped-pag-info"></div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <button class="btn btn-outline btn-sm" id="ped-pag-prev" onclick="pedPagNav(-1)" disabled>← Anterior</button>
+          <div id="ped-pag-nums" style="display:flex;gap:4px"></div>
+          <button class="btn btn-outline btn-sm" id="ped-pag-next" onclick="pedPagNav(1)">Próxima →</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -3746,34 +3767,77 @@ async function carregarAnalise(){
 }
 function _anMostrarVazio(){
   ['an-hoje','an-periodo','an-unicos','an-media'].forEach(function(id){var el=document.getElementById(id);if(el)el.textContent='0';});
-  var emptyEl=document.getElementById('an-grafico-empty'); if(emptyEl){emptyEl.style.display='flex';}
+  var emptyEl=document.getElementById('an-grafico-empty'); if(emptyEl){emptyEl.style.display='flex';emptyEl.style.setProperty('display','flex','important');}
   var canvas=document.getElementById('an-grafico'); if(canvas) canvas.style.opacity='0';
   var pEl=document.getElementById('an-paginas');if(pEl)pEl.innerHTML='<div style="color:var(--muted);font-size:11px;text-align:center;padding:16px">Nenhum dado ainda</div>';
   var rEl=document.getElementById('an-recentes');if(rEl)rEl.innerHTML='<div style="color:var(--muted);font-size:11px;text-align:center;padding:16px">Nenhum acesso registrado</div>';
 }
 
-/* ══ PEDIDOS ══ */
-var _todosOsPedidos=[];
-async function carregarPedidos(){
+/* ══ PEDIDOS — PAGINAÇÃO SERVER-SIDE ══ */
+var PED_POR_PAG=50,_pedPagAtual=0,_pedTotal=0,_pedBusca='',_pedBuscaTimer=null;
+
+async function carregarPedidos(pag){
+  pag=(pag!=null&&!isNaN(pag))?Number(pag):0;
+  _pedPagAtual=pag;
   var tbody=document.getElementById('ped-tbody');
   tbody.innerHTML='<tr><td colspan="7" class="empty-state"><span class="loader-inline"></span></td></tr>';
-  var{data}=await sb.from('pedidos').select('*').order('created_at',{ascending:false});
-  _todosOsPedidos=data||[];
+
+  var statusFiltro=document.getElementById('ped-filtro-status')?document.getElementById('ped-filtro-status').value:'';
+  var busca=_pedBusca||'';
+  var from=pag*PED_POR_PAG, to=from+PED_POR_PAG-1;
+
+  var q=sb.from('pedidos').select('*',{count:'exact'}).order('created_at',{ascending:false}).range(from,to);
+  if(statusFiltro) q=q.eq('status',statusFiltro);
+  if(busca&&busca.trim()) q=q.or('cliente_email.ilike.%'+busca.trim()+'%,produto_nome.ilike.%'+busca.trim()+'%');
+
+  var res=await q;
+  if(res.error){tbody.innerHTML='<tr><td colspan="7" class="empty-state" style="color:var(--red)">Erro: '+esc(res.error.message)+'</td></tr>';return;}
+  _pedTotal=res.count||0;
+  _todosOsPedidos=res.data||[];
   renderPedidos(_todosOsPedidos);
-  var busca=document.querySelector('#page-pedidos .t-search');
-  if(busca) busca.oninput=function(){filtrarPedidos(this.value);};
+  renderPedPaginacao();
+  var labelEl=document.getElementById('ped-total-label');
+  if(labelEl) labelEl.textContent='— '+_pedTotal+' pedido'+(_pedTotal!==1?'s':'');
 }
-function filtrarPedidos(q){
-  if(!q) return renderPedidos(_todosOsPedidos);
-  renderPedidos(_todosOsPedidos.filter(function(p){
-    return (p.cliente_email||'').toLowerCase().includes(q.toLowerCase())||
-           (p.produto_nome||'').toLowerCase().includes(q.toLowerCase())||
-           (p.reference||'').toLowerCase().includes(q.toLowerCase());
-  }));
+
+function pedFiltrarBusca(q){
+  clearTimeout(_pedBuscaTimer);
+  _pedBuscaTimer=setTimeout(function(){_pedBusca=q;carregarPedidos(0);},400);
 }
+function filtrarPedidos(q){pedFiltrarBusca(q);}
+
+function pedPagNav(dir){
+  var totalPags=Math.ceil(_pedTotal/PED_POR_PAG);
+  var nova=_pedPagAtual+dir;
+  if(nova<0||nova>=totalPags) return;
+  carregarPedidos(nova);
+}
+
+function renderPedPaginacao(){
+  var totalPags=Math.ceil(_pedTotal/PED_POR_PAG);
+  var pagEl=document.getElementById('ped-paginacao');
+  var numsEl=document.getElementById('ped-pag-nums');
+  var btnPrev=document.getElementById('ped-pag-prev');
+  var btnNext=document.getElementById('ped-pag-next');
+  var infoEl=document.getElementById('ped-pag-info');
+  if(totalPags<=1){if(pagEl)pagEl.style.display='none';return;}
+  if(pagEl) pagEl.style.display='flex';
+  var de=_pedPagAtual*PED_POR_PAG+1,ate=Math.min(de+PED_POR_PAG-1,_pedTotal);
+  if(infoEl) infoEl.textContent=de+'–'+ate+' de '+_pedTotal;
+  if(btnPrev) btnPrev.disabled=_pedPagAtual===0;
+  if(btnNext) btnNext.disabled=_pedPagAtual>=totalPags-1;
+  if(numsEl){
+    var inicio=Math.max(0,_pedPagAtual-2),fim=Math.min(totalPags-1,inicio+4);
+    inicio=Math.max(0,fim-4);
+    var html='';
+    for(var i=inicio;i<=fim;i++) html+='<button class="btn btn-sm '+(i===_pedPagAtual?'btn-green':'btn-outline')+'" onclick="carregarPedidos('+i+')">'+(i+1)+'</button>';
+    numsEl.innerHTML=html;
+  }
+}
+
 function renderPedidos(data){
   var tbody=document.getElementById('ped-tbody');
-  if(!data||data.length===0){tbody.innerHTML='<tr><td colspan="8" class="empty-state">Nenhum pedido ainda.</td></tr>';return}
+  if(!data||data.length===0){tbody.innerHTML='<tr><td colspan="7" class="empty-state">Nenhum pedido ainda.</td></tr>';return}
   tbody.innerHTML=data.map(function(p){
     var chavesQtd=(p.chaves_entregues||[]).length;
     var semChave=chavesQtd===0;
@@ -3782,7 +3846,11 @@ function renderPedidos(data){
       :'<span style="color:var(--red);font-size:9px;font-weight:700;margin-left:4px">⚠ sem chave</span>';
     var statusPago=(p.status==='pago'||p.status==='aprovado'||p.status==='pendente');
     var btnEntregar=semChave&&statusPago
-      ?'<button class="btn btn-sm" style="background:rgba(255,184,0,.12);color:var(--amber);border:1px solid rgba(255,184,0,.3);margin-left:4px" onclick="abrirEntregarChaveManual(\''+p.id+'\',\''+esc(p.cliente_email||'')+'\',\''+esc(p.produto_nome||'')+'\')">🔑 Entregar chave</button>'
+      ?'<button class="btn btn-sm" style="background:rgba(255,184,0,.12);color:var(--amber);border:1px solid rgba(255,184,0,.3)" onclick="abrirEntregarChaveManual(\''+p.id+'\',\''+esc(p.cliente_email||'')+'\',\''+esc(p.produto_nome||'')+'\')">🔑 Chave</button>'
+      :'';
+    var isConcluido=p.status==='concluido';
+    var btnConcluir=!isConcluido
+      ?'<button class="btn btn-sm" style="background:rgba(0,255,85,.1);color:var(--green);border:1px solid rgba(0,255,85,.25)" title="Marcar como concluído" onclick="concluirPedido(\''+p.id+'\',this)">✓ Concluir</button>'
       :'';
     return '<tr'+(semChave&&statusPago?' style="background:rgba(255,184,0,.03)"':'')+'><td style="font-family:monospace;font-size:10px;color:var(--muted)">#'+String(p.id||'').slice(0,8)+'</td>'+
       '<td>'+esc(p.cliente_email||'—')+'</td>'+
@@ -3790,8 +3858,33 @@ function renderPedidos(data){
       '<td style="color:var(--green);font-weight:900">R$ '+Number(p.valor||0).toFixed(2).replace('.',',')+'</td>'+
       '<td>'+badgeStatus(p.status)+'</td>'+
       '<td>'+fmtDate(p.created_at)+'</td>'+
-      '<td class="td-actions"><button class="btn btn-outline btn-sm" onclick="verKey(\''+p.id+'\')">Ver chave</button>'+btnEntregar+'</td></tr>';
+      '<td class="td-actions">'+
+        '<button class="btn btn-outline btn-sm" onclick="verKey(\''+p.id+'\')">Ver chave</button>'+
+        btnEntregar+
+        btnConcluir+
+        '<button class="btn btn-red btn-sm" onclick="excluirPedido(\''+p.id+'\',this)" title="Excluir pedido">🗑</button>'+
+      '</td></tr>';
   }).join('');
+}
+
+async function concluirPedido(id, btn){
+  if(!confirm('Marcar este pedido como concluído?')) return;
+  if(btn){btn.disabled=true;btn.textContent='...';}
+  var{error}=await sb.from('pedidos').update({status:'concluido'}).eq('id',id);
+  if(error){showToast('Erro: '+error.message,true);if(btn){btn.disabled=false;btn.textContent='✓ Concluir';}return;}
+  await registrarHistorico('pedido','marcou pedido #'+String(id).slice(0,8)+' como concluído',{status:'entregue'},{status:'concluido'});
+  showToast('✅ Pedido marcado como concluído!');
+  carregarPedidos(_pedPagAtual);
+}
+
+async function excluirPedido(id, btn){
+  if(!confirm('Excluir este pedido permanentemente? Esta ação não pode ser desfeita.')) return;
+  if(btn){btn.disabled=true;btn.textContent='...';}
+  var{error}=await sb.from('pedidos').delete().eq('id',id);
+  if(error){showToast('Erro: '+error.message,true);if(btn){btn.disabled=false;btn.textContent='🗑';}return;}
+  await registrarHistorico('pedido','excluiu pedido #'+String(id).slice(0,8),null,null);
+  showToast('🗑 Pedido excluído!');
+  carregarPedidos(_pedPagAtual);
 }
 async function verKey(id){
   var{data}=await sb.from('pedidos').select('*').eq('id',id).single();
@@ -6000,7 +6093,7 @@ var _origIniciarPainel=typeof iniciarPainel==='function'?iniciarPainel:null;
 
 function fmtDateTime(d){if(!d)return'—';return new Date(d).toLocaleString('pt-BR')}
 function badgeStatus(s){
-  var map={pago:'badge-green',pendente:'badge-amber',cancelado:'badge-red',entregue:'badge-green'};
+  var map={pago:'badge-green',pendente:'badge-amber',cancelado:'badge-red',entregue:'badge-green',concluido:'badge-blue',aprovado:'badge-green'};
   return'<span class="badge '+(map[s]||'badge-gray')+'">'+(s||'—')+'</span>';
 }
 function showToast(msg,erro,warn){
