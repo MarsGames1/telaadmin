@@ -576,9 +576,9 @@ tr:hover td{background:rgba(255,255,255,.012)}
       <div class="presence-time" id="time-rone"></div>
     </div>
     <div class="presence-item">
-      <div class="presence-dot" id="dot-konde"></div>
-      <div class="presence-name" id="name-konde">Konde</div>
-      <div class="presence-time" id="time-konde"></div>
+      <div class="presence-dot" id="dot-leandro"></div>
+      <div class="presence-name" id="name-leandro">Leandro</div>
+      <div class="presence-time" id="time-leandro"></div>
     </div>
   </div>
 
@@ -2482,7 +2482,7 @@ tr:hover td{background:rgba(255,255,255,.012)}
 var SUPABASE_URL='https://rzjtlghpsygxkivgwgws.supabase.co';
 var SUPABASE_KEY='sb_publishable_sDCnL56QQzg976Pt9if_GA_2mZn2Wzm';
 var WEBHOOK='https://discord.com/api/webhooks/1482046917205557443/H7w5ZFSXY9dVLk4cPTC2FljzniZLu4os8LsYqOL_DqBsHicVcVkclqTrZ4OEXnyKvVX0';
-var ADMINS=['rone.mars15@gmail.com','marconde.jr@gmail.com'];
+var ADMINS=['rone.mars15@gmail.com','leandro976205756@gmail.com'];
 var sb=null;
 var todosOsProdutos=[],todosClientes=[],currentUser=null,currentEmail='',prodAtual=null;
 var favTab='produtos',favsProdutos=[],favsClientes=[];
@@ -2622,7 +2622,7 @@ function showLogin(){
 
 /* ══ PRESENÇA REALTIME ══ */
 async function registrarPresenca(email,online){
-  var nome=email===ADMINS[0]?'Rone':'Konde';
+  var nome=email===ADMINS[0]?'Rone':'Leandro';
   await sb.from('presenca').upsert({email,nome,online,updated_at:new Date().toISOString()},{onConflict:'email'});
 }
 function iniciarPresenca(){
@@ -2638,9 +2638,9 @@ async function atualizarPresencaUI(){
   var agora=new Date();
   data.forEach(function(p){
     var isRone=p.email===ADMINS[0];
-    var dotId=isRone?'dot-rone':'dot-konde';
-    var nameId=isRone?'name-rone':'name-konde';
-    var timeId=isRone?'time-rone':'time-konde';
+    var dotId=isRone?'dot-rone':'dot-leandro';
+    var nameId=isRone?'name-rone':'name-leandro';
+    var timeId=isRone?'time-rone':'time-leandro';
     var dot=document.getElementById(dotId);
     var name=document.getElementById(nameId);
     var time=document.getElementById(timeId);
