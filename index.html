@@ -1866,16 +1866,24 @@ tr:hover td{background:rgba(255,255,255,.012)}
     <!-- Histórico completo de giros -->
     <div class="table-wrap">
       <div class="table-head">
-        <div class="table-title">Histórico completo de giros</div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <select class="t-search" id="rd-filtro-tipo" onchange="carregarGirosHistorico()" style="width:140px;background:var(--bg)">
+        <div class="table-title">
+          Histórico de giros
+          <span id="rd-hist-contador" style="font-size:10px;color:var(--muted);font-weight:600;margin-left:6px"></span>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <select class="t-search" id="rd-filtro-tipo" onchange="rdHistReset()" style="width:130px;background:var(--bg)">
             <option value="">Todos tipos</option>
-            <option value="good">Bons</option>
-            <option value="bad">Ruins</option>
-            <option value="coupon">Cupons</option>
-            <option value="neutral">Neutros</option>
+            <option value="good">✅ Bons</option>
+            <option value="bad">💥 Ruins</option>
+            <option value="coupon">🎟️ Cupons</option>
+            <option value="neutral">⚫ Neutros</option>
           </select>
-          <input class="t-search" id="rd-busca-email" placeholder="Buscar por email..." oninput="carregarGirosHistorico()" style="width:200px">
+          <input class="t-search" id="rd-busca-email" placeholder="Buscar email..." oninput="rdHistReset()" style="width:170px">
+          <button class="btn btn-outline btn-sm" onclick="rdLimparAntigos()"
+            style="color:var(--red);border-color:rgba(255,85,85,.3);font-size:10px"
+            title="Apaga permanentemente todos os giros com mais de 30 dias">
+            🗑 Limpar &gt;30 dias
+          </button>
         </div>
       </div>
       <table>
@@ -1884,6 +1892,12 @@ tr:hover td{background:rgba(255,255,255,.012)}
           <tr><td colspan="5" class="empty-state"><span class="loader-inline"></span></td></tr>
         </tbody>
       </table>
+      <!-- Paginação 20/página -->
+      <div id="rd-paginacao" style="display:none;padding:12px 16px;border-top:1px solid var(--border);align-items:center;justify-content:space-between;gap:12px">
+        <button id="rd-pg-prev" class="btn btn-outline btn-sm" onclick="rdHistPagina(-1)" disabled>← Anterior</button>
+        <span id="rd-pg-info" style="font-size:10px;color:var(--muted);font-weight:700;text-align:center"></span>
+        <button id="rd-pg-next" class="btn btn-outline btn-sm" onclick="rdHistPagina(1)">Próxima →</button>
+      </div>
     </div>
   </div>
 
@@ -5654,37 +5668,96 @@ async function carregarJackpotsRoda(){
   }catch(e){tbody.innerHTML='<tr><td colspan="3" class="empty-state">Tabela roda_giros não encontrada</td></tr>';}
 }
 
-async function carregarGirosHistorico(){
+async function carregarGirosHistorico(){rdHistReset();}
+
+var _rdHistDados=[], _rdHistPagina=0, RD_HIST_POR_PAG=20;
+
+function rdHistReset(){_rdHistPagina=0;rdHistBuscar();}
+
+async function rdHistBuscar(){
   var tbody=document.getElementById('rd-hist-tbody');
   tbody.innerHTML='<tr><td colspan="5" class="empty-state"><span class="loader-inline"></span></td></tr>';
   try{
-    var tipo=document.getElementById('rd-filtro-tipo')?document.getElementById('rd-filtro-tipo').value:'';
-    var busca=document.getElementById('rd-busca-email')?document.getElementById('rd-busca-email').value.toLowerCase():'';
-
-    var q=sb.from('roda_giros').select('*').order('created_at',{ascending:false}).limit(100);
+    var tipo=(document.getElementById('rd-filtro-tipo')||{}).value||'';
+    var busca=((document.getElementById('rd-busca-email')||{}).value||'').toLowerCase().trim();
+    var q=sb.from('roda_giros').select('*').order('created_at',{ascending:false}).limit(500);
     if(tipo) q=q.eq('tipo',tipo);
-
     var{data}=await q;
-    _rdData=data||[];
+    _rdHistDados=data||[];
+    var filtrado=busca
+      ? _rdHistDados.filter(function(g){return (g.user_email||'').toLowerCase().includes(busca);})
+      : _rdHistDados;
+    var cont=document.getElementById('rd-hist-contador');
+    if(cont) cont.textContent=filtrado.length ? '('+filtrado.length+' registros)' : '';
+    if(!filtrado.length){
+      tbody.innerHTML='<tr><td colspan="5" class="empty-state">Nenhum giro encontrado</td></tr>';
+      document.getElementById('rd-paginacao').style.display='none';
+      return;
+    }
+    rdHistRenderizar(filtrado);
+  }catch(e){
+    document.getElementById('rd-hist-tbody').innerHTML='<tr><td colspan="5" class="empty-state">Tabela roda_giros não encontrada — será criada no primeiro giro</td></tr>';
+    var pg=document.getElementById('rd-paginacao'); if(pg) pg.style.display='none';
+  }
+}
 
-    var filtrado=_rdData;
-    if(busca) filtrado=filtrado.filter(function(g){return (g.user_email||'').toLowerCase().includes(busca);});
+function rdHistRenderizar(filtrado){
+  var totalPags=Math.ceil(filtrado.length/RD_HIST_POR_PAG);
+  _rdHistPagina=Math.max(0,Math.min(_rdHistPagina,totalPags-1));
+  var ini=_rdHistPagina*RD_HIST_POR_PAG;
+  var pagina=filtrado.slice(ini, ini+RD_HIST_POR_PAG);
+  var tipoCls={good:'badge-green',bad:'badge-red',coupon:'badge-blue',neutral:'badge-gray'};
+  var tipoLabel={good:'Bom',bad:'Ruim',coupon:'Cupom',neutral:'Neutro'};
+  document.getElementById('rd-hist-tbody').innerHTML=pagina.map(function(g){
+    return '<tr>'+
+      '<td style="font-weight:700;color:#ddd;font-size:11px">'+esc(g.user_email||'—')+'</td>'+
+      '<td style="font-weight:700;color:#ccc;font-size:11px">'+esc(g.resultado||'—')+'</td>'+
+      '<td style="font-size:10px;color:var(--green)">'+esc(g.prize||'—')+'</td>'+
+      '<td><span class="badge '+(tipoCls[g.tipo]||'badge-gray')+'">'+(tipoLabel[g.tipo]||g.tipo||'—')+'</span></td>'+
+      '<td style="font-size:10px;color:var(--muted)">'+fmtDateTime(g.created_at)+'</td>'+
+    '</tr>';
+  }).join('');
+  /* Paginação */
+  var pg=document.getElementById('rd-paginacao');
+  if(totalPags>1){
+    pg.style.display='flex';
+    document.getElementById('rd-pg-info').textContent=
+      'Página '+(_rdHistPagina+1)+' de '+totalPags+
+      ' · '+(ini+1)+'–'+Math.min(ini+RD_HIST_POR_PAG,filtrado.length)+
+      ' de '+filtrado.length;
+    document.getElementById('rd-pg-prev').disabled=_rdHistPagina===0;
+    document.getElementById('rd-pg-next').disabled=_rdHistPagina>=totalPags-1;
+  }else{
+    pg.style.display='none';
+  }
+}
 
-    if(!filtrado.length){tbody.innerHTML='<tr><td colspan="5" class="empty-state">Nenhum giro encontrado</td></tr>';return;}
+function rdHistPagina(dir){
+  var busca=((document.getElementById('rd-busca-email')||{}).value||'').toLowerCase().trim();
+  var filtrado=busca
+    ? _rdHistDados.filter(function(g){return (g.user_email||'').toLowerCase().includes(busca);})
+    : _rdHistDados;
+  _rdHistPagina+=dir;
+  rdHistRenderizar(filtrado);
+  var wrap=document.querySelector('#page-roda-fortuna .table-wrap');
+  if(wrap) wrap.scrollIntoView({behavior:'smooth',block:'start'});
+}
 
-    var tipoCls={good:'badge-green',bad:'badge-red',coupon:'badge-blue',neutral:'badge-gray'};
-    var tipoLabel={good:'Bom',bad:'Ruim',coupon:'Cupom',neutral:'Neutro'};
-
-    tbody.innerHTML=filtrado.slice(0,80).map(function(g){
-      return '<tr>'+
-        '<td style="font-weight:700;color:#ddd;font-size:11px">'+esc(g.user_email||'—')+'</td>'+
-        '<td style="font-weight:700;color:#ccc;font-size:11px">'+esc(g.resultado||'—')+'</td>'+
-        '<td style="font-size:10px;color:var(--green)">'+esc(g.prize||'—')+'</td>'+
-        '<td><span class="badge '+(tipoCls[g.tipo]||'badge-gray')+'">'+(tipoLabel[g.tipo]||g.tipo||'—')+'</span></td>'+
-        '<td style="font-size:10px;color:var(--muted)">'+fmtDateTime(g.created_at)+'</td>'+
-      '</tr>';
-    }).join('');
-  }catch(e){tbody.innerHTML='<tr><td colspan="5" class="empty-state">Tabela roda_giros não encontrada — será criada automaticamente ao primeiro giro</td></tr>';}
+async function rdLimparAntigos(){
+  if(!confirm('Apagar do banco todos os giros com mais de 30 dias?\nEsta ação não pode ser desfeita.')) return;
+  try{
+    var corte=new Date();
+    corte.setDate(corte.getDate()-30);
+    var{error,count}=await sb.from('roda_giros')
+      .delete({count:'exact'})
+      .lt('created_at',corte.toISOString());
+    if(error) throw error;
+    showToast('🗑 '+(count||'Registros antigos')+' excluído(s) com sucesso!');
+    rdHistReset();
+    carregarStatsRoda();
+  }catch(e){
+    showToast('Erro ao limpar: '+e.message,true);
+  }
 }
 
 /* Inicializa realtimes ao entrar no painel */
