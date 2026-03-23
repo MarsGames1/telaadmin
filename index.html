@@ -969,7 +969,7 @@ tr:hover td{background:rgba(255,255,255,.012)}
     </div>
 
     <!-- Instruções para ativar rastreamento -->
-    <div id="an-setup-box" style="background:var(--card);border:1px solid rgba(255,183,0,.25);border-radius:var(--radius);padding:20px">
+    <div id="an-setup-box" style="display:none;background:var(--card);border:1px solid rgba(255,183,0,.25);border-radius:var(--radius);padding:20px">
       <div style="display:flex;align-items:flex-start;gap:12px">
         <div style="font-size:24px;flex-shrink:0">🛠️</div>
         <div style="flex:1">
@@ -3674,7 +3674,10 @@ async function carregarAnalise(){
       .gte('created_at',dataInicio.toISOString())
       .order('created_at',{ascending:true});
     if(error) throw error;
-    if(!data||data.length===0){ _anMostrarVazio(); return; }
+    /* Tabela existe — esconde tutorial independente de ter dados ou não */
+    var setupBox=document.getElementById('an-setup-box');
+    if(setupBox) setupBox.style.display='none';
+    if(!data||data.length===0){ _anMostrarVazio(false); return; }
     /* Agrupa por dia */
     var hoje=new Date(); hoje.setHours(0,0,0,0);
     var porDia={}, unicosDia={};
@@ -3762,15 +3765,20 @@ async function carregarAnalise(){
     }).join('');
   }catch(e){
     console.log('[analise]',e);
-    _anMostrarVazio();
+    /* Erro (tabela não existe ou sem permissão) — mostra tutorial */
+    _anMostrarVazio(true);
   }
 }
-function _anMostrarVazio(){
+function _anMostrarVazio(mostrarTutorial){
   ['an-hoje','an-periodo','an-unicos','an-media'].forEach(function(id){var el=document.getElementById(id);if(el)el.textContent='0';});
-  var emptyEl=document.getElementById('an-grafico-empty'); if(emptyEl){emptyEl.style.display='flex';emptyEl.style.setProperty('display','flex','important');}
+  var emptyEl=document.getElementById('an-grafico-empty');
+  if(emptyEl) emptyEl.style.display='flex';
   var canvas=document.getElementById('an-grafico'); if(canvas) canvas.style.opacity='0';
   var pEl=document.getElementById('an-paginas');if(pEl)pEl.innerHTML='<div style="color:var(--muted);font-size:11px;text-align:center;padding:16px">Nenhum dado ainda</div>';
   var rEl=document.getElementById('an-recentes');if(rEl)rEl.innerHTML='<div style="color:var(--muted);font-size:11px;text-align:center;padding:16px">Nenhum acesso registrado</div>';
+  /* Mostra tutorial só quando a tabela não existe (erro real) */
+  var setupBox=document.getElementById('an-setup-box');
+  if(setupBox) setupBox.style.display=mostrarTutorial?'block':'none';
 }
 
 /* ══ PEDIDOS — PAGINAÇÃO SERVER-SIDE ══ */
