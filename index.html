@@ -1455,10 +1455,29 @@ CREATE POLICY "admin select" ON site_pageviews FOR SELECT USING (true);</div>
   <div class="page" id="page-historico">
     <div class="page-head">
       <div><div class="page-eyebrow">Auditoria</div><div class="page-title">Histórico de Alterações</div></div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <select id="hist-filtro-tipo" class="form-select" style="width:160px;padding:8px 10px;font-size:11px" onchange="carregarHistorico()">
+          <option value="">Todos os tipos</option>
+          <option value="produto">🎮 Produto</option>
+          <option value="cliente">👤 Cliente</option>
+          <option value="pedido">📦 Pedido</option>
+          <option value="pontos">⭐ Pontos</option>
+          <option value="sorteio">🎲 Sorteio</option>
+          <option value="cupom">🏷️ Cupom</option>
+          <option value="sistema">⚙️ Sistema</option>
+        </select>
+        <span id="hist-total-label" style="font-size:10px;font-weight:700;color:var(--muted)"></span>
+        <button class="btn btn-red btn-sm" onclick="excluirHistoricoAntigo()">🗑 Limpar &gt;30 dias</button>
+      </div>
     </div>
     <div class="table-wrap" style="padding:16px">
       <div class="hist-list" id="histList">
         <div class="empty-state">Nenhuma alteração registrada ainda.</div>
+      </div>
+      <div id="hist-paginacao" style="display:none;align-items:center;justify-content:center;gap:6px;padding:16px 0 4px;flex-wrap:wrap">
+        <button id="hist-btn-prev" class="btn btn-outline btn-sm" onclick="histMudarPagina(-1)">← Anterior</button>
+        <span id="hist-pagina-info" style="font-size:11px;font-weight:700;color:var(--muted);padding:0 8px"></span>
+        <button id="hist-btn-next" class="btn btn-outline btn-sm" onclick="histMudarPagina(1)">Próxima →</button>
       </div>
     </div>
   </div>
@@ -2540,6 +2559,8 @@ CREATE POLICY "admin select" ON site_pageviews FOR SELECT USING (true);</div>
       <textarea class="form-textarea" id="sp-desc" placeholder="Descreva o sorteio..." style="min-height:60px"></textarea></div>
     <div class="form-row"><label class="form-label">Prêmio (nome do jogo) *</label>
       <input class="form-input" id="sp-premio" placeholder="Ex: Elden Ring — Deluxe Edition"></div>
+    <div class="form-row"><label class="form-label">🖼️ URL da imagem do sorteio</label>
+      <input class="form-input" id="sp-img" placeholder="https://...imagem.jpg"></div>
     <div class="form-row"><label class="form-label">🔑 Chave / Credencial do prêmio</label>
       <textarea class="form-textarea" id="sp-chave"
         placeholder="XXXX-YYYY-ZZZZ&#10;ou&#10;usuario:senha&#10;(entregue ao vencedor automaticamente)"
@@ -2808,10 +2829,51 @@ async function registrarHistorico(tipo,descricao,antes,depois){
     created_at:new Date().toISOString()
   });
 }
+var _histPagina=1;
+var _histPorPag=25;
+var _histTotal=0;
+
 async function carregarHistorico(){
+  _histPagina=1;
+  await _fetchHistorico();
+}
+
+async function histMudarPagina(dir){
+  var totalPag=Math.ceil(_histTotal/_histPorPag);
+  _histPagina=Math.max(1,Math.min(_histPagina+dir,totalPag));
+  await _fetchHistorico();
+}
+
+async function _fetchHistorico(){
   var list=document.getElementById('histList');
-  var{data}=await sb.from('historico_alteracoes').select('*').order('created_at',{ascending:false}).limit(100);
-  if(!data||data.length===0){list.innerHTML='<div class="empty-state">Nenhuma alteração registrada ainda.</div>';return}
+  list.innerHTML='<div class="empty-state"><span class="loader-inline"></span></div>';
+
+  var tipo=(document.getElementById('hist-filtro-tipo')||{}).value||'';
+  var from=(_histPagina-1)*_histPorPag;
+  var to=from+_histPorPag-1;
+
+  var q=sb.from('historico_alteracoes').select('*',{count:'exact'})
+    .order('created_at',{ascending:false})
+    .range(from,to);
+  if(tipo) q=q.eq('tipo',tipo);
+
+  var{data,count,error}=await q;
+
+  if(error||!data||data.length===0){
+    list.innerHTML='<div class="empty-state">Nenhuma alteração registrada ainda.</div>';
+    document.getElementById('hist-paginacao').style.display='none';
+    document.getElementById('hist-total-label').textContent='';
+    return;
+  }
+
+  _histTotal=count||0;
+  var totalPag=Math.ceil(_histTotal/_histPorPag);
+
+  /* Label total */
+  var lbl=document.getElementById('hist-total-label');
+  if(lbl) lbl.textContent=_histTotal+' registro'+ (_histTotal!==1?'s':'');
+
+  /* Render itens */
   var icones={produto:'🎮',cliente:'👤',pedido:'📦',pontos:'⭐',sorteio:'🎲',cupom:'🏷️',sistema:'⚙️'};
   list.innerHTML=data.map(function(h){
     var ic=icones[h.tipo]||'📝';
@@ -2828,6 +2890,30 @@ async function carregarHistorico(){
         '<div class="hist-meta">'+fmtDateTime(h.created_at)+'</div>'+
       '</div></div>';
   }).join('');
+
+  /* Paginação UI */
+  var pag=document.getElementById('hist-paginacao');
+  if(totalPag>1){
+    pag.style.display='flex';
+    document.getElementById('hist-pagina-info').textContent='Página '+_histPagina+' de '+totalPag;
+    document.getElementById('hist-btn-prev').disabled=_histPagina<=1;
+    document.getElementById('hist-btn-next').disabled=_histPagina>=totalPag;
+  } else {
+    pag.style.display='none';
+  }
+}
+
+async function excluirHistoricoAntigo(){
+  if(!confirm('Excluir todos os registros com mais de 30 dias? Esta ação não pode ser desfeita.')) return;
+  var corte=new Date();
+  corte.setDate(corte.getDate()-30);
+  var{error,count}=await sb.from('historico_alteracoes')
+    .delete({count:'exact'})
+    .lt('created_at',corte.toISOString());
+  if(error){showToast('Erro ao excluir: '+error.message,true);return;}
+  showToast('🗑 '+(count||0)+' registro(s) excluído(s).');
+  _histPagina=1;
+  await _fetchHistorico();
 }
 
 /* ══ NAVEGAÇÃO ══ */
@@ -4705,6 +4791,7 @@ async function salvarSorteioPeriodico(){
   var titulo=document.getElementById('sp-titulo').value.trim();
   var desc=document.getElementById('sp-desc').value.trim();
   var premio=document.getElementById('sp-premio').value.trim();
+  var img=document.getElementById('sp-img').value.trim();
   var chave=document.getElementById('sp-chave').value.trim();
   var fim=document.getElementById('sp-fim').value;
   var ativo=document.getElementById('sp-ativo').checked;
@@ -4712,7 +4799,7 @@ async function salvarSorteioPeriodico(){
   if(!titulo||!premio||!fim){showToast('Preencha título, prêmio e data de encerramento',true);return}
   if(ativo){await sb.from('sorteios_periodicos').update({ativo:false}).eq('tipo',tipo).eq('ativo',true);}
   var{error}=await sb.from('sorteios_periodicos').insert({
-    tipo,titulo,descricao:desc,premio,chave_premio:chave||null,ativo,
+    tipo,titulo,descricao:desc,premio,imagem:img||null,chave_premio:chave||null,ativo,
     data_inicio:new Date().toISOString(),data_fim:fim?new Date(fim).toISOString():null,
     plataforma:plat,total_participantes:0
   });
@@ -4840,6 +4927,7 @@ function abrirEditarSorteio(s){
   document.getElementById('es-titulo').value = s.titulo || '';
   document.getElementById('es-desc').value = s.descricao || '';
   document.getElementById('es-premio').value = s.premio || '';
+  document.getElementById('es-img').value = s.imagem || '';
   document.getElementById('es-chave').value = s.chave_premio || '';
   document.getElementById('es-fim').value = s.data_fim ? s.data_fim.slice(0,16) : '';
   document.getElementById('es-ativo').checked = !!s.ativo;
@@ -4851,6 +4939,7 @@ async function salvarEditarSorteio(){
   var titulo = document.getElementById('es-titulo').value.trim();
   var desc = document.getElementById('es-desc').value.trim();
   var premio = document.getElementById('es-premio').value.trim();
+  var img = document.getElementById('es-img').value.trim();
   var chave = document.getElementById('es-chave').value.trim();
   var fim = document.getElementById('es-fim').value;
   var ativo = document.getElementById('es-ativo').checked;
@@ -4858,7 +4947,7 @@ async function salvarEditarSorteio(){
   if(!titulo||!premio||!fim){showToast('Preencha titulo, premio e data de encerramento',true);return;}
   if(ativo){ await sb.from('sorteios_periodicos').update({ativo:false}).eq('tipo',tipo).eq('ativo',true).neq('id',_editSorteioId); }
   var{error}=await sb.from('sorteios_periodicos').update({
-    tipo, titulo, descricao:desc, premio,
+    tipo, titulo, descricao:desc, premio, imagem:img||null,
     chave_premio:chave||null, ativo,
     data_fim: fim ? new Date(fim).toISOString() : null,
     plataforma: plat
@@ -7587,6 +7676,8 @@ async function salvarNovoCambioComSupabase(){
       <textarea class="form-textarea" id="es-desc" placeholder="Descreva o sorteio..." style="min-height:60px"></textarea></div>
     <div class="form-row"><label class="form-label">Prêmio (nome do jogo) *</label>
       <input class="form-input" id="es-premio" placeholder="Ex: Elden Ring — Deluxe Edition"></div>
+    <div class="form-row"><label class="form-label">🖼️ URL da imagem do sorteio</label>
+      <input class="form-input" id="es-img" placeholder="https://...imagem.jpg"></div>
     <div class="form-row"><label class="form-label">🔑 Chave / Credencial do prêmio</label>
       <textarea class="form-textarea" id="es-chave"
         placeholder="XXXX-YYYY-ZZZZ&#10;ou&#10;usuario:senha"
