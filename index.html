@@ -1138,6 +1138,14 @@ CREATE POLICY "admin select" ON site_pageviews FOR SELECT USING (true);</div>
         </tbody>
       </table>
     </div>
+    <div id="est-paginacao" style="display:none;align-items:center;justify-content:space-between;padding:14px 4px 4px;gap:12px;flex-wrap:wrap">
+      <span id="est-pag-info" style="font-size:10px;font-weight:700;color:var(--muted)"></span>
+      <div style="display:flex;align-items:center;gap:6px">
+        <button id="est-pag-prev" class="btn btn-outline btn-sm" onclick="mudaPaginaEstoque(-1)" style="min-width:80px">← Anterior</button>
+        <span id="est-pag-pages" style="display:flex;gap:4px"></span>
+        <button id="est-pag-next" class="btn btn-outline btn-sm" onclick="mudaPaginaEstoque(1)" style="min-width:80px">Próxima →</button>
+      </div>
+    </div>
   </div>
 
   <!-- ══ SORTEIOS ══ -->
@@ -3604,6 +3612,9 @@ async function verificarEstoqueBaixo(produtos){
 
 /* ══ ESTOQUE DE CHAVES ══ */
 var _todasAsChaves=[];
+var _estListaAtual=[];
+var _estPagina=1;
+var EST_POR_PAGINA=50;
 
 async function carregarEstoque(){
   var tbody=document.getElementById('est-tbody');
@@ -3623,7 +3634,6 @@ async function carregarEstoque(){
 
   /* Produtos sem estoque */
   var{data:prods}=await sb.from('produtos').select('id,nome,ativo').eq('ativo',true);
-  var prodIds=(prods||[]).map(function(p){return p.id});
   var dispPorProd={};
   _todasAsChaves.filter(function(c){return c.status==='disponivel'}).forEach(function(c){
     dispPorProd[c.produto_id]=(dispPorProd[c.produto_id]||0)+1;
@@ -3637,6 +3647,7 @@ async function carregarEstoque(){
     alertLista.textContent=zerados.map(function(p){return p.nome}).join(', ');
   } else if(alertEl) alertEl.style.display='none';
 
+  _estPagina=1;
   renderEstoque(_todasAsChaves);
 }
 
@@ -3647,20 +3658,31 @@ function filtrarEstoque(q){
     var matchS=!status||c.status===status;
     return matchQ&&matchS;
   });
+  _estPagina=1;
   renderEstoque(filtrado);
 }
 
 function renderEstoque(lista){
+  _estListaAtual=lista||[];
   var tbody=document.getElementById('est-tbody');
-  if(!lista||lista.length===0){tbody.innerHTML='<tr><td colspan="6" class="empty-state">Nenhuma chave encontrada.</td></tr>';return}
-  tbody.innerHTML=lista.map(function(c){
+  var pagDiv=document.getElementById('est-paginacao');
+  if(!_estListaAtual.length){
+    tbody.innerHTML='<tr><td colspan="6" class="empty-state">Nenhuma chave encontrada.</td></tr>';
+    pagDiv.style.display='none';
+    return;
+  }
+  var totalPags=Math.ceil(_estListaAtual.length/EST_POR_PAGINA);
+  if(_estPagina>totalPags)_estPagina=totalPags;
+  var inicio=(_estPagina-1)*EST_POR_PAGINA;
+  var pagina=_estListaAtual.slice(inicio,inicio+EST_POR_PAGINA);
+
+  tbody.innerHTML=pagina.map(function(c){
     var statusBadge={
       disponivel:'<span class="badge badge-green">Disponível</span>',
       entregue:'<span class="badge badge-blue">Entregue</span>',
       reservada:'<span class="badge badge-amber">Reservada</span>'
     }[c.status]||'<span class="badge badge-gray">'+esc(c.status)+'</span>';
     var tipo=c.tipo==='login_senha'?'<span class="badge badge-purple">Login+Senha</span>':'<span class="badge badge-gray">Chave</span>';
-    /* Máscara parcial do conteúdo — mostra só primeiros e últimos chars */
     var conteudo=c.conteudo||'';
     var exibido=c.status==='entregue'
       ? '<span style="font-family:monospace;font-size:10px;color:var(--muted)">'+esc(conteudo.slice(0,6))+'••••'+esc(conteudo.slice(-4))+'</span>'
@@ -3686,6 +3708,39 @@ function renderEstoque(lista){
       '<td style="color:var(--muted);font-size:10px">'+(c.entregue_em?fmtDateTime(c.entregue_em):'—')+'</td>'+
       '<td>'+acoes+'</td></tr>';
   }).join('');
+
+  /* Controles de paginação */
+  if(totalPags<=1){pagDiv.style.display='none';return;}
+  pagDiv.style.display='flex';
+  document.getElementById('est-pag-info').textContent=
+    'Mostrando '+(inicio+1)+'–'+Math.min(inicio+EST_POR_PAGINA,_estListaAtual.length)+' de '+_estListaAtual.length+' registros';
+  document.getElementById('est-pag-prev').disabled=_estPagina===1;
+  document.getElementById('est-pag-next').disabled=_estPagina===totalPags;
+
+  /* Botões numéricos — exibe até 7 páginas ao redor da atual */
+  var pagesEl=document.getElementById('est-pag-pages');
+  var btns='';
+  var delta=3,start=Math.max(1,_estPagina-delta),end=Math.min(totalPags,_estPagina+delta);
+  if(start>1)btns+='<button class="btn btn-outline btn-sm" onclick="irPaginaEstoque(1)" style="min-width:32px">1</button>'+(start>2?'<span style="color:var(--muted);align-self:center;padding:0 2px">…</span>':'');
+  for(var i=start;i<=end;i++){
+    var ativo=i===_estPagina?'background:rgba(0,255,85,.15);border-color:rgba(0,255,85,.5);color:var(--green);':'';
+    btns+='<button class="btn btn-outline btn-sm" onclick="irPaginaEstoque('+i+')" style="min-width:32px;'+ativo+'">'+i+'</button>';
+  }
+  if(end<totalPags)btns+=(end<totalPags-1?'<span style="color:var(--muted);align-self:center;padding:0 2px">…</span>':'')+'<button class="btn btn-outline btn-sm" onclick="irPaginaEstoque('+totalPags+')" style="min-width:32px">'+totalPags+'</button>';
+  pagesEl.innerHTML=btns;
+}
+
+function mudaPaginaEstoque(dir){
+  var totalPags=Math.ceil(_estListaAtual.length/EST_POR_PAGINA);
+  _estPagina=Math.max(1,Math.min(totalPags,_estPagina+dir));
+  renderEstoque(_estListaAtual);
+  document.getElementById('est-tbody').closest('.table-wrap').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function irPaginaEstoque(n){
+  _estPagina=n;
+  renderEstoque(_estListaAtual);
+  document.getElementById('est-tbody').closest('.table-wrap').scrollIntoView({behavior:'smooth',block:'start'});
 }
 
 async function copiarChave(id){
