@@ -3319,6 +3319,7 @@ async function salvarProduto(){
     imagem:img,
     descricao:desc,
     plataforma:plat,
+    tipo_key:tipoKey,
     ativo:true
   };
   /* prodAtual é a snapshot antes de editar — definido em editarProduto() ou null para novo */
@@ -3499,6 +3500,9 @@ async function editarProduto(p){
   document.getElementById('prod-img').value=p.imagem||'';
   document.getElementById('prod-desc').value=p.descricao||'';
   document.getElementById('prod-plat').value=p.plataforma||'Steam Offline';
+  var tipoKeyEditEl=document.getElementById('prod-tipo-key');
+  if(tipoKeyEditEl) tipoKeyEditEl.value=p.tipo_key||'login_senha';
+  atualizarPlaceholderKey();
   document.getElementById('prod-keys').value='';
   document.getElementById('keys-counter').textContent='0 keys';
 
