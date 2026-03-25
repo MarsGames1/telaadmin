@@ -1450,12 +1450,39 @@ CREATE POLICY "admin select" ON site_pageviews FOR SELECT USING (true);</div>
     <div class="page-head">
       <div><div class="page-eyebrow">Atalhos</div><div class="page-title">Favoritos</div></div>
     </div>
-    <div class="favs-tabs">
-      <button class="fav-tab active" onclick="trocarFavTab('produtos',this)">🎮 Produtos</button>
-      <button class="fav-tab" onclick="trocarFavTab('clientes',this)">👤 Clientes</button>
+
+    <!-- Busca por email -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap">
+      <input class="form-input" id="fav-email-input" placeholder="Buscar favoritos por e-mail do cliente..." style="max-width:360px;flex:1"
+        onkeydown="if(event.key==='Enter')buscarFavoritosPorEmail()">
+      <button class="btn btn-green" onclick="buscarFavoritosPorEmail()" style="white-space:nowrap">🔍 Buscar</button>
+      <button class="btn btn-outline" onclick="limparFavsBusca()" style="white-space:nowrap">✕ Limpar</button>
     </div>
+
+    <!-- Info -->
+    <div id="fav-cliente-info" style="display:none;margin-bottom:14px;padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;font-size:11px;color:var(--muted)"></div>
+
+    <!-- Tabs -->
+    <div class="favs-tabs" style="margin-bottom:14px">
+      <button class="fav-tab active" id="fav-tab-produtos" onclick="trocarFavTab('produtos',this)">🎮 Favoritos do Cliente</button>
+      <button class="fav-tab" id="fav-tab-atalhos" onclick="trocarFavTab('clientes',this)">⭐ Meus Atalhos (Admin)</button>
+    </div>
+
+    <!-- Loading -->
+    <div id="fav-loading" style="display:none;text-align:center;padding:40px;color:var(--muted);font-size:12px">
+      <div style="width:22px;height:22px;border:2px solid var(--border);border-top-color:var(--green);border-radius:50%;animation:spin 0.7s linear infinite;margin:0 auto 12px"></div>
+      Buscando favoritos...
+    </div>
+
     <div class="fav-grid" id="favGrid">
-      <div class="empty-state">Nenhum favorito ainda. Adicione produtos ou clientes importantes aqui.</div>
+      <div class="empty-state" style="grid-column:1/-1">Digite um e-mail acima para ver os jogos favoritos do cliente.</div>
+    </div>
+
+    <!-- Paginacao -->
+    <div id="fav-pagination" style="display:none;margin-top:18px;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-outline" id="fav-btn-prev" onclick="favMudarPagina(-1)" style="font-size:11px;padding:7px 16px">&#8592; Anterior</button>
+      <span id="fav-page-info" style="font-size:11px;color:var(--muted);font-weight:700"></span>
+      <button class="btn btn-outline" id="fav-btn-next" onclick="favMudarPagina(1)" style="font-size:11px;padding:7px 16px">Próximo &#8594;</button>
     </div>
   </div>
 
@@ -2639,7 +2666,7 @@ var WEBHOOK='https://discord.com/api/webhooks/1482046917205557443/H7w5ZFSXY9dVLk
 var ADMINS=['rone.mars15@gmail.com','leandro976205756@gmail.com'];
 var sb=null;
 var todosOsProdutos=[],todosClientes=[],currentUser=null,currentEmail='',prodAtual=null;
-var favTab='produtos',favsProdutos=[],favsClientes=[];
+// favTab, favsProdutos, favsClientes declarados na seção FAVORITOS abaixo
 
 // Aguardar Supabase JS carregar antes de inicializar
 function initAdmin(){
@@ -5570,64 +5597,201 @@ async function entregarJogoDoDetalhe(id, email, jogoNome){
   }
 }
 
-/* ══ FAVORITOS ══ */
+/* ══ FAVORITOS (Admin — busca por email, paginação 20, exclusão local) ══ */
+var favTab='produtos';
+var favsProdutos=[],favsClientes=[];          // atalhos admin (localStorage)
+var _favResultados=[];                         // resultados da busca atual
+var _favOcultos={};                            // ids ocultados localmente nesta sessão
+var _favPagina=0;
+var FAV_POR_PAGINA=20;
+
 function carregarFavoritos(){
+  // Carrega atalhos admin do localStorage (tab clientes)
   var saved=localStorage.getItem('mars_favs');
   if(saved){var f=JSON.parse(saved);favsProdutos=f.produtos||[];favsClientes=f.clientes||[]}
+  // Reseta estado da busca
+  _favResultados=[];_favOcultos={};_favPagina=0;
   renderFavoritos();
 }
-function salvarFavoritos(){localStorage.setItem('mars_favs',JSON.stringify({produtos:favsProdutos,clientes:favsClientes}))}
-function toggleFavProd(id,nome){
-  var idx=favsProdutos.indexOf(id);
-  if(idx>-1){favsProdutos.splice(idx,1);showToast('"'+nome+'" removido dos favoritos')}
-  else{favsProdutos.push(id);showToast('"'+nome+'" adicionado aos favoritos')}
-  salvarFavoritos();renderFavoritos();
+
+function salvarFavoritosAdmin(){
+  localStorage.setItem('mars_favs',JSON.stringify({produtos:favsProdutos,clientes:favsClientes}));
 }
-function toggleFavCliente(email){
-  var idx=favsClientes.indexOf(email);
-  if(idx>-1){favsClientes.splice(idx,1);showToast('Cliente removido dos favoritos')}
-  else{favsClientes.push(email);showToast('Cliente adicionado aos favoritos')}
-  salvarFavoritos();renderFavoritos();
+
+/* Busca favoritos do cliente no Supabase */
+async function buscarFavoritosPorEmail(){
+  var email=(document.getElementById('fav-email-input').value||'').trim().toLowerCase();
+  if(!email){showToast('Digite um e-mail para buscar',true);return;}
+  var loading=document.getElementById('fav-loading');
+  var grid=document.getElementById('favGrid');
+  var info=document.getElementById('fav-cliente-info');
+  var pag=document.getElementById('fav-pagination');
+  loading.style.display='block';
+  grid.innerHTML='';
+  info.style.display='none';
+  pag.style.display='none';
+  _favResultados=[];_favOcultos={};_favPagina=0;
+
+  // Busca user_id pelo email
+  var{data:perfis,error:errP}=await sb.from('profiles').select('id,full_name,email').ilike('email','%'+email+'%').limit(5);
+  if(errP||!perfis||perfis.length===0){
+    // tenta buscar pelo campo email diretamente na tabela auth via marspoints
+    var{data:mp}=await sb.from('marspoints').select('user_email,pontos').ilike('user_email','%'+email+'%').limit(1);
+    if(!mp||mp.length===0){
+      loading.style.display='none';
+      grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">Nenhum cliente encontrado com este e-mail.</div>';
+      return;
+    }
+    // busca favoritos via user_email na tabela favoritos se existir coluna user_email
+    var{data:favs,error:errF}=await sb.from('favoritos').select('id,produto_id,produtos(id,nome,imagem,categoria,preco,plataforma)').ilike('user_email','%'+email+'%');
+    if(errF||!favs||favs.length===0){
+      loading.style.display='none';
+      grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">Nenhum favorito encontrado para este e-mail.</div>';
+      return;
+    }
+    _favResultados=favs;
+    info.style.display='block';
+    info.innerHTML='<strong style="color:#fff">'+esc(email)+'</strong> — <span style="color:var(--green)">'+favs.length+' jogo(s) favorito(s)</span>';
+    loading.style.display='none';
+    renderFavResultados();
+    return;
+  }
+
+  var perfil=perfis[0];
+  // Busca favoritos pelo user_id
+  var{data:favs,error:errF}=await sb.from('favoritos').select('id,produto_id,produtos(id,nome,imagem,categoria,preco,plataforma)').eq('user_id',perfil.id);
+  loading.style.display='none';
+  if(errF){grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">Erro ao buscar favoritos: '+esc(errF.message)+'</div>';return;}
+  if(!favs||favs.length===0){grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">Este cliente não tem favoritos ainda.</div>';return;}
+
+  _favResultados=favs;
+  info.style.display='block';
+  info.innerHTML='<strong style="color:#fff">'+esc(perfil.full_name||perfil.email||email)+'</strong> &nbsp;•&nbsp; '+esc(perfil.email||email)+' &nbsp;•&nbsp; <span style="color:var(--green)">'+favs.length+' jogo(s) favorito(s)</span>';
+  renderFavResultados();
 }
+
+function limparFavsBusca(){
+  document.getElementById('fav-email-input').value='';
+  _favResultados=[];_favOcultos={};_favPagina=0;
+  document.getElementById('fav-cliente-info').style.display='none';
+  document.getElementById('fav-pagination').style.display='none';
+  document.getElementById('favGrid').innerHTML='<div class="empty-state" style="grid-column:1/-1">Digite um e-mail acima para ver os jogos favoritos do cliente.</div>';
+}
+
+function renderFavResultados(){
+  var visiveis=_favResultados.filter(function(f){return !_favOcultos[f.id]});
+  var total=visiveis.length;
+  var totalPags=Math.ceil(total/FAV_POR_PAGINA);
+  if(_favPagina>=totalPags)_favPagina=Math.max(0,totalPags-1);
+  var inicio=_favPagina*FAV_POR_PAGINA;
+  var pagina=visiveis.slice(inicio,inicio+FAV_POR_PAGINA);
+  var grid=document.getElementById('favGrid');
+  var pag=document.getElementById('fav-pagination');
+
+  if(total===0){
+    grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">Todos os itens foram removidos desta visualização.</div>';
+    pag.style.display='none';
+    return;
+  }
+
+  grid.innerHTML=pagina.map(function(f){
+    var p=f.produtos;
+    if(!p)return '';
+    return '<div class="fav-card" id="favc-'+f.id+'">'+
+      (p.imagem?'<img class="fav-card-img" src="'+esc(p.imagem)+'" onerror="this.style.display=\'none\'">':'<div class="fav-card-img" style="display:flex;align-items:center;justify-content:center;font-size:20px;">🎮</div>')+
+      '<div class="fav-card-info">'+
+        '<div class="fav-card-name">'+esc(p.nome||'Produto sem nome')+'</div>'+
+        '<div class="fav-card-sub">'+esc(p.categoria||p.plataforma||'')+'</div>'+
+        '<div class="fav-card-pts">R$ '+Number(p.preco||0).toFixed(2).replace('.',',')+'</div>'+
+      '</div>'+
+      '<button class="fav-remove" title="Ocultar desta lista" onclick="ocultarFavLocal('+JSON.stringify(f.id)+')">✕</button>'+
+    '</div>';
+  }).join('');
+
+  // Paginação
+  if(totalPags>1){
+    pag.style.display='flex';
+    document.getElementById('fav-page-info').textContent='Página '+((_favPagina+1))+' de '+totalPags+' ('+total+' itens)';
+    document.getElementById('fav-btn-prev').disabled=_favPagina===0;
+    document.getElementById('fav-btn-next').disabled=_favPagina>=totalPags-1;
+  }else{
+    pag.style.display='none';
+  }
+}
+
+function ocultarFavLocal(favId){
+  _favOcultos[favId]=true;
+  var el=document.getElementById('favc-'+favId);
+  if(el){el.style.transition='opacity .2s';el.style.opacity='0';setTimeout(function(){renderFavResultados();},200);}
+  else{renderFavResultados();}
+  showToast('Item ocultado desta visualização');
+}
+
+function favMudarPagina(dir){
+  var visiveis=_favResultados.filter(function(f){return !_favOcultos[f.id]});
+  var totalPags=Math.ceil(visiveis.length/FAV_POR_PAGINA);
+  _favPagina=Math.max(0,Math.min(_favPagina+dir,totalPags-1));
+  renderFavResultados();
+  document.getElementById('page-favoritos').scrollTop=0;
+}
+
 function trocarFavTab(tab,el){
   favTab=tab;
   document.querySelectorAll('.fav-tab').forEach(function(t){t.classList.remove('active')});
   if(el)el.classList.add('active');
-  renderFavoritos();
-}
-function renderFavoritos(){
-  var grid=document.getElementById('favGrid');
-  if(favTab==='produtos'){
-    var prods=todosOsProdutos.filter(function(p){return favsProdutos.includes(p.id)});
-    if(prods.length===0){grid.innerHTML='<div class="empty-state">Nenhum produto favorito. Clique em ★ em qualquer produto.</div>';return}
-    grid.innerHTML=prods.map(function(p){
-      return '<div class="fav-card">'+
-        (p.imagem?'<img class="fav-card-img" src="'+p.imagem+'" onerror="this.style.display=\'none\'">':'<div class="fav-card-img"></div>')+
-        '<div class="fav-card-info">'+
-          '<div class="fav-card-name">'+esc(p.nome)+'</div>'+
-          '<div class="fav-card-sub">'+esc(p.categoria||'')+'</div>'+
-          '<div class="fav-card-pts">R$ '+Number(p.preco).toFixed(2).replace('.',',')+'</div>'+
-        '</div>'+
-        '<button class="fav-remove" onclick="toggleFavProd(\''+p.id+'\',\''+esc(p.nome)+'\')">✕</button>'+
-      '</div>';
-    }).join('');
+  if(tab==='produtos'){
+    // Mostra painel de busca
+    document.getElementById('fav-email-input').closest('div').style.display='flex';
+    renderFavResultados();
   }else{
-    var clis=todosClientes.filter(function(c){return favsClientes.includes(c.email)});
-    if(clis.length===0){grid.innerHTML='<div class="empty-state">Nenhum cliente favorito. Clique em ★ em qualquer cliente.</div>';return}
-    grid.innerHTML=clis.map(function(c){
-      var nv=nivelCliente(c.pontos||0);
-      var isTop=nv.l==='Diamante'||nv.l==='Esmeralda';
-      return '<div class="fav-card '+(nv.l==='Diamante'?'diamante':nv.l==='Esmeralda'?'esmeralda':'')+'">'+
-        '<div class="fav-card-img" style="background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:16px;">'+(isTop?'💎':'👤')+'</div>'+
-        '<div class="fav-card-info">'+
-          '<div class="fav-card-name">'+esc(c.email)+'</div>'+
-          '<div class="fav-card-sub"><span class="badge '+nv.cls+'" style="font-size:7px">'+nv.l+'</span></div>'+
-          '<div class="fav-card-pts">'+(c.pontos||0)+' pts • R$ '+c.total.toFixed(2)+'</div>'+
-        '</div>'+
-        '<button class="fav-remove" onclick="toggleFavCliente(\''+esc(c.email)+'\')">✕</button>'+
-      '</div>';
-    }).join('');
+    // Aba de atalhos admin (localStorage)
+    document.getElementById('fav-pagination').style.display='none';
+    document.getElementById('fav-cliente-info').style.display='none';
+    renderFavAtalhosAdmin();
   }
+}
+
+function renderFavoritos(){
+  if(favTab==='produtos'){
+    renderFavResultados();
+  }else{
+    renderFavAtalhosAdmin();
+  }
+}
+
+function renderFavAtalhosAdmin(){
+  var grid=document.getElementById('favGrid');
+  var clis=todosClientes.filter(function(c){return favsClientes.includes(c.email)});
+  if(clis.length===0){
+    grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">Nenhum atalho de cliente salvo. Clique em ★ em qualquer cliente para adicionar.</div>';
+    return;
+  }
+  grid.innerHTML=clis.map(function(c){
+    var nv=nivelCliente(c.pontos||0);
+    var isTop=nv.l==='Diamante'||nv.l==='Esmeralda';
+    return '<div class="fav-card '+(nv.l==='Diamante'?'diamante':nv.l==='Esmeralda'?'esmeralda':'')+'">'+
+      '<div class="fav-card-img" style="background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:16px;">'+(isTop?'💎':'👤')+'</div>'+
+      '<div class="fav-card-info">'+
+        '<div class="fav-card-name">'+esc(c.email)+'</div>'+
+        '<div class="fav-card-sub"><span class="badge '+nv.cls+'" style="font-size:7px">'+nv.l+'</span></div>'+
+        '<div class="fav-card-pts">'+(c.pontos||0)+' pts • R$ '+c.total.toFixed(2)+'</div>'+
+      '</div>'+
+      '<button class="fav-remove" onclick="toggleFavCliente(\''+esc(c.email)+'\')">✕</button>'+
+    '</div>';
+  }).join('');
+}
+
+function toggleFavProd(id,nome){
+  var idx=favsProdutos.indexOf(id);
+  if(idx>-1){favsProdutos.splice(idx,1);showToast('"'+nome+'" removido dos favoritos')}
+  else{favsProdutos.push(id);showToast('"'+nome+'" adicionado aos favoritos')}
+  salvarFavoritosAdmin();renderFavoritos();
+}
+function toggleFavCliente(email){
+  var idx=favsClientes.indexOf(email);
+  if(idx>-1){favsClientes.splice(idx,1);showToast('Cliente removido dos atalhos')}
+  else{favsClientes.push(email);showToast('Cliente adicionado aos atalhos')}
+  salvarFavoritosAdmin();renderFavAtalhosAdmin();
 }
 
 /* ══ MODO MANUTENÇÃO ══ */
