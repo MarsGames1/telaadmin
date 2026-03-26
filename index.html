@@ -92,7 +92,7 @@ body{background:var(--bg);font-family:'Montserrat',sans-serif;color:var(--text);
 .sb-logo{padding:22px 20px 16px;border-bottom:1px solid var(--border)}
 .sb-logo-text{font-family:'Orbitron',sans-serif;font-size:15px;font-weight:900;letter-spacing:2px;text-transform:uppercase;color:#fff}
 .sb-logo-text span{color:var(--green)}
-.sb-logo-badge{font-size:8px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-top:4px;display:flex;align-items:center;gap:6px}
+.sb-logo-badge{font-size:8px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#8888aa;margin-top:4px;display:flex;align-items:center;gap:6px}
 .sb-logo-badge::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:pulse 2s ease-in-out infinite;flex-shrink:0}
 
 /* ── PRESENÇA ── */
@@ -128,11 +128,11 @@ body{background:var(--bg);font-family:'Montserrat',sans-serif;color:var(--text);
 .search-result-sub{font-size:8px;color:var(--muted);margin-top:1px}
 
 .sb-nav{flex:1;padding:8px 0}
-.sb-section{font-size:8px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:#7070a0;padding:10px 20px 4px}
-.sb-item{display:flex;align-items:center;gap:10px;padding:9px 20px;font-size:11px;font-weight:700;color:#7070a0;cursor:pointer;transition:color .15s,background .15s;letter-spacing:.3px;border-left:2px solid transparent;position:relative}
-.sb-item svg{width:15px;height:15px;flex-shrink:0;opacity:.4;transition:opacity .15s}
-.sb-item:hover{color:#aaa;background:rgba(255,255,255,.02)}
-.sb-item:hover svg{opacity:.7}
+.sb-section{font-size:8px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:#9090b8;padding:10px 20px 4px}
+.sb-item{display:flex;align-items:center;gap:10px;padding:9px 20px;font-size:11px;font-weight:700;color:#b0b0cc;cursor:pointer;transition:color .15s,background .15s;letter-spacing:.3px;border-left:2px solid transparent;position:relative}
+.sb-item svg{width:15px;height:15px;flex-shrink:0;opacity:.65;transition:opacity .15s}
+.sb-item:hover{color:#e0e0f5;background:rgba(255,255,255,.04)}
+.sb-item:hover svg{opacity:.9}
 .sb-item.active{color:var(--green);background:var(--green-dim);border-left-color:var(--green)}
 .sb-item.active svg{opacity:1}
 .sb-badge{margin-left:auto;background:var(--mars);color:#fff;font-size:7px;font-weight:900;padding:2px 6px;border-radius:99px;min-width:18px;text-align:center}
@@ -150,8 +150,8 @@ body{background:var(--bg);font-family:'Montserrat',sans-serif;color:var(--text);
 .mini-toggle input:checked~.mini-toggle-thumb{transform:translateX(16px);background:var(--amber)}
 
 .sb-footer{padding:14px 20px;border-top:1px solid var(--border)}
-.sb-logout{width:100%;padding:9px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:#8888aa;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;transition:border-color .2s,color .2s;display:flex;align-items:center;justify-content:center;gap:7px}
-.sb-logout svg{width:13px;height:13px;opacity:.6}
+.sb-logout{width:100%;padding:9px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:#a0a0c0;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;transition:border-color .2s,color .2s;display:flex;align-items:center;justify-content:center;gap:7px}
+.sb-logout svg{width:13px;height:13px;opacity:.75}
 .sb-logout:hover{border-color:var(--red);color:var(--red)}
 
 /* ══ CONTENT ══ */
@@ -907,11 +907,17 @@ tr:hover td{background:rgba(255,255,255,.012)}
           <option value="30" selected>Últimos 30 dias</option>
         </select>
         <button class="btn btn-outline btn-sm" onclick="carregarAnalise()">↻ Atualizar</button>
+        <span id="an-ultima-atualizacao" style="font-size:9px;color:var(--muted);align-self:center"></span>
       </div>
     </div>
 
     <!-- Stats rápidas -->
-    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px">
+    <div class="stats-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:20px">
+      <div class="stat-card">
+        <div class="stat-label" style="display:flex;align-items:center;gap:5px"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:presencePulse 2s ease-in-out infinite"></span>Online agora</div>
+        <div class="stat-value green" id="an-online">0</div>
+        <div style="font-size:9px;color:var(--muted);margin-top:2px">visitantes ativos</div>
+      </div>
       <div class="stat-card">
         <div class="stat-label">Acessos hoje</div>
         <div class="stat-value green" id="an-hoje">—</div>
@@ -2953,6 +2959,8 @@ async function excluirHistoricoAntigo(){
 
 /* ══ NAVEGAÇÃO ══ */
 function showPage(id,el){
+  /* Pausa realtime de análise se sair da aba */
+  if(typeof _anPausar==='function'&&id!=='analise') _anPausar();
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active')});
   document.querySelectorAll('.sb-item').forEach(function(n){n.classList.remove('active')});
   document.getElementById('page-'+id).classList.add('active');
@@ -3837,56 +3845,102 @@ function abrirImportCSV(){
 
 /* ══ ANÁLISE DE ACESSOS ══ */
 var _anChart=null;
+var _anRealtimeSub=null;       /* canal Supabase realtime */
+var _anRefreshTimer=null;      /* auto-refresh leve (60s) */
+var _anAtiva=false;            /* aba visível? */
+var _anCarregando=false;       /* evita chamadas paralelas */
+
+/* ── Sincroniza card "Online agora" com o presence já existente ── */
+function _anSincronizarOnline(){
+  var count=Object.keys(typeof _clientesOnlineMap!=='undefined'?_clientesOnlineMap:{}).length;
+  var el=document.getElementById('an-online');
+  if(el) el.textContent=count;
+}
+
+/* ── Inicia realtime (só 1 canal, sem poll agressivo) ── */
+function _anIniciarRealtime(){
+  if(_anRealtimeSub) return;
+  /* Escuta INSERT na tabela — 1 evento por acesso, muito leve */
+  _anRealtimeSub=sb.channel('an_pageviews_rt')
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'site_pageviews'},function(){
+      if(_anAtiva&&!_anCarregando) carregarAnalise();
+    })
+    .subscribe();
+  /* Auto-refresh a cada 60s como fallback (caso realtime caia) */
+  _anRefreshTimer=setInterval(function(){
+    if(_anAtiva&&!_anCarregando) carregarAnalise();
+  },60000);
+}
+
+/* ── Para timers quando sair da aba ── */
+function _anPausar(){
+  _anAtiva=false;
+  if(_anRefreshTimer){ clearInterval(_anRefreshTimer); _anRefreshTimer=null; }
+  if(_anRealtimeSub){ sb.removeChannel(_anRealtimeSub); _anRealtimeSub=null; }
+}
+
 async function carregarAnalise(){
+  if(_anCarregando) return; /* evita concorrência */
+  _anCarregando=true;
+  _anAtiva=true;
+  _anIniciarRealtime();
+  _anSincronizarOnline();
+
   var dias=parseInt(document.getElementById('analise-periodo')?document.getElementById('analise-periodo').value:30)||30;
+  /* Limita a 30 dias para não sobrecarregar — período máximo razoável */
+  if(dias>30) dias=30;
   var dataInicio=new Date(); dataInicio.setDate(dataInicio.getDate()-(dias-1)); dataInicio.setHours(0,0,0,0);
   try{
+    /* Seleciona só as colunas necessárias, sem count(*) extra */
     var{data,error}=await sb.from('site_pageviews')
-      .select('pagina,email,session_id,created_at')
+      .select('pagina,session_id,email,created_at')
       .gte('created_at',dataInicio.toISOString())
-      .order('created_at',{ascending:true});
+      .order('created_at',{ascending:true})
+      .limit(2000); /* teto de segurança: evita payload gigante */
     if(error) throw error;
-    /* Tabela existe — esconde tutorial independente de ter dados ou não */
+
     var setupBox=document.getElementById('an-setup-box');
     if(setupBox) setupBox.style.display='none';
-    if(!data||data.length===0){ _anMostrarVazio(false); return; }
-    /* Agrupa por dia */
+    if(!data||data.length===0){ _anMostrarVazio(false); _anCarregando=false; return; }
+
+    /* Agrupa por dia — tudo em uma só passagem O(n) */
     var hoje=new Date(); hoje.setHours(0,0,0,0);
-    var porDia={}, unicosDia={};
+    var porDia={}, unicosDia={}, contPag={}, todosUnicosSets=new Set();
     data.forEach(function(r){
       var d=r.created_at.substring(0,10);
       porDia[d]=(porDia[d]||0)+1;
       if(!unicosDia[d]) unicosDia[d]=new Set();
-      if(r.session_id) unicosDia[d].add(r.session_id);
+      if(r.session_id){ unicosDia[d].add(r.session_id); todosUnicosSets.add(r.session_id); }
+      contPag[r.pagina||'index']=(contPag[r.pagina||'index']||0)+1;
     });
-    /* Gera labels dos dias */
+
+    /* Labels dos dias */
     var labels=[], totais=[], unicos=[];
     for(var i=dias-1;i>=0;i--){
       var dt=new Date(hoje); dt.setDate(dt.getDate()-i);
       var iso=dt.toISOString().substring(0,10);
-      var label=dt.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
-      labels.push(label);
+      labels.push(dt.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}));
       totais.push(porDia[iso]||0);
       unicos.push(unicosDia[iso]?unicosDia[iso].size:0);
     }
-    /* Stats rápidas */
+
+    /* Stats */
     var hj=hoje.toISOString().substring(0,10);
-    var totalHoje=porDia[hj]||0;
-    var totalPer=data.length;
-    var todosUnicos=new Set(data.map(function(r){return r.session_id;}).filter(Boolean)).size;
-    var mediaDia=Math.round(totalPer/dias);
-    if(document.getElementById('an-hoje')) document.getElementById('an-hoje').textContent=totalHoje;
-    if(document.getElementById('an-periodo')) document.getElementById('an-periodo').textContent=totalPer;
-    if(document.getElementById('an-unicos')) document.getElementById('an-unicos').textContent=todosUnicos;
-    if(document.getElementById('an-media')) document.getElementById('an-media').textContent=mediaDia;
+    var el=function(id){return document.getElementById(id);};
+    if(el('an-hoje'))    el('an-hoje').textContent=porDia[hj]||0;
+    if(el('an-periodo')) el('an-periodo').textContent=data.length;
+    if(el('an-unicos'))  el('an-unicos').textContent=todosUnicosSets.size;
+    if(el('an-media'))   el('an-media').textContent=Math.round(data.length/dias);
+    var lblAt=el('an-ultima-atualizacao');
+    if(lblAt) lblAt.textContent='↺ '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+
     /* Gráfico */
-    var canvas=document.getElementById('an-grafico');
-    var emptyEl=document.getElementById('an-grafico-empty');
+    var canvas=el('an-grafico'), emptyEl=el('an-grafico-empty');
     if(emptyEl) emptyEl.style.display='none';
     if(canvas){
+      canvas.style.opacity='1';
       if(_anChart) _anChart.destroy();
-      var ctx=canvas.getContext('2d');
-      _anChart=new Chart(ctx,{
+      _anChart=new Chart(canvas.getContext('2d'),{
         type:'bar',
         data:{
           labels:labels,
@@ -3905,12 +3959,11 @@ async function carregarAnalise(){
         }
       });
     }
+
     /* Páginas mais acessadas */
-    var contPag={};
-    data.forEach(function(r){contPag[r.pagina||'index']=(contPag[r.pagina||'index']||0)+1;});
     var sorted=Object.keys(contPag).sort(function(a,b){return contPag[b]-contPag[a];}).slice(0,8);
     var maxPag=sorted.length>0?contPag[sorted[0]]:1;
-    var paginasEl=document.getElementById('an-paginas');
+    var paginasEl=el('an-paginas');
     if(paginasEl) paginasEl.innerHTML=sorted.length?sorted.map(function(p){
       var pct=Math.round(contPag[p]/maxPag*100);
       return '<div style="display:flex;flex-direction:column;gap:4px">'+
@@ -3923,9 +3976,10 @@ async function carregarAnalise(){
         '</div>'+
       '</div>';
     }).join(''):'<div style="color:var(--muted);font-size:11px;text-align:center;padding:16px">Nenhum dado</div>';
-    /* Acessos recentes */
+
+    /* Acessos recentes — últimos 30 da lista já ordenada */
     var recentes=data.slice(-30).reverse();
-    var recentesEl=document.getElementById('an-recentes');
+    var recentesEl=el('an-recentes');
     if(recentesEl) recentesEl.innerHTML=recentes.map(function(r){
       var hora=new Date(r.created_at).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
       var em=r.email||'Visitante';
@@ -3937,19 +3991,21 @@ async function carregarAnalise(){
     }).join('');
   }catch(e){
     console.log('[analise]',e);
-    /* Erro (tabela não existe ou sem permissão) — mostra tutorial */
     _anMostrarVazio(true);
+  }finally{
+    _anCarregando=false;
   }
 }
+
 function _anMostrarVazio(mostrarTutorial){
-  ['an-hoje','an-periodo','an-unicos','an-media'].forEach(function(id){var el=document.getElementById(id);if(el)el.textContent='0';});
-  var emptyEl=document.getElementById('an-grafico-empty');
+  var el=function(id){return document.getElementById(id);};
+  ['an-hoje','an-periodo','an-unicos','an-media','an-online'].forEach(function(id){var e=el(id);if(e)e.textContent='0';});
+  var emptyEl=el('an-grafico-empty');
   if(emptyEl) emptyEl.style.display='flex';
-  var canvas=document.getElementById('an-grafico'); if(canvas) canvas.style.opacity='0';
-  var pEl=document.getElementById('an-paginas');if(pEl)pEl.innerHTML='<div style="color:var(--muted);font-size:11px;text-align:center;padding:16px">Nenhum dado ainda</div>';
-  var rEl=document.getElementById('an-recentes');if(rEl)rEl.innerHTML='<div style="color:var(--muted);font-size:11px;text-align:center;padding:16px">Nenhum acesso registrado</div>';
-  /* Mostra tutorial só quando a tabela não existe (erro real) */
-  var setupBox=document.getElementById('an-setup-box');
+  var canvas=el('an-grafico'); if(canvas) canvas.style.opacity='0';
+  var pEl=el('an-paginas'); if(pEl)pEl.innerHTML='<div style="color:var(--muted);font-size:11px;text-align:center;padding:16px">Nenhum dado ainda</div>';
+  var rEl=el('an-recentes'); if(rEl)rEl.innerHTML='<div style="color:var(--muted);font-size:11px;text-align:center;padding:16px">Nenhum acesso registrado</div>';
+  var setupBox=el('an-setup-box');
   if(setupBox) setupBox.style.display=mostrarTutorial?'block':'none';
 }
 
@@ -6621,6 +6677,9 @@ function _atualizarUIClientesOnline(){
   var countEl=document.getElementById('clientesOnlineCount');
   var listaEl=document.getElementById('clientesOnlineLista');
   if(countEl) countEl.textContent=count;
+  /* Atualiza também o card "Online agora" da aba Análise */
+  var anEl=document.getElementById('an-online');
+  if(anEl) anEl.textContent=count;
   if(listaEl){
     if(count===0){
       listaEl.textContent='Nenhum visitante agora';
