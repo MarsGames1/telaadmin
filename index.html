@@ -6641,7 +6641,10 @@ function iniciarPresenceClientes(){
     .on('presence',{event:'sync'},function(){
       var state=_clientesPresenceChannel.presenceState();
       _clientesOnlineMap={};
-      Object.values(state).forEach(function(presencas){
+      Object.keys(state).forEach(function(key){
+        /* ignora o próprio admin */
+        if(key==='admin-observer') return;
+        var presencas=state[key];
         presencas.forEach(function(p){
           if(p.tipo==='visitante'&&p.email){
             _clientesOnlineMap[p.email]=p;
@@ -6651,6 +6654,7 @@ function iniciarPresenceClientes(){
       _atualizarUIClientesOnline();
     })
     .on('presence',{event:'join'},function(payload){
+      if(payload.key==='admin-observer') return;
       if(payload.newPresences){
         payload.newPresences.forEach(function(p){
           if(p.tipo==='visitante'&&p.email){
@@ -6661,6 +6665,7 @@ function iniciarPresenceClientes(){
       _atualizarUIClientesOnline();
     })
     .on('presence',{event:'leave'},function(payload){
+      if(payload.key==='admin-observer') return;
       if(payload.leftPresences){
         payload.leftPresences.forEach(function(p){
           if(p.email) delete _clientesOnlineMap[p.email];
