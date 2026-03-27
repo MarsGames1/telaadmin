@@ -500,6 +500,35 @@ tr:hover td{background:rgba(255,255,255,.012)}
   .content{padding:10px 10px 80px}
 }
 
+/* ══ ANÁLISE — MOBILE ══ */
+@media(max-width:768px){
+  /* Stats da análise: 2 colunas em tablet */
+  #page-analise .stats-grid{grid-template-columns:repeat(2,1fr)!important}
+  /* Gráfico menor */
+  #an-grafico-wrap{height:160px!important}
+  /* Páginas + funil empilham */
+  #page-analise .stats-grid[style*="1fr 1fr"]{grid-template-columns:1fr!important}
+  /* Filtros de jornada empilham */
+  #an-jornada-busca{width:100%!important}
+  #an-jornada-filtro-pag{width:100%!important}
+  /* Header dos filtros vira coluna */
+  #page-analise [style*="display:flex;align-items:center;justify-content:space-between"]{flex-direction:column;align-items:flex-start!important}
+  /* Steps da jornada menores */
+  .jornada-step-pill{font-size:9px;padding:4px 8px}
+  .jornada-card{padding:10px 12px}
+  .jornada-email{max-width:140px}
+  /* Funil: esconde barra, mantém label+count */
+  .funil-bar-wrap{display:none}
+}
+@media(max-width:480px){
+  /* Stats da análise: 1 coluna */
+  #page-analise .stats-grid{grid-template-columns:1fr!important}
+  /* Jornadas: máx altura menor */
+  #an-jornadas{max-height:360px!important}
+  .jornada-steps{row-gap:4px}
+  .jornada-meta{gap:6px}
+}
+
 /* Topbar mobile só aparece em mobile */
 .mob-topbar{display:none}
 @media(max-width:768px){.mob-topbar{display:flex}}
@@ -530,6 +559,7 @@ tr:hover td{background:rgba(255,255,255,.012)}
 .jornada-step-pill.pag-perfil{background:rgba(91,154,246,.07);border-color:rgba(91,154,246,.15);color:#5b9af6}
 .jornada-step-pill.pag-cdkeys{background:rgba(0,255,170,.07);border-color:rgba(0,255,170,.15);color:#00ffaa}
 .jornada-step-pill.pag-quem-somos,.jornada-step-pill.pag-termos{background:rgba(160,160,160,.06);border-color:rgba(160,160,160,.12);color:#999}
+.jornada-step-pill.pag-sucesso{background:rgba(0,255,85,.12);border-color:rgba(0,255,85,.3);color:var(--green);font-weight:900}
 .jornada-step-pill.pag-compra{background:rgba(0,255,85,.12);border-color:rgba(0,255,85,.3);color:var(--green)}
 .jornada-step-arrow{color:#333;font-size:10px;padding:0 3px;flex-shrink:0}
 .funil-step{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04)}
@@ -1033,6 +1063,7 @@ tr:hover td{background:rgba(255,255,255,.012)}
             <option value="cdkeys">🔑 CD Keys</option>
             <option value="quem-somos">ℹ️ Quem Somos</option>
             <option value="termos">📄 Termos</option>
+            <option value="sucesso">✅ Sucesso (compra)</option>
           </select>
         </div>
       </div>
@@ -4080,6 +4111,7 @@ function _anPagInfo(p){
     'cdkeys':    {icon:'🔑',label:'CD Keys',    cor:'#00ffaa',cor2:'#00ff55'},
     'quem-somos':{icon:'ℹ️',label:'Quem Somos',cor:'#aaa',   cor2:'#888'},
     'termos':    {icon:'📄',label:'Termos',     cor:'#aaa',   cor2:'#888'},
+    'sucesso':    {icon:'✅',label:'Sucesso',    cor:'#00ff55',cor2:'#00cc44'},
   };
   return m[p]||{icon:'📄',label:p,cor:'#555',cor2:'#777'};
 }
@@ -4138,6 +4170,7 @@ function _anRenderJornadas(data, busca, filtPag){
 
   jornadasEl.innerHTML=visiveis.map(function(s){
     var temCheckout=s.steps.some(function(st){return st.pagina==='checkout';});
+    var temSucesso=s.steps.some(function(st){return st.pagina==='sucesso';});
     var nPags=s.steps.length;
     /* Duração da sessão */
     var duracaoMs=new Date(s.fim)-new Date(s.inicio);
@@ -4148,6 +4181,7 @@ function _anRenderJornadas(data, busca, filtPag){
     /* Badge de status */
     var badge='<span class="jornada-badge visitou">'+nPags+' página'+(nPags!==1?'s':'')+'</span>';
     if(temCheckout) badge='<span class="jornada-badge checkout">💳 Checkout</span>';
+    if(temSucesso)  badge='<span class="jornada-badge comprou">✅ Compra concluída</span>';
 
     /* Avatar inicial */
     var initials=s.email?s.email.substring(0,2).toUpperCase():'?';
@@ -4174,7 +4208,7 @@ function _anRenderJornadas(data, busca, filtPag){
       '</div>';
     }).join('');
 
-    var cardCls='jornada-card'+(temCheckout?' tem-compra':'');
+    var cardCls='jornada-card'+(temSucesso?' tem-compra':(temCheckout?' tem-compra':''));
     return '<div class="'+cardCls+'">'+
       '<div class="jornada-header">'+
         '<div class="jornada-visitante">'+avatarEl+nomeEl+'</div>'+
@@ -6718,19 +6752,6 @@ function syncMobMaintPill(ativo){
   }
 }
 
-/* Sincroniza badge de notificação mobile */
-var _origCarregarNotifs=carregarNotifs;
-carregarNotifs=async function(){
-  await _origCarregarNotifs();
-  var badge=document.getElementById('notifBadge');
-  var badgeMob=document.getElementById('notifBadgeMob');
-  if(badge&&badgeMob){
-    badgeMob.textContent=badge.textContent;
-    badgeMob.style.display=badge.style.display;
-  }
-};
-
-
 var _notifsAbertas=false;
 
 function toggleNotifs(){
@@ -6750,6 +6771,12 @@ async function carregarNotifs(){
   if(badge){
     badge.textContent=naoLidas>9?'9+':naoLidas;
     badge.style.display=naoLidas>0?'flex':'none';
+  }
+  /* Sincroniza badge mobile */
+  var badgeMob=document.getElementById('notifBadgeMob');
+  if(badgeMob&&badge){
+    badgeMob.textContent=badge.textContent;
+    badgeMob.style.display=badge.style.display;
   }
 
   var lista=document.getElementById('notifLista');
@@ -6809,15 +6836,23 @@ async function marcarTodasLidas(){
   showToast('Todas marcadas como lidas');
 }
 
+var _notifChannelIniciado=false;
 function iniciarRealtimeNotifs(){
-  sb.channel('notificacoes')
+  if(_notifChannelIniciado) return;
+  _notifChannelIniciado=true;
+  sb.channel('notifs-admin-rt')
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'notificacoes_admin'},
       function(payload){
         var n=payload.new;
-        showToast(n.titulo);
+        showToast((n.titulo||'Nova notificação'));
         carregarNotifs();
       }
-    ).subscribe();
+    )
+    .subscribe(function(status){
+      if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){
+        _notifChannelIniciado=false;
+      }
+    });
 }
 
 /* ── CLIENTES ONLINE via Realtime Presence ──
