@@ -504,6 +504,44 @@ tr:hover td{background:rgba(255,255,255,.012)}
 .mob-topbar{display:none}
 @media(max-width:768px){.mob-topbar{display:flex}}
 
+/* ══ JORNADA DO VISITANTE ══ */
+.jornada-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;transition:border-color .2s}
+.jornada-card:hover{border-color:var(--border2)}
+.jornada-card.tem-compra{border-left:3px solid var(--green)}
+.jornada-header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+.jornada-visitante{display:flex;align-items:center;gap:8px}
+.jornada-avatar{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,rgba(0,255,85,.15),rgba(88,101,242,.1));border:1px solid rgba(0,255,85,.2);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;color:var(--green);flex-shrink:0;font-family:"Orbitron",sans-serif}
+.jornada-email{font-size:11px;font-weight:700;color:#ddd;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.jornada-anon{font-size:11px;color:#666;font-weight:600}
+.jornada-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.jornada-badge{font-size:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:3px 8px;border-radius:99px}
+.jornada-badge.comprou{background:rgba(0,255,85,.12);color:var(--green);border:1px solid rgba(0,255,85,.25)}
+.jornada-badge.checkout{background:rgba(255,183,0,.1);color:#ffb300;border:1px solid rgba(255,183,0,.2)}
+.jornada-badge.visitou{background:rgba(255,255,255,.05);color:#888;border:1px solid rgba(255,255,255,.08)}
+.jornada-tempo{font-size:9px;color:#555;font-weight:600}
+.jornada-steps{display:flex;align-items:center;gap:0;flex-wrap:wrap;row-gap:6px}
+.jornada-step{display:flex;align-items:center;gap:0}
+.jornada-step-pill{display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:6px;font-size:10px;font-weight:700;border:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.03);color:#aaa;white-space:nowrap}
+.jornada-step-pill.pag-index{background:rgba(232,66,26,.07);border-color:rgba(232,66,26,.15);color:#e8421a}
+.jornada-step-pill.pag-catalogo{background:rgba(88,101,242,.07);border-color:rgba(88,101,242,.15);color:#7b8af0}
+.jornada-step-pill.pag-checkout{background:rgba(255,183,0,.07);border-color:rgba(255,183,0,.15);color:#ffb300}
+.jornada-step-pill.pag-sorteio{background:rgba(184,118,247,.07);border-color:rgba(184,118,247,.15);color:#b876f7}
+.jornada-step-pill.pag-marspass{background:rgba(255,107,43,.07);border-color:rgba(255,107,43,.15);color:#ff6b2b}
+.jornada-step-pill.pag-perfil{background:rgba(91,154,246,.07);border-color:rgba(91,154,246,.15);color:#5b9af6}
+.jornada-step-pill.pag-cdkeys{background:rgba(0,255,170,.07);border-color:rgba(0,255,170,.15);color:#00ffaa}
+.jornada-step-pill.pag-quem-somos,.jornada-step-pill.pag-termos{background:rgba(160,160,160,.06);border-color:rgba(160,160,160,.12);color:#999}
+.jornada-step-pill.pag-compra{background:rgba(0,255,85,.12);border-color:rgba(0,255,85,.3);color:var(--green)}
+.jornada-step-arrow{color:#333;font-size:10px;padding:0 3px;flex-shrink:0}
+.funil-step{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.funil-step:last-child{border-bottom:none}
+.funil-icon{font-size:15px;flex-shrink:0;width:22px;text-align:center}
+.funil-label{font-size:11px;font-weight:700;color:#ccc;flex:1}
+.funil-count{font-size:12px;font-weight:900;color:var(--green);min-width:36px;text-align:right}
+.funil-bar-wrap{flex:1;height:5px;background:rgba(255,255,255,.05);border-radius:3px;min-width:60px}
+.funil-bar{height:5px;border-radius:3px;background:linear-gradient(90deg,var(--green),#00cc44)}
+.funil-pct{font-size:9px;color:#555;font-weight:700;min-width:34px;text-align:right}
+
+
 </style>
 </head>
 <body>
@@ -900,7 +938,7 @@ tr:hover td{background:rgba(255,255,255,.012)}
   <div class="page" id="page-analise">
     <div class="page-head">
       <div><div class="page-eyebrow">Métricas</div><div class="page-title">Análise</div></div>
-      <div style="display:flex;gap:8px;align-items:center">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <select id="analise-periodo" class="t-search" style="width:160px;background:var(--bg)" onchange="carregarAnalise()">
           <option value="7">Últimos 7 dias</option>
           <option value="14">Últimos 14 dias</option>
@@ -958,7 +996,7 @@ tr:hover td{background:rgba(255,255,255,.012)}
       </div>
     </div>
 
-    <!-- Páginas mais acessadas -->
+    <!-- Páginas mais acessadas + Funil de conversão -->
     <div class="stats-grid" style="grid-template-columns:1fr 1fr;margin-bottom:20px">
       <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px">
         <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px">PÁGINAS MAIS ACESSADAS</div>
@@ -966,11 +1004,43 @@ tr:hover td{background:rgba(255,255,255,.012)}
           <div style="color:var(--muted);font-size:11px;text-align:center;padding:16px">Carregando...</div>
         </div>
       </div>
+      <!-- Funil de Conversão -->
       <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px">
-        <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px">ACESSOS RECENTES</div>
-        <div id="an-recentes" style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto">
+        <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px">FUNIL DE CONVERSÃO</div>
+        <div id="an-funil" style="display:flex;flex-direction:column;gap:6px">
           <div style="color:var(--muted);font-size:11px;text-align:center;padding:16px">Carregando...</div>
         </div>
+      </div>
+    </div>
+
+    <!-- Jornada dos visitantes (estilo Wix) -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+        <div>
+          <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted)">SESSÕES RECENTES</div>
+          <div style="font-size:14px;font-weight:900;color:#fff;margin-top:2px">Jornada dos visitantes</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input id="an-jornada-busca" class="t-search" placeholder="Filtrar por email..." style="width:200px" oninput="anFiltrarJornadas(this.value)">
+          <select id="an-jornada-filtro-pag" class="t-search" style="width:150px;background:var(--bg)" onchange="anFiltrarJornadas()">
+            <option value="">Todas as páginas</option>
+            <option value="index">🏠 Início</option>
+            <option value="catalogo">🎮 Catálogo</option>
+            <option value="checkout">💳 Checkout</option>
+            <option value="sorteio">🎁 Sorteios</option>
+            <option value="marspass">⭐ MarsPass</option>
+            <option value="perfil">👤 Perfil</option>
+            <option value="cdkeys">🔑 CD Keys</option>
+            <option value="quem-somos">ℹ️ Quem Somos</option>
+            <option value="termos">📄 Termos</option>
+          </select>
+        </div>
+      </div>
+      <div id="an-jornadas" style="display:flex;flex-direction:column;gap:10px;max-height:520px;overflow-y:auto">
+        <div style="color:var(--muted);font-size:11px;text-align:center;padding:24px">Carregando jornadas...</div>
+      </div>
+      <div id="an-jornadas-mais" style="display:none;text-align:center;margin-top:12px">
+        <button class="btn btn-outline btn-sm" onclick="anMostrarMaisJornadas()">↓ Mostrar mais sessões</button>
       </div>
     </div>
 
@@ -996,22 +1066,6 @@ CREATE INDEX IF NOT EXISTS idx_spv_pagina  ON site_pageviews(pagina);
 ALTER TABLE site_pageviews ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "anon insert" ON site_pageviews FOR INSERT TO anon, authenticated WITH CHECK (true);
 CREATE POLICY "admin select" ON site_pageviews FOR SELECT USING (true);</div>
-          <div style="font-size:11px;color:var(--muted);line-height:1.8;margin-bottom:12px">
-            Adicione o script abaixo no <code style="background:rgba(255,255,255,.08);padding:1px 5px;border-radius:4px">index.html</code> (e demais páginas), logo antes do <code style="background:rgba(255,255,255,.08);padding:1px 5px;border-radius:4px">&lt;/body&gt;</code>:
-          </div>
-          <div style="background:rgba(0,0,0,.4);border:1px solid var(--border);border-radius:8px;padding:14px;font-family:monospace;font-size:10px;color:#aaccff;line-height:1.8;white-space:pre-wrap">/* ── Rastreamento de pageviews ── */
-(function(){
-  var _t=0;
-  function _reg(){
-    if(typeof sb==='undefined'||!sb){if(_t++<20)setTimeout(_reg,500);return;}
-    var sid=sessionStorage.getItem('mg_sid');
-    if(!sid){sid='s'+Date.now()+Math.random().toString(36).slice(2,6);sessionStorage.setItem('mg_sid',sid);}
-    var em=(typeof userSession!=='undefined'&&userSession&&userSession.user&&userSession.user.email)||null;
-    var pg=window.location.pathname.replace(/^\//,'').replace('.html','').replace(/\/$/,'')||'index';
-    sb.from('site_pageviews').insert({pagina:pg,email:em,session_id:sid,referrer:document.referrer||null});
-  }
-  setTimeout(_reg,1200);
-})();</div>
           <button class="btn btn-outline btn-sm" style="margin-top:12px" onclick="this.closest('#an-setup-box').style.display='none'">✕ Fechar instruções</button>
         </div>
       </div>
@@ -3880,30 +3934,28 @@ function _anPausar(){
 }
 
 async function carregarAnalise(){
-  if(_anCarregando) return; /* evita concorrência */
+  if(_anCarregando) return;
   _anCarregando=true;
   _anAtiva=true;
   _anIniciarRealtime();
   _anSincronizarOnline();
 
   var dias=parseInt(document.getElementById('analise-periodo')?document.getElementById('analise-periodo').value:30)||30;
-  /* Limita a 30 dias para não sobrecarregar — período máximo razoável */
   if(dias>30) dias=30;
   var dataInicio=new Date(); dataInicio.setDate(dataInicio.getDate()-(dias-1)); dataInicio.setHours(0,0,0,0);
   try{
-    /* Seleciona só as colunas necessárias, sem count(*) extra */
     var{data,error}=await sb.from('site_pageviews')
-      .select('pagina,session_id,email,created_at')
+      .select('pagina,session_id,email,created_at,referrer')
       .gte('created_at',dataInicio.toISOString())
       .order('created_at',{ascending:true})
-      .limit(2000); /* teto de segurança: evita payload gigante */
+      .limit(3000);
     if(error) throw error;
 
     var setupBox=document.getElementById('an-setup-box');
     if(setupBox) setupBox.style.display='none';
     if(!data||data.length===0){ _anMostrarVazio(false); _anCarregando=false; return; }
 
-    /* Agrupa por dia — tudo em uma só passagem O(n) */
+    /* ── Agrupamento base ── */
     var hoje=new Date(); hoje.setHours(0,0,0,0);
     var porDia={}, unicosDia={}, contPag={}, todosUnicosSets=new Set();
     data.forEach(function(r){
@@ -3914,7 +3966,7 @@ async function carregarAnalise(){
       contPag[r.pagina||'index']=(contPag[r.pagina||'index']||0)+1;
     });
 
-    /* Labels dos dias */
+    /* ── Labels do gráfico ── */
     var labels=[], totais=[], unicos=[];
     for(var i=dias-1;i>=0;i--){
       var dt=new Date(hoje); dt.setDate(dt.getDate()-i);
@@ -3924,7 +3976,7 @@ async function carregarAnalise(){
       unicos.push(unicosDia[iso]?unicosDia[iso].size:0);
     }
 
-    /* Stats */
+    /* ── Stats ── */
     var hj=hoje.toISOString().substring(0,10);
     var el=function(id){return document.getElementById(id);};
     if(el('an-hoje'))    el('an-hoje').textContent=porDia[hj]||0;
@@ -3934,7 +3986,7 @@ async function carregarAnalise(){
     var lblAt=el('an-ultima-atualizacao');
     if(lblAt) lblAt.textContent='↺ '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
 
-    /* Gráfico */
+    /* ── Gráfico ── */
     var canvas=el('an-grafico'), emptyEl=el('an-grafico-empty');
     if(emptyEl) emptyEl.style.display='none';
     if(canvas){
@@ -3960,41 +4012,182 @@ async function carregarAnalise(){
       });
     }
 
-    /* Páginas mais acessadas */
+    /* ── Páginas mais acessadas ── */
     var sorted=Object.keys(contPag).sort(function(a,b){return contPag[b]-contPag[a];}).slice(0,8);
     var maxPag=sorted.length>0?contPag[sorted[0]]:1;
     var paginasEl=el('an-paginas');
     if(paginasEl) paginasEl.innerHTML=sorted.length?sorted.map(function(p){
       var pct=Math.round(contPag[p]/maxPag*100);
+      var info=_anPagInfo(p);
       return '<div style="display:flex;flex-direction:column;gap:4px">'+
         '<div style="display:flex;justify-content:space-between;align-items:center">'+
-          '<span style="font-size:11px;color:#ddd;font-weight:600">'+p+'</span>'+
+          '<span style="font-size:11px;color:#ddd;font-weight:600">'+info.icon+' '+esc(info.label)+'</span>'+
           '<span style="font-size:10px;color:var(--green);font-weight:700">'+contPag[p]+'</span>'+
         '</div>'+
         '<div style="height:4px;background:rgba(255,255,255,.06);border-radius:2px">'+
-          '<div style="height:4px;width:'+pct+'%;background:linear-gradient(90deg,#00ff55,#00cc44);border-radius:2px"></div>'+
+          '<div style="height:4px;width:'+pct+'%;background:linear-gradient(90deg,'+info.cor+','+info.cor2+');border-radius:2px"></div>'+
         '</div>'+
       '</div>';
     }).join(''):'<div style="color:var(--muted);font-size:11px;text-align:center;padding:16px">Nenhum dado</div>';
 
-    /* Acessos recentes — últimos 30 da lista já ordenada */
-    var recentes=data.slice(-30).reverse();
-    var recentesEl=el('an-recentes');
-    if(recentesEl) recentesEl.innerHTML=recentes.map(function(r){
-      var hora=new Date(r.created_at).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
-      var em=r.email||'Visitante';
-      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:10px">'+
-        '<span style="color:#aaa">📄 '+esc(r.pagina||'index')+'</span>'+
-        '<span style="color:var(--muted)">'+esc(em.length>22?em.substring(0,18)+'…':em)+'</span>'+
-        '<span style="color:#555">'+hora+'</span>'+
+    /* ── Funil de conversão ── */
+    var funilDefs=[
+      {key:'index',    icon:'🏠', label:'Página inicial'},
+      {key:'catalogo', icon:'🎮', label:'Catálogo'},
+      {key:'sorteio',  icon:'🎁', label:'Sorteios'},
+      {key:'marspass', icon:'⭐', label:'MarsPass'},
+      {key:'checkout', icon:'💳', label:'Checkout'},
+    ];
+    var totalVisitas=data.length||1;
+    var funilEl=el('an-funil');
+    if(funilEl) funilEl.innerHTML=funilDefs.map(function(f){
+      var cnt=contPag[f.key]||0;
+      var pct=Math.round(cnt/totalVisitas*100);
+      var barW=Math.round(cnt/(contPag[funilDefs[0].key]||1)*100);
+      return '<div class="funil-step">'+
+        '<span class="funil-icon">'+f.icon+'</span>'+
+        '<span class="funil-label">'+f.label+'</span>'+
+        '<div class="funil-bar-wrap"><div class="funil-bar" style="width:'+barW+'%"></div></div>'+
+        '<span class="funil-count">'+cnt+'</span>'+
+        '<span class="funil-pct">'+pct+'%</span>'+
       '</div>';
     }).join('');
+
+    /* ── Jornada por sessão ── */
+    _anTodosDados=data;
+    _anRenderJornadas(data, '', '');
+
   }catch(e){
     console.log('[analise]',e);
     _anMostrarVazio(true);
   }finally{
     _anCarregando=false;
   }
+}
+
+/* ── Dados cacheados para filtro client-side ── */
+var _anTodosDados=[];
+var _anJornadasVisiveis=20;
+
+function _anPagInfo(p){
+  var m={
+    'index':     {icon:'🏠',label:'Início',     cor:'#e8421a',cor2:'#ff6b2b'},
+    'catalogo':  {icon:'🎮',label:'Catálogo',   cor:'#7b8af0',cor2:'#5b9af6'},
+    'checkout':  {icon:'💳',label:'Checkout',   cor:'#ffb300',cor2:'#ffd000'},
+    'sorteio':   {icon:'🎁',label:'Sorteios',   cor:'#b876f7',cor2:'#9b59f0'},
+    'marspass':  {icon:'⭐',label:'MarsPass',   cor:'#ff6b2b',cor2:'#e8421a'},
+    'perfil':    {icon:'👤',label:'Perfil',     cor:'#5b9af6',cor2:'#7b8af0'},
+    'cdkeys':    {icon:'🔑',label:'CD Keys',    cor:'#00ffaa',cor2:'#00ff55'},
+    'quem-somos':{icon:'ℹ️',label:'Quem Somos',cor:'#aaa',   cor2:'#888'},
+    'termos':    {icon:'📄',label:'Termos',     cor:'#aaa',   cor2:'#888'},
+  };
+  return m[p]||{icon:'📄',label:p,cor:'#555',cor2:'#777'};
+}
+
+function anFiltrarJornadas(v){
+  var busca=(document.getElementById('an-jornada-busca')||{}).value||'';
+  var pag=(document.getElementById('an-jornada-filtro-pag')||{}).value||'';
+  _anJornadasVisiveis=20;
+  _anRenderJornadas(_anTodosDados, busca, pag);
+}
+
+function anMostrarMaisJornadas(){
+  _anJornadasVisiveis+=20;
+  var busca=(document.getElementById('an-jornada-busca')||{}).value||'';
+  var pag=(document.getElementById('an-jornada-filtro-pag')||{}).value||'';
+  _anRenderJornadas(_anTodosDados, busca, pag);
+}
+
+function _anRenderJornadas(data, busca, filtPag){
+  var el=function(id){return document.getElementById(id);};
+  var jornadasEl=el('an-jornadas');
+  var maisEl=el('an-jornadas-mais');
+  if(!jornadasEl) return;
+
+  /* Agrupar por session_id, manter ordem cronológica dentro de cada sessão */
+  var sessoes={};
+  data.forEach(function(r){
+    var sid=r.session_id||('anon_'+r.created_at.substring(0,16));
+    if(!sessoes[sid]){
+      sessoes[sid]={sid:sid,email:r.email,steps:[],inicio:r.created_at,fim:r.created_at};
+    }
+    sessoes[sid].steps.push({pagina:r.pagina||'index',ts:r.created_at});
+    if(r.created_at>sessoes[sid].fim) sessoes[sid].fim=r.created_at;
+    if(r.email&&!sessoes[sid].email) sessoes[sid].email=r.email;
+  });
+
+  /* Ordenar sessões pela mais recente */
+  var lista=Object.values(sessoes).sort(function(a,b){return b.fim.localeCompare(a.fim);});
+
+  /* Filtros */
+  if(busca&&busca.trim()){
+    var q=busca.trim().toLowerCase();
+    lista=lista.filter(function(s){return s.email&&s.email.toLowerCase().indexOf(q)>=0;});
+  }
+  if(filtPag&&filtPag.trim()){
+    lista=lista.filter(function(s){return s.steps.some(function(st){return st.pagina===filtPag;});});
+  }
+
+  if(lista.length===0){
+    jornadasEl.innerHTML='<div style="color:var(--muted);font-size:11px;text-align:center;padding:24px">Nenhuma sessão encontrada</div>';
+    if(maisEl) maisEl.style.display='none';
+    return;
+  }
+
+  var visiveis=lista.slice(0,_anJornadasVisiveis);
+
+  jornadasEl.innerHTML=visiveis.map(function(s){
+    var temCheckout=s.steps.some(function(st){return st.pagina==='checkout';});
+    var nPags=s.steps.length;
+    /* Duração da sessão */
+    var duracaoMs=new Date(s.fim)-new Date(s.inicio);
+    var duracaoStr=duracaoMs<60000?'<1 min':(Math.round(duracaoMs/60000)+' min');
+    /* Data/hora de entrada */
+    var entrada=new Date(s.inicio).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+
+    /* Badge de status */
+    var badge='<span class="jornada-badge visitou">'+nPags+' página'+(nPags!==1?'s':'')+'</span>';
+    if(temCheckout) badge='<span class="jornada-badge checkout">💳 Checkout</span>';
+
+    /* Avatar inicial */
+    var initials=s.email?s.email.substring(0,2).toUpperCase():'?';
+    var avatarEl='<div class="jornada-avatar">'+esc(initials)+'</div>';
+    var nomeEl=s.email
+      ?'<span class="jornada-email">'+esc(s.email)+'</span>'
+      :'<span class="jornada-anon">👤 Visitante anônimo</span>';
+
+    /* Steps — eliminar páginas duplicadas consecutivas */
+    var stepsDedup=[];
+    s.steps.forEach(function(st){
+      if(!stepsDedup.length||stepsDedup[stepsDedup.length-1].pagina!==st.pagina){
+        stepsDedup.push(st);
+      }
+    });
+
+    var stepsHtml=stepsDedup.map(function(st,i){
+      var info=_anPagInfo(st.pagina);
+      var arrow=i<stepsDedup.length-1?'<span class="jornada-step-arrow">›</span>':'';
+      var cls='jornada-step-pill pag-'+st.pagina;
+      return '<div class="jornada-step">'+
+        '<div class="'+cls+'">'+info.icon+' '+esc(info.label)+'</div>'+
+        arrow+
+      '</div>';
+    }).join('');
+
+    var cardCls='jornada-card'+(temCheckout?' tem-compra':'');
+    return '<div class="'+cardCls+'">'+
+      '<div class="jornada-header">'+
+        '<div class="jornada-visitante">'+avatarEl+nomeEl+'</div>'+
+        '<div class="jornada-meta">'+badge+
+          '<span class="jornada-tempo">⏱ '+duracaoStr+'</span>'+
+          '<span class="jornada-tempo">'+entrada+'</span>'+
+        '</div>'+
+      '</div>'+
+      '<div class="jornada-steps">'+stepsHtml+'</div>'+
+    '</div>';
+  }).join('');
+
+  if(maisEl) maisEl.style.display=lista.length>_anJornadasVisiveis?'block':'none';
 }
 
 function _anMostrarVazio(mostrarTutorial){
@@ -4004,10 +4197,12 @@ function _anMostrarVazio(mostrarTutorial){
   if(emptyEl) emptyEl.style.display='flex';
   var canvas=el('an-grafico'); if(canvas) canvas.style.opacity='0';
   var pEl=el('an-paginas'); if(pEl)pEl.innerHTML='<div style="color:var(--muted);font-size:11px;text-align:center;padding:16px">Nenhum dado ainda</div>';
-  var rEl=el('an-recentes'); if(rEl)rEl.innerHTML='<div style="color:var(--muted);font-size:11px;text-align:center;padding:16px">Nenhum acesso registrado</div>';
+  var fEl=el('an-funil'); if(fEl)fEl.innerHTML='<div style="color:var(--muted);font-size:11px;text-align:center;padding:16px">Sem dados</div>';
+  var jEl=el('an-jornadas'); if(jEl)jEl.innerHTML='<div style="color:var(--muted);font-size:11px;text-align:center;padding:24px">Nenhuma sessão registrada ainda</div>';
   var setupBox=el('an-setup-box');
   if(setupBox) setupBox.style.display=mostrarTutorial?'block':'none';
 }
+
 
 /* ══ PEDIDOS — PAGINAÇÃO SERVER-SIDE ══ */
 var PED_POR_PAG=50,_pedPagAtual=0,_pedTotal=0,_pedBusca='',_pedBuscaTimer=null;
