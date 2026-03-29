@@ -4138,12 +4138,20 @@ function _anRenderJornadas(data, busca, filtPag){
 
   jornadasEl.innerHTML=visiveis.map(function(s){
     var temCheckout=s.steps.some(function(st){return st.pagina==='checkout';});
-    var nPags=s.steps.length;
     /* Duração da sessão */
     var duracaoMs=new Date(s.fim)-new Date(s.inicio);
     var duracaoStr=duracaoMs<60000?'<1 min':(Math.round(duracaoMs/60000)+' min');
     /* Data/hora de entrada */
     var entrada=new Date(s.inicio).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+
+    /* Steps — eliminar páginas duplicadas consecutivas (antes do badge para contagem correta) */
+    var stepsDedup=[];
+    s.steps.forEach(function(st){
+      if(!stepsDedup.length||stepsDedup[stepsDedup.length-1].pagina!==st.pagina){
+        stepsDedup.push(st);
+      }
+    });
+    var nPags=stepsDedup.length;
 
     /* Badge de status */
     var badge='<span class="jornada-badge visitou">'+nPags+' página'+(nPags!==1?'s':'')+'</span>';
@@ -4155,14 +4163,6 @@ function _anRenderJornadas(data, busca, filtPag){
     var nomeEl=s.email
       ?'<span class="jornada-email">'+esc(s.email)+'</span>'
       :'<span class="jornada-anon">👤 Visitante anônimo</span>';
-
-    /* Steps — eliminar páginas duplicadas consecutivas */
-    var stepsDedup=[];
-    s.steps.forEach(function(st){
-      if(!stepsDedup.length||stepsDedup[stepsDedup.length-1].pagina!==st.pagina){
-        stepsDedup.push(st);
-      }
-    });
 
     var stepsHtml=stepsDedup.map(function(st,i){
       var info=_anPagInfo(st.pagina);
