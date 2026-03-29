@@ -3947,7 +3947,13 @@ function _anIniciarRealtime(){
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'site_pageviews'},function(){
       if(_anAtiva&&!_anCarregando) carregarAnalise();
     })
-    .subscribe();
+    .subscribe(function(status){
+      /* Se o canal cair (timeout/erro), reconecta em 10s sem fazer nova query */
+      if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'||status==='CLOSED'){
+        _anRealtimeSub=null;
+        setTimeout(function(){ if(_anAtiva) _anIniciarRealtime(); },10000);
+      }
+    });
   /* Auto-refresh a cada 60s como fallback (caso realtime caia) */
   _anRefreshTimer=setInterval(function(){
     if(_anAtiva&&!_anCarregando) carregarAnalise();
