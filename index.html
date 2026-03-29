@@ -996,6 +996,34 @@ tr:hover td{background:rgba(255,255,255,.012)}
       </div>
     </div>
 
+
+    <!-- Breakdown diário -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+        <div>
+          <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted)">ACESSOS</div>
+          <div style="font-size:14px;font-weight:900;color:#fff;margin-top:2px">Detalhamento por dia</div>
+        </div>
+        <div style="font-size:9px;color:var(--muted);font-weight:600">Mais recente primeiro</div>
+      </div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse" id="an-tabela-diaria">
+          <thead>
+            <tr style="border-bottom:1px solid var(--border)">
+              <th style="text-align:left;padding:8px 12px;font-size:8px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted)">DATA</th>
+              <th style="text-align:center;padding:8px 12px;font-size:8px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted)">ACESSOS</th>
+              <th style="text-align:center;padding:8px 12px;font-size:8px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted)">ÚNICOS</th>
+              <th style="text-align:center;padding:8px 12px;font-size:8px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted)">MÉD. POR ÚNICO</th>
+              <th style="text-align:left;padding:8px 12px;font-size:8px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted)">PÁGINAS DO DIA</th>
+            </tr>
+          </thead>
+          <tbody id="an-tabela-diaria-body">
+            <tr><td colspan="5" style="text-align:center;padding:20px;color:var(--muted);font-size:11px">Carregando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <!-- Páginas mais acessadas + Funil de conversão -->
     <div class="stats-grid" style="grid-template-columns:1fr 1fr;margin-bottom:20px">
       <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px">
@@ -4056,6 +4084,7 @@ async function carregarAnalise(){
     /* ── Jornada por sessão ── */
     _anTodosDados=data;
     _anRenderJornadas(data, '', '');
+    _anRenderTabelaDiaria(labels,totais,unicos,porDia,unicosDia,data);
 
   }catch(e){
     console.log('[analise]',e);
@@ -4188,6 +4217,69 @@ function _anRenderJornadas(data, busca, filtPag){
   }).join('');
 
   if(maisEl) maisEl.style.display=lista.length>_anJornadasVisiveis?'block':'none';
+}
+
+
+/* ── Tabela de detalhamento diário ── */
+function _anRenderTabelaDiaria(labels, totais, unicos, porDia, unicosDia, data){
+  var tbody = document.getElementById('an-tabela-diaria-body');
+  if(!tbody) return;
+
+  /* Agrupa páginas por dia para mostrar top-3 do dia */
+  var pagsPorDia = {};
+  data.forEach(function(r){
+    var d = r.created_at.substring(0,10);
+    if(!pagsPorDia[d]) pagsPorDia[d] = {};
+    var p = r.pagina || 'index';
+    pagsPorDia[d][p] = (pagsPorDia[d][p]||0) + 1;
+  });
+
+  /* Monta linhas — labels já estão do mais antigo pro mais recente, invertemos */
+  var rows = '';
+  for(var i = labels.length - 1; i >= 0; i--){
+    var label = labels[i];
+    var total = totais[i] || 0;
+    var uniq  = unicos[i] || 0;
+    if(total === 0) continue; /* pula dias sem acesso */
+
+    var media = uniq > 0 ? (total / uniq).toFixed(1) : '—';
+
+    /* Top-3 páginas do dia */
+    /* Recalcula a data ISO a partir do índice */
+    var hoje = new Date(); hoje.setHours(0,0,0,0);
+    var dt = new Date(hoje); dt.setDate(dt.getDate() - (labels.length - 1 - i));
+    var iso = dt.toISOString().substring(0,10);
+
+    var pagsDia = pagsPorDia[iso] || {};
+    var topPags = Object.keys(pagsDia)
+      .sort(function(a,b){ return pagsDia[b]-pagsDia[a]; })
+      .slice(0,3)
+      .map(function(p){
+        var info = _anPagInfo(p);
+        return '<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:4px;padding:2px 7px;font-size:9px;font-weight:700;color:#aaa;white-space:nowrap">'
+          + info.icon + ' ' + esc(info.label)
+          + '<span style="color:var(--green);margin-left:3px">' + pagsDia[p] + '</span>'
+          + '</span>';
+      }).join('');
+
+    /* Destaque para hoje */
+    var isHoje = (iso === new Date().toISOString().substring(0,10));
+    var rowStyle = isHoje
+      ? 'border-bottom:1px solid rgba(255,255,255,.04);background:rgba(0,255,85,.03)'
+      : 'border-bottom:1px solid rgba(255,255,255,.04)';
+
+    rows += '<tr style="' + rowStyle + '">'
+      + '<td style="padding:10px 12px;font-size:11px;font-weight:700;color:' + (isHoje ? 'var(--green)' : '#ccc') + ';white-space:nowrap">'
+        + (isHoje ? '🟢 ' : '') + label + (isHoje ? ' <span style="font-size:8px;font-weight:600;color:var(--green);opacity:.7">hoje</span>' : '')
+      + '</td>'
+      + '<td style="padding:10px 12px;text-align:center;font-size:13px;font-weight:900;color:#fff">' + total + '</td>'
+      + '<td style="padding:10px 12px;text-align:center;font-size:13px;font-weight:700;color:#7b5bf0">' + uniq + '</td>'
+      + '<td style="padding:10px 12px;text-align:center;font-size:11px;font-weight:600;color:var(--muted)">' + media + '</td>'
+      + '<td style="padding:10px 12px"><div style="display:flex;gap:5px;flex-wrap:wrap">' + (topPags || '<span style="color:var(--muted);font-size:9px">—</span>') + '</div></td>'
+      + '</tr>';
+  }
+
+  tbody.innerHTML = rows || '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--muted);font-size:11px">Nenhum acesso no período</td></tr>';
 }
 
 function _anMostrarVazio(mostrarTutorial){
