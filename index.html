@@ -542,6 +542,60 @@ tr:hover td{background:rgba(255,255,255,.012)}
 .funil-pct{font-size:9px;color:#555;font-weight:700;min-width:34px;text-align:right}
 
 
+
+/* ── MOBILE ADMIN — ajustes necessários ── */
+@media(max-width:768px){
+  /* Tabela diária análise: esconde colunas menos críticas */
+  #an-tabela-diaria thead th:nth-child(4),
+  #an-tabela-diaria tbody td:nth-child(4){display:none}
+
+  /* Stats grid análise: 2 colunas */
+  .stats-grid-an{grid-template-columns:repeat(2,1fr)!important}
+
+  /* Modal: padding menor, fonte menor */
+  .modal{padding:16px;max-height:90vh;overflow-y:auto}
+  .modal-title{font-size:14px}
+  .form-row-2{grid-template-columns:1fr}
+
+  /* Botões de ação nas tabelas: menores */
+  .btn-sm{padding:4px 8px;font-size:9px}
+
+  /* Notif painel full width no mobile */
+  .notif-painel{width:100%;right:-100%}
+  .notif-painel.open{right:0}
+
+  /* Jornadas: simplifica steps */
+  .jornada-step-pill{font-size:9px;padding:4px 7px}
+  .jornada-email{max-width:130px}
+
+  /* Funil e páginas: empilha */
+  .stats-grid[style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr!important}
+
+  /* Textarea menor no mobile */
+  .form-textarea{min-height:80px!important}
+
+  /* Tabela pedidos: esconde coluna status em telas pequenas */
+  #page-pedidos table th:nth-child(5),
+  #page-pedidos table td:nth-child(5){display:none}
+}
+
+@media(max-width:480px){
+  /* Stats: 1 coluna */
+  .stats-grid{grid-template-columns:1fr!important}
+
+  /* Tabela análise: só data, acessos, vendas */
+  #an-tabela-diaria thead th:nth-child(3),
+  #an-tabela-diaria tbody td:nth-child(3),
+  #an-tabela-diaria thead th:nth-child(7),
+  #an-tabela-diaria tbody td:nth-child(7){display:none}
+
+  /* Notif painel: full */
+  .notif-painel{width:100%}
+
+  /* Page content menos padding */
+  .content{padding:8px 8px 80px}
+}
+
 </style>
 </head>
 <body>
@@ -1014,11 +1068,13 @@ tr:hover td{background:rgba(255,255,255,.012)}
               <th style="text-align:center;padding:8px 12px;font-size:8px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted)">ACESSOS</th>
               <th style="text-align:center;padding:8px 12px;font-size:8px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted)">ÚNICOS</th>
               <th style="text-align:center;padding:8px 12px;font-size:8px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted)">MÉD. POR ÚNICO</th>
+              <th style="text-align:center;padding:8px 12px;font-size:8px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#00c853">VENDAS</th>
+              <th style="text-align:center;padding:8px 12px;font-size:8px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#ffb300">RECEITA</th>
               <th style="text-align:left;padding:8px 12px;font-size:8px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted)">PÁGINAS DO DIA</th>
             </tr>
           </thead>
           <tbody id="an-tabela-diaria-body">
-            <tr><td colspan="5" style="text-align:center;padding:20px;color:var(--muted);font-size:11px">Carregando...</td></tr>
+            <tr><td colspan="7" style="text-align:center;padding:20px;color:var(--muted);font-size:11px">Carregando...</td></tr>
           </tbody>
         </table>
       </div>
@@ -3978,12 +4034,28 @@ async function carregarAnalise(){
   if(dias>30) dias=30;
   var dataInicio=new Date(); dataInicio.setDate(dataInicio.getDate()-(dias-1)); dataInicio.setHours(0,0,0,0);
   try{
-    var{data,error}=await sb.from('site_pageviews')
-      .select('pagina,session_id,email,created_at,referrer')
-      .gte('created_at',dataInicio.toISOString())
-      .order('created_at',{ascending:true})
-      .limit(3000);
+    /* Busca pageviews e pedidos em paralelo para cruzar datas corretamente */
+    var[pvRes,pedRes]=await Promise.all([
+      sb.from('site_pageviews')
+        .select('pagina,session_id,email,created_at,referrer')
+        .gte('created_at',dataInicio.toISOString())
+        .order('created_at',{ascending:true})
+        .limit(3000),
+      sb.from('pedidos')
+        .select('created_at,valor,status')
+        .gte('created_at',dataInicio.toISOString())
+        .in('status',['pago','aprovado','entregue','concluido'])
+        .order('created_at',{ascending:true})
+    ]);
+    var{data,error}=pvRes;
     if(error) throw error;
+    /* Agrupa pedidos reais por dia — usa created_at do pedido, não da visita sucesso */
+    var vendasPorDia={}, receitaPorDia={};
+    (pedRes.data||[]).forEach(function(p){
+      var d=p.created_at.substring(0,10);
+      vendasPorDia[d]=(vendasPorDia[d]||0)+1;
+      receitaPorDia[d]=(receitaPorDia[d]||0)+Number(p.valor||0);
+    });
 
     var setupBox=document.getElementById('an-setup-box');
     if(setupBox) setupBox.style.display='none';
@@ -4071,6 +4143,7 @@ async function carregarAnalise(){
       {key:'sorteio',  icon:'🎁', label:'Sorteios'},
       {key:'marspass', icon:'⭐', label:'MarsPass'},
       {key:'checkout', icon:'💳', label:'Checkout'},
+      {key:'sucesso',  icon:'✅', label:'Pagamento confirmado'},
     ];
     var totalVisitas=data.length||1;
     var funilEl=el('an-funil');
@@ -4090,7 +4163,7 @@ async function carregarAnalise(){
     /* ── Jornada por sessão ── */
     _anTodosDados=data;
     _anRenderJornadas(data, '', '');
-    _anRenderTabelaDiaria(labels,totais,unicos,porDia,unicosDia,data);
+    _anRenderTabelaDiaria(labels,totais,unicos,porDia,unicosDia,data,vendasPorDia,receitaPorDia);
 
   }catch(e){
     console.log('[analise]',e);
@@ -4115,6 +4188,7 @@ function _anPagInfo(p){
     'cdkeys':    {icon:'🔑',label:'CD Keys',    cor:'#00ffaa',cor2:'#00ff55'},
     'quem-somos':{icon:'ℹ️',label:'Quem Somos',cor:'#aaa',   cor2:'#888'},
     'termos':    {icon:'📄',label:'Termos',     cor:'#aaa',   cor2:'#888'},
+    'sucesso':   {icon:'💳',label:'Pagamento',  cor:'#00c853', cor2:'#00ff55'},
   };
   return m[p]||{icon:'📄',label:p,cor:'#555',cor2:'#777'};
 }
@@ -4227,7 +4301,8 @@ function _anRenderJornadas(data, busca, filtPag){
 
 
 /* ── Tabela de detalhamento diário ── */
-function _anRenderTabelaDiaria(labels, totais, unicos, porDia, unicosDia, data){
+function _anRenderTabelaDiaria(labels, totais, unicos, porDia, unicosDia, data, vendasPorDia, receitaPorDia){
+  vendasPorDia=vendasPorDia||{}; receitaPorDia=receitaPorDia||{};
   var tbody = document.getElementById('an-tabela-diaria-body');
   if(!tbody) return;
 
@@ -4274,6 +4349,10 @@ function _anRenderTabelaDiaria(labels, totais, unicos, porDia, unicosDia, data){
       ? 'border-bottom:1px solid rgba(255,255,255,.04);background:rgba(0,255,85,.03)'
       : 'border-bottom:1px solid rgba(255,255,255,.04)';
 
+    var vendas = vendasPorDia[iso] || 0;
+    var receita = receitaPorDia[iso] || 0;
+    var receitaFmt = receita > 0 ? 'R$ ' + receita.toFixed(2).replace('.',',') : '—';
+
     rows += '<tr style="' + rowStyle + '">'
       + '<td style="padding:10px 12px;font-size:11px;font-weight:700;color:' + (isHoje ? 'var(--green)' : '#ccc') + ';white-space:nowrap">'
         + (isHoje ? '🟢 ' : '') + label + (isHoje ? ' <span style="font-size:8px;font-weight:600;color:var(--green);opacity:.7">hoje</span>' : '')
@@ -4281,11 +4360,17 @@ function _anRenderTabelaDiaria(labels, totais, unicos, porDia, unicosDia, data){
       + '<td style="padding:10px 12px;text-align:center;font-size:13px;font-weight:900;color:#fff">' + total + '</td>'
       + '<td style="padding:10px 12px;text-align:center;font-size:13px;font-weight:700;color:#7b5bf0">' + uniq + '</td>'
       + '<td style="padding:10px 12px;text-align:center;font-size:11px;font-weight:600;color:var(--muted)">' + media + '</td>'
+      + '<td style="padding:10px 12px;text-align:center;font-size:14px;font-weight:900;color:' + (vendas > 0 ? '#00c853' : 'var(--muted)') + '">'
+        + (vendas > 0 ? vendas : '—')
+      + '</td>'
+      + '<td style="padding:10px 12px;text-align:center;font-size:11px;font-weight:700;color:' + (receita > 0 ? '#ffb300' : 'var(--muted)') + '">'
+        + receitaFmt
+      + '</td>'
       + '<td style="padding:10px 12px"><div style="display:flex;gap:5px;flex-wrap:wrap">' + (topPags || '<span style="color:var(--muted);font-size:9px">—</span>') + '</div></td>'
       + '</tr>';
   }
 
-  tbody.innerHTML = rows || '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--muted);font-size:11px">Nenhum acesso no período</td></tr>';
+  tbody.innerHTML = rows || '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--muted);font-size:11px">Nenhum acesso no período</td></tr>';
 }
 
 function _anMostrarVazio(mostrarTutorial){
@@ -6908,6 +6993,7 @@ async function marcarTodasLidas(){
 }
 
 function iniciarRealtimeNotifs(){
+  /* Canal 1 — notificações admin genéricas */
   sb.channel('notificacoes')
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'notificacoes_admin'},
       function(payload){
@@ -6916,6 +7002,43 @@ function iniciarRealtimeNotifs(){
         carregarNotifs();
       }
     ).subscribe();
+
+  /* Polling leve de pedidos (30s) - sem canal realtime extra, zero slots do Free */
+  _iniciarPollingPedidos();
+}
+
+var _pedPollingTimer=null;
+var _pedUltimoCheck=new Date().toISOString();
+function _iniciarPollingPedidos(){
+  if(_pedPollingTimer) return;
+  _pedPollingTimer=setInterval(async function(){
+    try{
+      var agora=new Date().toISOString();
+      var{data}=await sb.from('pedidos')
+        .select('id,produto_nome,valor,status,cliente_email,created_at')
+        .gte('created_at',_pedUltimoCheck)
+        .in('status',['pago','aprovado','entregue','concluido','pendente'])
+        .order('created_at',{ascending:false}).limit(5);
+      if(data&&data.length>0){
+        data.forEach(function(p){
+          var valor=p.valor?'R$ '+Number(p.valor).toFixed(2).replace('.',','):'';
+          var isPago=['pago','aprovado','entregue','concluido'].indexOf(p.status)!==-1;
+          var emoji=isPago?'[PAGO]':'[PEDIDO]';
+          var titulo=emoji+' '+(p.produto_nome||'Produto')+(valor?' - '+valor:'');
+          var msg='Cliente: '+(p.cliente_email||'-')+' | '+p.status;
+          showToast(titulo);
+          if(isPago){
+            sb.from('notificacoes_admin').insert({titulo:titulo,mensagem:msg,lida:false}).catch(function(){});
+          }
+        });
+        carregarNotifs();
+        var pgPed=document.getElementById('page-pedidos');
+        if(pgPed&&pgPed.style.display!=='none') carregarPedidos(_pedPagAtual);
+        carregarDashboard();
+      }
+      _pedUltimoCheck=agora;
+    }catch(e){}
+  },30000);
 }
 
 /* ── CLIENTES ONLINE via Realtime Presence ──
