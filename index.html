@@ -7028,7 +7028,7 @@ function _iniciarPollingPedidos(){
           var msg='Cliente: '+(p.cliente_email||'-')+' | '+p.status;
           showToast(titulo);
           if(isPago){
-            try{await sb.from('notificacoes_admin').insert({titulo:titulo,mensagem:msg,lida:false});}catch(e){}
+            sb.from('notificacoes_admin').insert({titulo:titulo,mensagem:msg,lida:false});
           }
         });
         carregarNotifs();
