@@ -5380,14 +5380,14 @@ async function realizarSorteioById(id){
     var pontosAtuais=mp?mp.pontos||0:0;
     if(mp){await sb.from('marspoints').update({pontos:pontosAtuais+BONUS_SORTEIO,historico:hist}).eq('user_email',emailVenc);}
     else{await sb.from('marspoints').insert({user_email:emailVenc,pontos:BONUS_SORTEIO,historico:hist});}
-    await sb.from('perfis').update({titulo_exibido:'SORTUDO'}).eq('email',emailVenc).catch(function(){});
+    try{await sb.from('perfis').update({titulo_exibido:'SORTUDO'}).eq('email',emailVenc);}catch(e){}
 
     /* Notificação admin */
-    await sb.from('notificacoes_admin').insert({
+    try{await sb.from('notificacoes_admin').insert({
       titulo:'🏆 Sorteio '+(s.tipo||'')+' realizado!',
       mensagem:'Vencedor: '+emailVenc+' | Prêmio: '+s.premio+' | '+parts.length+' participantes | '+pool.length+' tickets',
       lida:false
-    }).catch(function(){});
+    });}catch(e){}
 
     await registrarHistorico('sorteio','realizou sorteio "'+s.titulo+'" — vencedor: '+emailVenc,null,{vencedor:emailVenc,premio:s.premio,chave:chave});
 
@@ -5752,11 +5752,11 @@ async function ativarAssinatura(){
 
   /* Cancela assinatura ativa anterior se houver */
   await sb.from('marspass_assinaturas').update({status:'cancelado',data_cancelamento:new Date().toISOString()})
-    .eq('user_email',email).eq('status','ativo').catch(function(){});
+    .eq('user_email',email).eq('status','ativo');
 
   /* Cancela pendentes anteriores */
   await sb.from('marspass_assinaturas').update({status:'cancelado',data_cancelamento:new Date().toISOString()})
-    .eq('user_email',email).eq('status','pendente').catch(function(){});
+    .eq('user_email',email).eq('status','pendente');
 
   var{data,error}=await sb.from('marspass_assinaturas').insert({
     user_email:email,plano:plano,status:'ativo',valor:pl.valor,
@@ -5821,7 +5821,7 @@ async function ativarAssinaturaDireta(id, plano, email){
   /* FALLBACK: ativa diretamente no DB + aplica benefícios localmente */
   /* Cancela ativa anterior */
   await sb.from('marspass_assinaturas').update({status:'cancelado',data_cancelamento:new Date().toISOString()})
-    .eq('user_email',email).eq('status','ativo').catch(function(){});
+    .eq('user_email',email).eq('status','ativo');
 
   var venc=new Date();
   venc.setDate(venc.getDate()+30);
@@ -7028,7 +7028,7 @@ function _iniciarPollingPedidos(){
           var msg='Cliente: '+(p.cliente_email||'-')+' | '+p.status;
           showToast(titulo);
           if(isPago){
-            sb.from('notificacoes_admin').insert({titulo:titulo,mensagem:msg,lida:false}).catch(function(){});
+            try{await sb.from('notificacoes_admin').insert({titulo:titulo,mensagem:msg,lida:false});}catch(e){}
           }
         });
         carregarNotifs();
