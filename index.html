@@ -7008,9 +7008,14 @@ function iniciarRealtimeNotifs(){
 }
 
 var _pedPollingTimer=null;
-var _pedUltimoCheck=new Date().toISOString();
-function _iniciarPollingPedidos(){
+var _pedUltimoCheck=null; /* será carregado do banco antes do primeiro poll */
+async function _iniciarPollingPedidos(){
   if(_pedPollingTimer) return;
+  /* Busca o created_at do pedido mais recente para não perder compras anteriores à abertura */
+  try{
+    var{data:ult}=await sb.from('pedidos').select('created_at').order('created_at',{ascending:false}).limit(1);
+    _pedUltimoCheck=(ult&&ult[0])?ult[0].created_at:new Date().toISOString();
+  }catch(e){ _pedUltimoCheck=new Date().toISOString(); }
   _pedPollingTimer=setInterval(async function(){
     try{
       var agora=new Date().toISOString();
@@ -7027,8 +7032,12 @@ function _iniciarPollingPedidos(){
           var titulo=emoji+' '+(p.produto_nome||'Produto')+(valor?' - '+valor:'');
           var msg='Cliente: '+(p.cliente_email||'-')+' | '+p.status;
           showToast(titulo);
+          /* Fix 2: grava notificação para pedidos pagos E pendentes */
+          sb.from('notificacoes_admin').insert({titulo:titulo,mensagem:msg,lida:false});
+          /* Fix 3: dispara webhook Discord apenas para vendas confirmadas */
           if(isPago){
-            sb.from('notificacoes_admin').insert({titulo:titulo,mensagem:msg,lida:false});
+            var discordMsg='🛒 **NOVA VENDA — MarsGames**\n**'+titulo+'**\n'+msg;
+            if(WEBHOOK&&WEBHOOK.length>60){fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:discordMsg})}).catch(function(){});}
           }
         });
         carregarNotifs();
