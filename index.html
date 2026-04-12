@@ -7009,32 +7009,37 @@ function iniciarRealtimeNotifs(){
 
 var _pedPollingTimer=null;
 var _pedUltimoCheck=null; /* será carregado do banco antes do primeiro poll */
+var _pedIdsNotificados=new Set(); /* controla IDs já enviados ao Discord para evitar duplicatas */
 async function _iniciarPollingPedidos(){
   if(_pedPollingTimer) return;
-  /* Busca o created_at do pedido mais recente para não perder compras anteriores à abertura */
+  /* Busca os pedidos mais recentes para inicializar o timestamp e pré-popular IDs conhecidos */
   try{
-    var{data:ult}=await sb.from('pedidos').select('created_at').order('created_at',{ascending:false}).limit(1);
+    var{data:ult}=await sb.from('pedidos').select('id,created_at').order('created_at',{ascending:false}).limit(10);
     _pedUltimoCheck=(ult&&ult[0])?ult[0].created_at:new Date().toISOString();
+    /* Pré-popula IDs existentes para não re-notificar pedidos já existentes na abertura */
+    if(ult) ult.forEach(function(p){ _pedIdsNotificados.add(p.id); });
   }catch(e){ _pedUltimoCheck=new Date().toISOString(); }
   _pedPollingTimer=setInterval(async function(){
     try{
-      var agora=new Date().toISOString();
       var{data}=await sb.from('pedidos')
         .select('id,produto_nome,valor,status,cliente_email,created_at')
-        .gte('created_at',_pedUltimoCheck)
+        .gt('created_at',_pedUltimoCheck) /* gt (estritamente maior) evita re-processar o mesmo pedido */
         .in('status',['pago','aprovado','entregue','concluido','pendente'])
-        .order('created_at',{ascending:false}).limit(5);
+        .order('created_at',{ascending:true}).limit(5);
       if(data&&data.length>0){
         data.forEach(function(p){
+          /* Ignora se este ID já foi notificado — garante que cada pedido vai ao Discord apenas uma vez */
+          if(_pedIdsNotificados.has(p.id)) return;
+          _pedIdsNotificados.add(p.id);
           var valor=p.valor?'R$ '+Number(p.valor).toFixed(2).replace('.',','):'';
           var isPago=['pago','aprovado','entregue','concluido'].indexOf(p.status)!==-1;
           var emoji=isPago?'[PAGO]':'[PEDIDO]';
           var titulo=emoji+' '+(p.produto_nome||'Produto')+(valor?' - '+valor:'');
           var msg='Cliente: '+(p.cliente_email||'-')+' | '+p.status;
           showToast(titulo);
-          /* Fix 2: grava notificação para pedidos pagos E pendentes */
+          /* Grava notificação para pedidos pagos E pendentes */
           sb.from('notificacoes_admin').insert({titulo:titulo,mensagem:msg,lida:false});
-          /* Fix 3: dispara webhook Discord apenas para vendas confirmadas */
+          /* Dispara webhook Discord apenas para vendas confirmadas e apenas uma vez por pedido */
           if(isPago){
             var discordMsg='🛒 **NOVA VENDA — MarsGames**\n**'+titulo+'**\n'+msg;
             if(WEBHOOK&&WEBHOOK.length>60){fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:discordMsg})}).catch(function(){});}
@@ -7044,8 +7049,10 @@ async function _iniciarPollingPedidos(){
         var pgPed=document.getElementById('page-pedidos');
         if(pgPed&&pgPed.style.display!=='none') carregarPedidos(_pedPagAtual);
         carregarDashboard();
+        /* Avança o timestamp apenas para o created_at do pedido mais recente retornado */
+        _pedUltimoCheck=data[data.length-1].created_at;
       }
-      _pedUltimoCheck=agora;
+      /* Não reseta _pedUltimoCheck quando não há novos pedidos — evita gaps e re-notificações */
     }catch(e){}
   },30000);
 }
