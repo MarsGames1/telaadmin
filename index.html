@@ -597,6 +597,85 @@ tr:hover td{background:rgba(255,255,255,.012)}
 }
 
 </style>
+<style id="mg-admin">
+/* ═══════════════════════════════════════════════════════════
+   ADMIN — Reskin "Terminal de Marte" (só CSS, JS/HTML intactos)
+   Recalibra tokens p/ paleta neutra (verde + Mars), achata glows,
+   clareia texto, troca Inter->Montserrat, tabelas com scroll mobile.
+   ═══════════════════════════════════════════════════════════ */
+:root{
+  --bg:#07070c; --card:#0e0e13; --surface:#15151b;
+  --border:#22222a; --border2:#33333d;
+  --muted:#a8a8b6; --text:#f6f6fa;
+  --green:#00ff55; --mars:#e8421a; --amber:#e8a01a;
+  --radius:12px;
+}
+/* Fonte: elimina Inter (clichê) -> Montserrat */
+*{font-family:'Montserrat',sans-serif}
+.stat-value,h1,h2,h3,.table-title,[class*="orbitron"]{font-family:'Orbitron',sans-serif!important}
+.stat-value,td,th,.mono,[class*="num"],[class*="valor"],[class*="preco"]{font-variant-numeric:tabular-nums}
+
+/* Superfícies planas, sem brilho neon; texto claro */
+body{background:var(--bg);color:var(--text)}
+.stat-card,.table-wrap,.card,.panel{
+  background:var(--card)!important;border:1px solid var(--border)!important;
+  box-shadow:none!important;transition:border-color .18s,transform .18s;
+}
+/* Assinatura da marca: fio Mars no hover */
+.stat-card:hover{border-color:var(--mars)!important;transform:translateY(-2px)}
+.stat-value{color:#fff}
+.stat-label,.stat-sub{color:var(--muted)}
+.stat-icon{filter:saturate(.85)}
+
+/* Mata o arco-íris: cianos/roxos/magentas -> Mars; mantém verde/vermelho semânticos */
+[style*="#00ffe7"],[style*="#00b8e6"],[style*="#9f3fff"],[style*="#7c6af7"],
+[style*="#7b5bf0"],[style*="#ff3c6e"],[style*="#9090b0"]{color:var(--mars)!important}
+[style*="background:#9f3fff"],[style*="background:#7c6af7"],[style*="background:#00ffe7"],
+[style*="background:#7b5bf0"]{background:var(--mars)!important}
+
+/* Botões */
+.btn{transition:filter .15s,border-color .15s}
+.btn-green{background:var(--green);color:#001b0a;font-weight:800}
+.btn-green:hover{filter:brightness(1.08)}
+.btn-amber{background:var(--mars);color:#fff}
+.btn-outline{background:transparent;color:var(--text);border:1px solid var(--border2)}
+.btn-outline:hover{border-color:var(--mars);color:#fff}
+.btn-red{background:#e11d2e;color:#fff}
+
+/* Tabelas: cabeçalho escuro, linhas com fio, números claros, hover */
+.table-wrap{overflow:hidden}
+.table-wrap table{width:100%;border-collapse:collapse}
+.table-head,thead th{background:#0a0a0f!important;color:var(--muted)!important;
+  font-size:10px;letter-spacing:.5px;text-transform:uppercase;border-bottom:1px solid var(--border)!important}
+td,th{border-color:var(--border)!important}
+tbody tr{transition:background .12s}
+tbody tr:hover{background:rgba(255,255,255,.025)}
+tbody td{color:#e9e9f0}
+
+/* Badges de estado: planos, sem glow (cores semânticas preservadas) */
+.state{box-shadow:none!important;border-radius:6px;font-weight:700}
+
+/* Abas planas + Mars no ativo */
+.tab{transition:color .15s,border-color .15s}
+.tab.active,.tab.ativo{color:#fff;border-color:var(--mars)}
+
+/* ════════ MOBILE ════════ */
+@media(max-width:768px){
+  .stats-grid{grid-template-columns:repeat(2,1fr)!important;gap:10px}
+  .stat-value{font-size:21px}
+  .stat-card{padding:14px}
+  /* tabelas rolam horizontalmente em vez de estourar a tela */
+  .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .table-wrap table{min-width:560px}
+  .btn,.btn-sm{min-height:40px}
+}
+@media(max-width:480px){
+  .stats-grid{grid-template-columns:1fr!important}
+}
+@media(prefers-reduced-motion:reduce){
+  .stat-card,.btn,.tab,tbody tr{transition:none!important}
+}
+</style>
 </head>
 <body>
 
