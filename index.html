@@ -3489,7 +3489,7 @@ function renderProdutos(lista){
     var isFav=favsProdutos.includes(p.id);
     return '<tr>'+
       '<td><div class="prod-cell">'+
-        (p.imagem?'<img class="prod-img-thumb" src="'+esc(p.imagem)+'" onerror="this.style.display=\'none\'">':'<div class="prod-img-thumb"></div>')+
+        (p.imagem?'<img loading="lazy" decoding="async" class="prod-img-thumb" src="'+esc(p.imagem)+'" onerror="this.style.display=\'none\'">':'<div class="prod-img-thumb"></div>')+
         '<div><div class="prod-name-td">'+esc(p.nome)+'</div><div class="prod-cat-td">'+esc(p.plataforma||'Steam')+'</div></div>'+
       '</div></td>'+
       '<td><span class="badge badge-gray">'+esc(p.categoria||'—')+'</span></td>'+
@@ -4780,7 +4780,7 @@ function renderClientes(lista){
     return '<tr class="'+(c.bloqueado?'cliente-row-bloqueado':'')+'">'+
       '<td><div style="display:flex;align-items:center;gap:8px">'+
         (c.avatar?
-          '<img src="'+esc(c.avatar)+'" style="width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0" onerror="this.style.display=\'none\'">':
+          '<img loading="lazy" decoding="async" src="'+esc(c.avatar)+'" style="width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0" onerror="this.style.display=\'none\'">':
           '<div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,rgba(232,66,26,.3),rgba(0,255,85,.2));display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:#fff;flex-shrink:0">'+ini+'</div>'
         )+
         '<div>'+
@@ -4966,7 +4966,7 @@ function _renderAvalPagina(){
     return '<div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:12px;transition:border-color .2s" onmouseover="this.style.borderColor=\'var(--border2)\'" onmouseout="this.style.borderColor=\'var(--border)\'">'+
       /* Cabeçalho: produto */
       '<div style="display:flex;align-items:center;gap:10px">'+
-        (img?'<img src="'+img+'" style="width:42px;height:42px;border-radius:8px;object-fit:cover;background:var(--dim);flex-shrink:0" onerror="this.style.display=\'none\'">':'')+
+        (img?'<img loading="lazy" decoding="async" src="'+img+'" style="width:42px;height:42px;border-radius:8px;object-fit:cover;background:var(--dim);flex-shrink:0" onerror="this.style.display=\'none\'">':'')+
         '<div style="flex:1;min-width:0">'+
           '<div style="font-size:12px;font-weight:900;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+produto+'</div>'+
           '<div style="font-size:9px;color:var(--muted);font-weight:600;margin-top:2px">'+data_fmt+'</div>'+
@@ -6230,7 +6230,7 @@ async function buscarFavoritosPorEmail(){
   _favResultados=[];_favOcultos={};_favPagina=0;
 
   // Busca user_id pelo email
-  var{data:perfis,error:errP}=await sb.from('profiles').select('id,full_name,email').ilike('email','%'+email+'%').limit(5);
+  var{data:perfis,error:errP}=await sb.from('perfis').select('id,nome,email').ilike('email','%'+email+'%').limit(5);
   if(errP||!perfis||perfis.length===0){
     // tenta buscar pelo campo email diretamente na tabela auth via marspoints
     var{data:mp}=await sb.from('marspoints').select('user_email,pontos').ilike('user_email','%'+email+'%').limit(1);
@@ -6263,7 +6263,7 @@ async function buscarFavoritosPorEmail(){
 
   _favResultados=favs;
   info.style.display='block';
-  info.innerHTML='<strong style="color:#fff">'+esc(perfil.full_name||perfil.email||email)+'</strong> &nbsp;•&nbsp; '+esc(perfil.email||email)+' &nbsp;•&nbsp; <span style="color:var(--green)">'+favs.length+' jogo(s) favorito(s)</span>';
+  info.innerHTML='<strong style="color:#fff">'+esc(perfil.nome||perfil.email||email)+'</strong> &nbsp;•&nbsp; '+esc(perfil.email||email)+' &nbsp;•&nbsp; <span style="color:var(--green)">'+favs.length+' jogo(s) favorito(s)</span>';
   renderFavResultados();
 }
 
@@ -6295,7 +6295,7 @@ function renderFavResultados(){
     var p=f.produtos;
     if(!p)return '';
     return '<div class="fav-card" id="favc-'+f.id+'">'+
-      (p.imagem?'<img class="fav-card-img" src="'+esc(p.imagem)+'" onerror="this.style.display=\'none\'">':'<div class="fav-card-img" style="display:flex;align-items:center;justify-content:center;font-size:20px;">🎮</div>')+
+      (p.imagem?'<img loading="lazy" decoding="async" class="fav-card-img" src="'+esc(p.imagem)+'" onerror="this.style.display=\'none\'">':'<div class="fav-card-img" style="display:flex;align-items:center;justify-content:center;font-size:20px;">🎮</div>')+
       '<div class="fav-card-info">'+
         '<div class="fav-card-name">'+esc(p.nome||'Produto sem nome')+'</div>'+
         '<div class="fav-card-sub">'+esc(p.categoria||p.plataforma||'')+'</div>'+
@@ -7543,7 +7543,7 @@ function dnaRenderTabela(lista){
       '<td>'+
         '<div style="display:flex;align-items:center;gap:8px">'+
           (c.avatar
-            ? '<img src="'+esc(c.avatar)+'" style="width:26px;height:26px;border-radius:50%;object-fit:cover">'
+            ? '<img loading="lazy" decoding="async" src="'+esc(c.avatar)+'" style="width:26px;height:26px;border-radius:50%;object-fit:cover">'
             : '<div style="width:26px;height:26px;border-radius:50%;background:rgba(0,255,231,.1);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;color:#00ffe7;flex-shrink:0">'+ini+'</div>'
           )+
           '<div>'+
