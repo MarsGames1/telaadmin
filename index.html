@@ -1202,6 +1202,15 @@ tbody td{color:#e9e9f0}
           <div style="color:var(--muted);font-size:11px;text-align:center;padding:16px">Carregando...</div>
         </div>
       </div>
+
+      <!-- Abandono de compra -->
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px">
+        <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px">ABANDONO DE COMPRA</div>
+        <div id="an-abandono" style="display:flex;flex-direction:column;gap:10px">
+          <div style="color:var(--muted);font-size:11px;text-align:center;padding:16px">Carregando...</div>
+        </div>
+        <div id="an-abandono-lista" style="margin-top:14px"></div>
+      </div>
     </div>
 
     <!-- Jornada dos visitantes (estilo Wix) -->
@@ -4306,6 +4315,9 @@ async function carregarAnalise(){
       '</div>';
     }).join('');
 
+    /* ── Abandono de compra ── */
+    _anRenderAbandono(dataInicio, comprasReais);
+
     /* ── Jornada por sessão ── */
     _anTodosDados=data;
     _anRenderJornadas(data, '', '');
@@ -4316,6 +4328,86 @@ async function carregarAnalise(){
     _anMostrarVazio(true);
   }finally{
     _anCarregando=false;
+  }
+}
+
+/* ── Abandono de compra: carrinho → PIX → pago ── */
+async function _anRenderAbandono(dataInicio, comprasReais){
+  var box=document.getElementById('an-abandono');
+  var listaEl=document.getElementById('an-abandono-lista');
+  if(!box) return;
+  try{
+    var iso=dataInicio.toISOString();
+    var[evRes,pagosRes]=await Promise.all([
+      sb.from('site_eventos').select('evento,session_id,email,produto_nome,valor,meta,created_at').gte('created_at',iso).order('created_at',{ascending:false}).limit(3000),
+      sb.from('pedidos').select('cliente_email,reference,created_at').gte('created_at',iso).in('status',['pago','aprovado','entregue','concluido'])
+    ]);
+    var evs=evRes.data||[];
+    var sessCarrinho={}, sessPix={}, pixList=[];
+    evs.forEach(function(e){
+      if(e.evento==='carrinho_add'&&e.session_id) sessCarrinho[e.session_id]=e;
+      if(e.evento==='pix_gerado'){ if(e.session_id) sessPix[e.session_id]=e; pixList.push(e); }
+    });
+    /* Conjuntos de quem pagou (por email e por reference) */
+    var pagosEmail={}, pagosRef={};
+    (pagosRes.data||[]).forEach(function(p){
+      if(p.cliente_email) pagosEmail[p.cliente_email.toLowerCase()]=true;
+      if(p.reference) pagosRef[String(p.reference)]=true;
+    });
+    /* PIX gerados que NÃO pagaram (abandonados) — dedup por sessão, pega o mais recente */
+    var pixPorSess={};
+    pixList.forEach(function(e){ if(e.session_id&&!pixPorSess[e.session_id]) pixPorSess[e.session_id]=e; });
+    var pend=Object.values(pixPorSess).filter(function(e){
+      var ref=e.meta&&e.meta.reference?String(e.meta.reference):null;
+      var em=e.email?e.email.toLowerCase():null;
+      var pagou=(ref&&pagosRef[ref])||(em&&pagosEmail[em]);
+      return !pagou;
+    }).map(function(e){ return {cliente_email:e.email,produto_nome:(e.meta&&e.meta.itens?e.meta.itens+' item(ns)':''),valor:e.valor,created_at:e.created_at}; });
+
+    var nCarrinho=Object.keys(sessCarrinho).length;
+    var nPix=Object.keys(sessPix).length;
+    var nPagou=comprasReais||0;
+
+    var etapas=[
+      {lb:'🛒 Adicionaram ao carrinho', n:nCarrinho, cor:'#2DD4C4'},
+      {lb:'💳 Geraram PIX', n:nPix, cor:'#FFC24B'},
+      {lb:'✅ Pagaram', n:nPagou, cor:'#35C486'}
+    ];
+    var base=Math.max(nCarrinho,nPix,nPagou,1);
+    box.innerHTML=etapas.map(function(s){
+      var w=Math.round(s.n/base*100);
+      return '<div style="display:flex;flex-direction:column;gap:4px">'+
+        '<div style="display:flex;justify-content:space-between;font-size:11px"><span style="color:#ddd;font-weight:600">'+s.lb+'</span><span style="color:'+s.cor+';font-weight:800">'+s.n+'</span></div>'+
+        '<div style="height:6px;background:rgba(255,255,255,.06);border-radius:3px"><div style="height:6px;width:'+w+'%;background:'+s.cor+';border-radius:3px"></div></div>'+
+      '</div>';
+    }).join('');
+    /* Taxas de abandono */
+    var abCar=nCarrinho>0?Math.round((1-nPagou/nCarrinho)*100):0;
+    var abPix=nPix>0?Math.round((1-nPagou/nPix)*100):0;
+    box.innerHTML+='<div style="display:flex;gap:14px;margin-top:6px;font-size:10px;color:var(--muted)">'+
+      '<span>Abandono do carrinho: <b style="color:#E25B5B">'+abCar+'%</b></span>'+
+      '<span>PIX gerado e não pago: <b style="color:#E25B5B">'+abPix+'%</b></span></div>';
+
+    /* Lista de PIX pendentes (gerou e não pagou) — fonte real: pedidos */
+    if(listaEl){
+      if(pend.length===0){
+        listaEl.innerHTML='<div style="font-size:10px;color:var(--muted);padding:8px 0">Nenhum PIX pendente no período. 🎉</div>';
+      } else {
+        listaEl.innerHTML='<div style="font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">PIX gerados sem pagamento ('+pend.length+')</div>'+
+          pend.slice(0,15).map(function(p){
+            return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--border)">'+
+              '<span style="font-size:11px;color:#ddd;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px">'+esc(p.cliente_email||'—')+'</span>'+
+              '<span style="font-size:10px;color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(p.produto_nome||'')+'</span>'+
+              '<span style="font-size:10px;color:#FFC24B;font-weight:700;white-space:nowrap">R$ '+Number(p.valor||0).toFixed(2).replace('.',',')+'</span>'+
+              '<span style="font-size:9px;color:var(--muted);white-space:nowrap">'+(p.created_at?fmtDateTime(p.created_at):'')+'</span>'+
+            '</div>';
+          }).join('');
+      }
+    }
+  }catch(e){
+    console.log('[abandono]',e);
+    box.innerHTML='<div style="color:var(--muted);font-size:11px;text-align:center;padding:12px">Sem dados de abandono ainda.</div>';
+    if(listaEl) listaEl.innerHTML='';
   }
 }
 
