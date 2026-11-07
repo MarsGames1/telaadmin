@@ -676,6 +676,9 @@ tbody td{color:#e9e9f0}
 @media(prefers-reduced-motion:reduce){
   .stat-card,.btn,.tab,tbody tr{transition:none!important}
 }
+.rev-badge{display:inline-block;margin-left:6px;font-size:9px;font-weight:900;letter-spacing:.3px;padding:2px 7px;border-radius:999px;vertical-align:middle}
+.rev-badge.rev-on{background:rgba(255,184,0,.14);color:var(--amber,#ffb800);border:1px solid rgba(255,184,0,.35)}
+.rev-badge.rev-off{background:rgba(255,255,255,.05);color:var(--muted,#8A94AD);border:1px solid rgba(255,255,255,.12)}
 </style>
 </head>
 <body>
@@ -4517,7 +4520,7 @@ function _anMostrarVazio(mostrarTutorial){
 
 
 /* ══ PEDIDOS — PAGINAÇÃO SERVER-SIDE ══ */
-var PED_POR_PAG=50,_pedPagAtual=0,_pedTotal=0,_pedBusca='',_pedBuscaTimer=null;
+var PED_POR_PAG=50,_pedPagAtual=0,_pedTotal=0,_pedBusca='',_pedBuscaTimer=null,_revMap={};
 
 async function carregarPedidos(pag){
   pag=(pag!=null&&!isNaN(pag))?Number(pag):0;
@@ -4537,6 +4540,20 @@ async function carregarPedidos(pag){
   if(res.error){tbody.innerHTML='<tr><td colspan="7" class="empty-state" style="color:var(--red)">Erro: '+esc(res.error.message)+'</td></tr>';return;}
   _pedTotal=res.count||0;
   _todosOsPedidos=res.data||[];
+  /* Revelações de chave (quem abriu a chave) */
+  _revMap={};
+  try{
+    var ids=_todosOsPedidos.map(function(p){return p.id;}).filter(Boolean);
+    if(ids.length){
+      var rev=await sb.from('chave_revelacoes').select('pedido_id,revelado_em').in('pedido_id',ids);
+      (rev.data||[]).forEach(function(r){
+        var cur=_revMap[r.pedido_id];
+        if(!cur){_revMap[r.pedido_id]={n:0,primeiro:r.revelado_em};}
+        _revMap[r.pedido_id].n++;
+        if(new Date(r.revelado_em)<new Date(_revMap[r.pedido_id].primeiro))_revMap[r.pedido_id].primeiro=r.revelado_em;
+      });
+    }
+  }catch(e){}
   renderPedidos(_todosOsPedidos);
   renderPedPaginacao();
   var labelEl=document.getElementById('ped-total-label');
@@ -4591,13 +4608,19 @@ function renderPedidos(data){
     var btnEntregar=semChave&&statusPago
       ?'<button class="btn btn-sm" style="background:rgba(255,184,0,.12);color:var(--amber);border:1px solid rgba(255,184,0,.3)" onclick="abrirEntregarChaveManual(\''+p.id+'\',\''+esc(p.cliente_email||'')+'\',\''+esc(p.produto_nome||'')+'\')">🔑 Chave</button>'
       :'';
+    var rev=_revMap&&_revMap[p.id];
+    var revBadge=chavesQtd>0
+      ?(rev
+        ?'<span class="rev-badge rev-on" title="Cliente abriu a chave em '+esc(fmtDate(rev.primeiro))+'">Chave aberta'+(rev.n>1?' ('+rev.n+')':'')+'</span>'
+        :'<span class="rev-badge rev-off" title="Cliente ainda não revelou a chave">Não aberta</span>')
+      :'';
     var isConcluido=p.status==='concluido';
     var btnConcluir=!isConcluido
       ?'<button class="btn btn-sm" style="background:rgba(0,255,85,.1);color:var(--green);border:1px solid rgba(0,255,85,.25)" title="Marcar como concluído" onclick="concluirPedido(\''+p.id+'\',this)">✓ Concluir</button>'
       :'';
     return '<tr'+(semChave&&statusPago?' style="background:rgba(255,184,0,.03)"':'')+'><td style="font-family:monospace;font-size:10px;color:var(--muted)">#'+String(p.id||'').slice(0,8)+'</td>'+
       '<td>'+esc(p.cliente_email||'—')+'</td>'+
-      '<td>'+esc(p.produto_nome||'—')+chavesIcon+'</td>'+
+      '<td>'+esc(p.produto_nome||'—')+chavesIcon+revBadge+'</td>'+
       '<td style="color:var(--green);font-weight:900">R$ '+Number(p.valor||0).toFixed(2).replace('.',',')+'</td>'+
       '<td>'+badgeStatus(p.status)+'</td>'+
       '<td>'+fmtDate(p.created_at)+'</td>'+
