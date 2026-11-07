@@ -1378,6 +1378,12 @@ CREATE POLICY "admin select" ON site_pageviews FOR SELECT USING (true);</div>
       ⚠️ Produtos com estoque zerado: <span id="est-alerta-lista"></span>
     </div>
 
+    <div id="est-resumo" style="display:none;margin-bottom:16px;padding:12px 14px;border-radius:10px;
+         background:var(--mg-surface,#141A28);border:1px solid var(--mg-border,#243049)">
+      <div style="font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--mg-dim,#8A94AD);margin-bottom:10px">Disponíveis por produto</div>
+      <div id="est-resumo-lista" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+    </div>
+
     <div class="table-wrap">
       <table>
         <thead><tr>
@@ -3947,6 +3953,22 @@ async function carregarEstoque(){
     alertLista.textContent=zerados.map(function(p){return p.nome}).join(', ');
   } else if(alertEl) alertEl.style.display='none';
 
+  /* Resumo: disponíveis por produto (ativo) */
+  var resEl=document.getElementById('est-resumo');
+  var resLista=document.getElementById('est-resumo-lista');
+  if(resEl&&resLista&&(prods||[]).length){
+    var ordenado=(prods||[]).slice().sort(function(a,b){return (dispPorProd[a.id]||0)-(dispPorProd[b.id]||0);});
+    resLista.innerHTML=ordenado.map(function(p){
+      var n=dispPorProd[p.id]||0;
+      var cor=n===0?'var(--red,#E25B5B)':(n<=3?'var(--amber,#FFC24B)':'var(--mg-accent,#2DD4C4)');
+      return '<span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:4px 10px;border-radius:999px;'+
+        'background:rgba(45,212,196,.06);border:1px solid var(--mg-border,#243049)">'+
+        '<span style="color:#F2EFE6;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(p.nome)+'</span>'+
+        '<span style="font-weight:800;color:'+cor+'">'+n+'</span></span>';
+    }).join('');
+    resEl.style.display='';
+  } else if(resEl) resEl.style.display='none';
+
   _estPagina=1;
   renderEstoque(_todasAsChaves);
 }
@@ -4023,7 +4045,7 @@ function renderEstoque(lista){
   var delta=3,start=Math.max(1,_estPagina-delta),end=Math.min(totalPags,_estPagina+delta);
   if(start>1)btns+='<button class="btn btn-outline btn-sm" onclick="irPaginaEstoque(1)" style="min-width:32px">1</button>'+(start>2?'<span style="color:var(--muted);align-self:center;padding:0 2px">…</span>':'');
   for(var i=start;i<=end;i++){
-    var ativo=i===_estPagina?'background:rgba(0,255,85,.15);border-color:rgba(0,255,85,.5);color:var(--green);':'';
+    var ativo=i===_estPagina?'background:rgba(45,212,196,.15);border-color:rgba(45,212,196,.5);color:var(--mg-accent,#2DD4C4);':'';
     btns+='<button class="btn btn-outline btn-sm" onclick="irPaginaEstoque('+i+')" style="min-width:32px;'+ativo+'">'+i+'</button>';
   }
   if(end<totalPags)btns+=(end<totalPags-1?'<span style="color:var(--muted);align-self:center;padding:0 2px">…</span>':'')+'<button class="btn btn-outline btn-sm" onclick="irPaginaEstoque('+totalPags+')" style="min-width:32px">'+totalPags+'</button>';
@@ -4226,8 +4248,8 @@ async function carregarAnalise(){
         data:{
           labels:labels,
           datasets:[
-            {label:'Acessos',data:totais,backgroundColor:'rgba(0,255,85,.25)',borderColor:'#00ff55',borderWidth:2,borderRadius:4,order:2},
-            {label:'Únicos',data:unicos,type:'line',fill:false,borderColor:'#7b5bf0',backgroundColor:'#7b5bf0',borderWidth:2,pointRadius:3,pointBackgroundColor:'#7b5bf0',tension:.3,order:1}
+            {label:'Acessos',data:totais,backgroundColor:'rgba(45,212,196,.22)',borderColor:'#2DD4C4',borderWidth:2,borderRadius:4,order:2},
+            {label:'Únicos',data:unicos,type:'line',fill:false,borderColor:'#FFC24B',backgroundColor:'#FFC24B',borderWidth:2,pointRadius:3,pointBackgroundColor:'#FFC24B',tension:.3,order:1}
           ]
         },
         options:{
@@ -4263,15 +4285,16 @@ async function carregarAnalise(){
     var funilDefs=[
       {key:'index',    icon:'🏠', label:'Página inicial'},
       {key:'catalogo', icon:'🎮', label:'Catálogo'},
-      {key:'sorteio',  icon:'🎁', label:'Sorteios'},
-      {key:'marspass', icon:'⭐', label:'MarsPass'},
+      {key:'perfil',   icon:'👤', label:'Área do cliente'},
       {key:'checkout', icon:'💳', label:'Checkout'},
       {key:'sucesso',  icon:'✅', label:'Pagamento confirmado'},
     ];
     var totalVisitas=data.length||1;
+    var comprasReais=(pedRes.data||[]).length; /* pedidos pagos reais no período */
     var funilEl=el('an-funil');
     if(funilEl) funilEl.innerHTML=funilDefs.map(function(f){
-      var cnt=contPag[f.key]||0;
+      /* "sucesso" usa compras reais (pedidos pagos), não pageview que quebra na volta do MP */
+      var cnt=f.key==='sucesso'?comprasReais:(contPag[f.key]||0);
       var pct=Math.round(cnt/totalVisitas*100);
       var barW=Math.round(cnt/(contPag[funilDefs[0].key]||1)*100);
       return '<div class="funil-step">'+
@@ -4302,16 +4325,15 @@ var _anJornadasVisiveis=20;
 
 function _anPagInfo(p){
   var m={
-    'index':     {icon:'🏠',label:'Início',     cor:'#e8421a',cor2:'#ff6b2b'},
-    'catalogo':  {icon:'🎮',label:'Catálogo',   cor:'#7b8af0',cor2:'#5b9af6'},
-    'checkout':  {icon:'💳',label:'Checkout',   cor:'#ffb300',cor2:'#ffd000'},
-    'sorteio':   {icon:'🎁',label:'Sorteios',   cor:'#b876f7',cor2:'#9b59f0'},
-    'marspass':  {icon:'⭐',label:'MarsPass',   cor:'#ff6b2b',cor2:'#e8421a'},
-    'perfil':    {icon:'👤',label:'Perfil',     cor:'#5b9af6',cor2:'#7b8af0'},
-    'cdkeys':    {icon:'🔑',label:'CD Keys',    cor:'#00ffaa',cor2:'#00ff55'},
-    'quem-somos':{icon:'ℹ️',label:'Quem Somos',cor:'#aaa',   cor2:'#888'},
-    'termos':    {icon:'📄',label:'Termos',     cor:'#aaa',   cor2:'#888'},
-    'sucesso':   {icon:'💳',label:'Pagamento',  cor:'#00c853', cor2:'#00ff55'},
+    'index':     {icon:'🏠',label:'Início',     cor:'#2DD4C4',cor2:'#1fa89b'},
+    'catalogo':  {icon:'🎮',label:'Catálogo',   cor:'#2DD4C4',cor2:'#5b9af6'},
+    'cdkeys':    {icon:'🔑',label:'CD Keys',    cor:'#2DD4C4',cor2:'#35C486'},
+    'chaves':    {icon:'🔑',label:'Chaves',     cor:'#2DD4C4',cor2:'#35C486'},
+    'checkout':  {icon:'💳',label:'Checkout',   cor:'#FFC24B',cor2:'#e0a73b'},
+    'perfil':    {icon:'👤',label:'Área cliente',cor:'#5b9af6',cor2:'#2DD4C4'},
+    'quem-somos':{icon:'ℹ️',label:'Quem Somos',cor:'#8A94AD',cor2:'#6a7490'},
+    'termos':    {icon:'📄',label:'Termos',     cor:'#8A94AD',cor2:'#6a7490'},
+    'sucesso':   {icon:'✅',label:'Pagamento',  cor:'#35C486',cor2:'#2DD4C4'},
   };
   return m[p]||{icon:'📄',label:p,cor:'#555',cor2:'#777'};
 }
