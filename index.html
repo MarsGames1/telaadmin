@@ -4912,6 +4912,15 @@ async function carregarClientes(){
   _cliPagAtual=0;
   renderClientes(_cliFiltrado);
 }
+function tagCliente(c){
+  var n=(c.compras&&c.compras.length)||0;
+  var novoAcc=false;
+  if(c.criado){ try{ novoAcc=(Date.now()-new Date(c.criado).getTime())<7*864e5; }catch(e){} }
+  if(n>=5) return {l:'Recorrente',cls:'badge-green',t:'Compra com frequência — '+n+' compras'};
+  if(n>=1) return {l:'Cliente',cls:'badge-blue',t:n+' compra'+(n>1?'s':'')};
+  if(novoAcc) return {l:'Novo',cls:'badge-amber',t:'Conta criada há menos de 7 dias, ainda sem compra'};
+  return {l:'Nunca comprou',cls:'badge-gray',t:'Cadastrou mas nunca comprou'};
+}
 function nivelCliente(pts){
   if(pts>=6000)return{l:'Diamante',cls:'badge-blue'};
   if(pts>=3000)return{l:'Esmeralda',cls:'badge-green'};
@@ -4935,6 +4944,7 @@ function renderClientes(lista){
   }
   tbody.innerHTML=pagina.map(function(c){
     var nv=nivelCliente(c.pontos||0);
+    var tg=tagCliente(c);
     var isFav=favsClientes.includes(c.email);
     var ini=(c.nome||c.email||'?')[0].toUpperCase();
     return '<tr class="'+(c.bloqueado?'cliente-row-bloqueado':'')+'">'+
@@ -4947,6 +4957,7 @@ function renderClientes(lista){
           '<div style="font-weight:700;color:'+(c.bloqueado?'var(--red)':'#fff')+'">'+esc(c.nome||c.email)+'</div>'+
           '<div style="font-size:10px;color:var(--muted)">'+esc(c.email)+'</div>'+
         '</div>'+
+        '<span class="badge '+tg.cls+'" style="margin-left:6px" title="'+esc(tg.t)+'">'+tg.l+'</span>'+
         (c.bloqueado?'<span class="badge badge-blocked" style="margin-left:6px">BLOQUEADO</span>':'')+
       '</div></td>'+
       '<td><span class="badge '+nv.cls+'">'+nv.l+'</span><div style="font-size:9px;color:var(--muted);margin-top:3px">'+(c.pontos||0)+' pts</div></td>'+
