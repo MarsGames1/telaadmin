@@ -1389,8 +1389,16 @@ CREATE POLICY "admin select" ON site_pageviews FOR SELECT USING (true);</div>
 
     <div id="est-resumo" style="display:none;margin-bottom:16px;padding:12px 14px;border-radius:10px;
          background:var(--mg-surface,#141A28);border:1px solid var(--mg-border,#243049)">
-      <div style="font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--mg-dim,#8A94AD);margin-bottom:10px">Disponíveis por produto</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+        <div style="font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--mg-dim,#8A94AD)">Disponíveis por produto <span id="est-resumo-total" style="color:var(--muted)"></span></div>
+        <input id="est-resumo-busca" class="t-search" placeholder="Filtrar produto..." style="max-width:200px;font-size:11px" oninput="renderResumoEstoque(1)">
+      </div>
       <div id="est-resumo-lista" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+      <div id="est-resumo-pag" style="display:none;align-items:center;justify-content:center;gap:10px;margin-top:12px;flex-wrap:wrap">
+        <button id="est-resumo-prev" class="btn btn-outline btn-sm" onclick="mudaPaginaResumo(-1)" style="min-width:78px">← Anterior</button>
+        <span id="est-resumo-info" style="font-size:10px;font-weight:700;color:var(--muted)"></span>
+        <button id="est-resumo-next" class="btn btn-outline btn-sm" onclick="mudaPaginaResumo(1)" style="min-width:78px">Próxima →</button>
+      </div>
     </div>
 
     <div class="table-wrap">
@@ -3938,7 +3946,7 @@ async function verificarEstoqueBaixo(produtos){
 var _todasAsChaves=[];
 var _estListaAtual=[];
 var _estPagina=1;
-var EST_POR_PAGINA=50;
+var EST_POR_PAGINA=25;
 
 async function carregarEstoque(){
   var tbody=document.getElementById('est-tbody');
@@ -3971,25 +3979,51 @@ async function carregarEstoque(){
     alertLista.textContent=zerados.map(function(p){return p.nome}).join(', ');
   } else if(alertEl) alertEl.style.display='none';
 
-  /* Resumo: disponíveis por produto (ativo) */
-  var resEl=document.getElementById('est-resumo');
-  var resLista=document.getElementById('est-resumo-lista');
-  if(resEl&&resLista&&(prods||[]).length){
-    var ordenado=(prods||[]).slice().sort(function(a,b){return (dispPorProd[a.id]||0)-(dispPorProd[b.id]||0);});
-    resLista.innerHTML=ordenado.map(function(p){
-      var n=dispPorProd[p.id]||0;
-      var cor=n===0?'var(--red,#E25B5B)':(n<=3?'var(--amber,#FFC24B)':'var(--mg-accent,#2DD4C4)');
-      return '<span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:4px 10px;border-radius:999px;'+
-        'background:rgba(45,212,196,.06);border:1px solid var(--mg-border,#243049)">'+
-        '<span style="color:#F2EFE6;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(p.nome)+'</span>'+
-        '<span style="font-weight:800;color:'+cor+'">'+n+'</span></span>';
-    }).join('');
-    resEl.style.display='';
-  } else if(resEl) resEl.style.display='none';
+  /* Resumo: disponíveis por produto (ativo) — ordenado do menor estoque pro maior */
+  _resProdDados=(prods||[]).slice()
+    .map(function(p){return {nome:p.nome, n:dispPorProd[p.id]||0};})
+    .sort(function(a,b){return a.n-b.n;});
+  renderResumoEstoque(1);
 
   _estPagina=1;
   renderEstoque(_todasAsChaves);
 }
+
+/* ── Resumo "Disponíveis por produto" paginado ── */
+var _resProdDados=[];
+var _resPagina=1;
+var RES_POR_PAGINA=24;
+function renderResumoEstoque(pag){
+  var resEl=document.getElementById('est-resumo');
+  var lista=document.getElementById('est-resumo-lista');
+  if(!resEl||!lista) return;
+  var q=((document.getElementById('est-resumo-busca')||{}).value||'').toLowerCase().trim();
+  var dados=_resProdDados.filter(function(p){return !q||(p.nome||'').toLowerCase().includes(q);});
+  if(!dados.length){ resEl.style.display='none'; return; }
+  resEl.style.display='';
+  var totalPags=Math.max(1,Math.ceil(dados.length/RES_POR_PAGINA));
+  if(pag) _resPagina=pag;
+  if(_resPagina>totalPags) _resPagina=totalPags;
+  if(_resPagina<1) _resPagina=1;
+  var ini=(_resPagina-1)*RES_POR_PAGINA;
+  var pagina=dados.slice(ini,ini+RES_POR_PAGINA);
+  lista.innerHTML=pagina.map(function(p){
+    var cor=p.n===0?'var(--red,#E25B5B)':(p.n<=3?'var(--amber,#FFC24B)':'var(--mg-accent,#2DD4C4)');
+    return '<span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:4px 10px;border-radius:999px;'+
+      'background:rgba(45,212,196,.06);border:1px solid var(--mg-border,#243049)">'+
+      '<span style="color:#F2EFE6;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(p.nome)+'</span>'+
+      '<span style="font-weight:800;color:'+cor+'">'+p.n+'</span></span>';
+  }).join('');
+  var totEl=document.getElementById('est-resumo-total');
+  if(totEl) totEl.textContent='('+dados.length+')';
+  var pagEl=document.getElementById('est-resumo-pag');
+  if(totalPags<=1){ if(pagEl) pagEl.style.display='none'; return; }
+  if(pagEl) pagEl.style.display='flex';
+  document.getElementById('est-resumo-info').textContent='Página '+_resPagina+' de '+totalPags;
+  document.getElementById('est-resumo-prev').disabled=_resPagina===1;
+  document.getElementById('est-resumo-next').disabled=_resPagina===totalPags;
+}
+function mudaPaginaResumo(d){ _resPagina+=d; renderResumoEstoque(0); }
 
 function filtrarEstoque(q){
   var status=document.getElementById('est-filtro-status').value;
