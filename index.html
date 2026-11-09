@@ -4782,11 +4782,16 @@ function renderPedidos(data){
   var tbody=document.getElementById('ped-tbody');
   if(!data||data.length===0){tbody.innerHTML='<tr><td colspan="7" class="empty-state">Nenhum pedido ainda.</td></tr>';return}
   tbody.innerHTML=data.map(function(p){
-    var chavesQtd=(p.chaves_entregues||[]).length;
-    var semChave=chavesQtd===0;
+    var chavesArr=p.chaves_entregues||[];
+    var chavesReais=chavesArr.filter(function(c){return c&&c.tipo!=='erro'&&c.conteudo!=='ERRO_ESTOQUE';});
+    var chavesQtd=chavesReais.length;
+    var temErroEstoque=chavesArr.length>0&&chavesQtd===0;/* pagou, mas faltou estoque */
+    var semChave=chavesArr.length===0;
     var chavesIcon=chavesQtd>0
       ?'<span style="color:var(--green);font-size:9px;font-weight:900;margin-left:4px">✓ '+chavesQtd+' chave'+(chavesQtd>1?'s':'')+'</span>'
-      :'<span style="color:var(--red);font-size:9px;font-weight:700;margin-left:4px">⚠ sem chave</span>';
+      :(temErroEstoque
+        ?'<span style="color:var(--amber);font-size:9px;font-weight:800;margin-left:4px">⚠ sem estoque</span>'
+        :'<span style="color:var(--red);font-size:9px;font-weight:700;margin-left:4px">⚠ sem chave</span>');
     var statusPago=(p.status==='pago'||p.status==='aprovado'||p.status==='pendente');
     var btnEntregar=semChave&&statusPago
       ?'<button class="btn btn-sm" style="background:rgba(255,184,0,.12);color:var(--amber);border:1px solid rgba(255,184,0,.3)" onclick="abrirEntregarChaveManual(\''+p.id+'\',\''+esc(p.cliente_email||'')+'\',\''+esc(p.produto_nome||'')+'\')">🔑 Chave</button>'
@@ -4801,15 +4806,17 @@ function renderPedidos(data){
     var btnConcluir=!isConcluido
       ?'<button class="btn btn-sm" style="background:rgba(0,255,85,.1);color:var(--green);border:1px solid rgba(0,255,85,.25)" title="Marcar como concluído" onclick="concluirPedido(\''+p.id+'\',this)">✓ Concluir</button>'
       :'';
-    /* Estado REAL: pagou e recebeu a chave (tem chave) vs só gerou o Pix (sem chave) */
+    /* Estado REAL: pagou e recebeu a chave vs pagou sem estoque vs só gerou o Pix */
     var cancelado=p.status==='cancelado';
     var pagoEntregue=chavesQtd>0;
     var badgePgto=cancelado
       ?'<span class="badge badge-red">✕ Cancelado</span>'
       :(pagoEntregue
         ?'<span class="badge badge-green" title="Cliente pagou e recebeu a chave">🟢 Pago · entregue</span>'
-        :'<span class="badge badge-amber" title="Cliente gerou o Pix mas ainda não pagou">🟡 Aguardando pagamento</span>');
-    var tintRow=(!cancelado&&!pagoEntregue)?' style="background:rgba(255,184,0,.04)"':'';
+        :(temErroEstoque
+          ?'<span class="badge badge-amber" style="border-color:rgba(255,120,0,.5)" title="Pagamento aprovado, mas faltou estoque — entregar chave manualmente">🟠 Pago · sem estoque</span>'
+          :'<span class="badge badge-amber" title="Cliente gerou o Pix mas ainda não pagou">🟡 Aguardando pagamento</span>'));
+    var tintRow=cancelado?'':(temErroEstoque?' style="background:rgba(255,120,0,.06)"':(!pagoEntregue?' style="background:rgba(255,184,0,.04)"':''));
     return '<tr'+tintRow+'><td style="font-family:monospace;font-size:10px;color:var(--muted)">#'+String(p.id||'').slice(0,8)+'</td>'+
       '<td>'+esc(p.cliente_email||'—')+'</td>'+
       '<td>'+esc(p.produto_nome||'—')+chavesIcon+revBadge+'</td>'+
