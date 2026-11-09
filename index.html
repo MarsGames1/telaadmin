@@ -1550,7 +1550,16 @@ CREATE POLICY "admin select" ON site_pageviews FOR SELECT USING (true);</div>
     <div class="table-wrap">
       <div class="table-head">
         <div class="table-title">Base de clientes <span id="cli-total-label" style="font-size:10px;color:var(--muted);font-weight:600"></span></div>
-        <input class="t-search" placeholder="Buscar cliente..." oninput="filtrarClientes(this.value)">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <select id="cli-filtro-tag" class="t-search" style="background:var(--bg)" onchange="filtrarClientes()">
+            <option value="">Todos os perfis</option>
+            <option value="Novo">🟡 Novos</option>
+            <option value="Cliente">🔵 Clientes</option>
+            <option value="Recorrente">🟢 Recorrentes</option>
+            <option value="Nunca comprou">⚪ Nunca compraram</option>
+          </select>
+          <input id="cli-busca" class="t-search" placeholder="Buscar cliente..." oninput="filtrarClientes()">
+        </div>
       </div>
       <table><thead><tr><th>Cliente</th><th>Nível</th><th>Total gasto</th><th>Compras</th><th>Observação</th><th>Status</th><th>Ações</th></tr></thead>
       <tbody id="cli-tbody"><tr><td colspan="7" class="empty-state"><span class="loader-inline"></span></td></tr></tbody></table>
@@ -4999,9 +5008,15 @@ function cliPagNav(dir){
   renderClientes(_cliFiltrado);
 }
 function cliIrPag(p){_cliPagAtual=p;renderClientes(_cliFiltrado);}
-function filtrarClientes(q){
+function filtrarClientes(){
+  var q=((document.getElementById('cli-busca')||{}).value||'').toLowerCase().trim();
+  var tag=(document.getElementById('cli-filtro-tag')||{}).value||'';
   _cliPagAtual=0;
-  renderClientes(todosClientes.filter(function(c){return(c.email||'').toLowerCase().includes(q.toLowerCase())}));
+  renderClientes(todosClientes.filter(function(c){
+    var matchTxt=!q||(c.email||'').toLowerCase().includes(q)||(c.nome||'').toLowerCase().includes(q);
+    var matchTag=!tag||tagCliente(c).l===tag;
+    return matchTxt&&matchTag;
+  }));
 }
 async function excluirCliente(email){
   if(!confirm('⚠️ Excluir o cliente "'+email+'" do sistema?\n\nIsso remove perfil, pontos e tickets. Pedidos são mantidos.\nEsta ação NÃO pode ser desfeita!'))return;
